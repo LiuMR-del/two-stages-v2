@@ -26,7 +26,7 @@ describe('SettingsStore', () => {
     dirs.push(d)
     const s = new SettingsStore(path.join(d, 'settings.json')).get()
     expect(s.image).toMatchObject({ model: 'gpt-image-2', concurrency: 2, timeoutSec: 300, sendFidelity: true })
-    expect(s.analysis).toMatchObject({ model: 'gpt-5.5', concurrency: 3, timeoutSec: 60 })
+    expect(s.analysis).toMatchObject({ model: 'gpt-5.6', concurrency: 3, timeoutSec: 60 })
     expect(s.routeThreshold).toBe(0.7)
     expect(s.padSquare).toBe(true)
     expect(s.blankImage).toBe(true)

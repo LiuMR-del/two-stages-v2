@@ -57435,7 +57435,7 @@ var ImageApiSchema = external_exports.object({
 var AnalysisApiSchema = external_exports.object({
   baseUrl: analysisFields.baseUrl.default(""),
   apiKey: analysisFields.apiKey.default(""),
-  model: analysisFields.model.default("gpt-5.5"),
+  model: analysisFields.model.default("gpt-5.6"),
   concurrency: analysisFields.concurrency.default(3),
   timeoutSec: analysisFields.timeoutSec.default(60)
 });

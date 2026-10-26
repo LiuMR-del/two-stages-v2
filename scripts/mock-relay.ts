@@ -113,7 +113,7 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
 
   app.get('/v1/models', (_req, res) => {
     entries.push({ at: Date.now(), endpoint: 'models', behavior: 'ok', status: 200, fields: {}, images: [] })
-    res.json({ object: 'list', data: [{ id: 'gpt-image-2' }, { id: 'gpt-5.5' }] })
+    res.json({ object: 'list', data: [{ id: 'gpt-image-2' }, { id: 'gpt-5.6' }] })
   })
 
   app.post('/v1/images/edits', upload.any(), async (req, res) => {

@@ -23,7 +23,7 @@ const imageApi = (o: Partial<ImageApi> = {}): ImageApi => ({
   fidelityAutoDisabled: false,
   ...o,
 })
-const chatApi = (): AnalysisApi => ({ baseUrl: mock.url, apiKey: 'sk-test-key-0000', model: 'gpt-5.5', concurrency: 3, timeoutSec: 30 })
+const chatApi = (): AnalysisApi => ({ baseUrl: mock.url, apiKey: 'sk-test-key-0000', model: 'gpt-5.6', concurrency: 3, timeoutSec: 30 })
 
 async function img(w = 64, h = 64) {
   return { buffer: await png(w, h), mime: 'image/png', filename: 'a.png' }
