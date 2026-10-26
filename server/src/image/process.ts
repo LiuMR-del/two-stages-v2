@@ -23,6 +23,11 @@ export async function toPng(buf: Buffer): Promise<Buffer> {
   return sharp(buf).rotate().png().toBuffer()
 }
 
+/** 生图模型有时返回带透明区域的 PNG；主图要求纯白底，透明处在很多看图软件里还会显示成黑色 */
+export async function flattenWhite(buf: Buffer): Promise<Buffer> {
+  return sharp(buf).rotate().flatten({ background: WHITE }).png().toBuffer()
+}
+
 export async function capEdge(buf: Buffer, maxEdge = MAIN_MAX_EDGE): Promise<Buffer> {
   const { width, height } = await readSize(buf)
   if (Math.max(width, height) <= maxEdge) return sharp(buf).rotate().png().toBuffer()

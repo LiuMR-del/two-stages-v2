@@ -46,12 +46,12 @@ function sampleLib(): Library {
         { id: 's_h', name: '横版', ratio: '3:2', whiteImage: H1 },
         { id: 's_v', name: '竖版', ratio: '2:3', whiteImage: null },
       ],
-      templates: [{ id: 't_room', name: '客厅场景', prompt: '把第二张图片贴到第一张图片的{品类}·{款式}画面上', images: { s_h: H2 } }],
+      templates: [{ id: 't_room', name: '客厅场景', prompt: '把第二张图片贴到第一张图片的{品类}·{款式}画面上', images: { s_h: H2 }, canvasRatio: null }],
     },
     {
       id: 'c_mug', name: '杯子', hint: '', extractPrompt: '只提取{品类}杯身图案，比例 {比例}', activeTemplate: 't_x',
       styles: [{ id: 's_m', name: '', ratio: '1:1', whiteImage: null }],
-      templates: [{ id: 't_x', name: '无图模版', prompt: '把第二张图片印到杯子上', images: {} }],
+      templates: [{ id: 't_x', name: '无图模版', prompt: '把第二张图片印到杯子上', images: {}, canvasRatio: null }],
     },
   )
   return lib
@@ -101,6 +101,17 @@ describe('buildMainRequest', () => {
     ])
     expect(r.prefix).toBe('[Canvas: 2:3 portrait format] 第一张图片是素材图。\n')
     expect(r.size).toBe('1024x1536')
+  })
+
+  it('自定义模版指定了主图比例：没有参考图时画布和 size 按它算，有参考图时仍按参考图', async () => {
+    const lib = sampleLib()
+    const cat = lib.categories[0]!
+    cat.templates[0]!.canvasRatio = '1:1'
+    const noRef = await buildMainRequest(mainPlanFor(lib, cat, cat.styles[1]!, 't_room').main, '2:3', dims)
+    expect(noRef.prefix).toBe('[Canvas: 1:1 square format] 第一张图片是素材图。\n')
+    expect(noRef.size).toBe('1024x1024')
+    const withRef = await buildMainRequest(mainPlanFor(lib, cat, cat.styles[0]!, 't_room').main, '3:2', dims)
+    expect(withRef.prefix.startsWith('[Canvas: 4:5 portrait format]')).toBe(true)
   })
 
   it('默认模版缺白底图时标出 missingWhite', () => {

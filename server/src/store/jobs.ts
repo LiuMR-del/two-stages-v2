@@ -37,6 +37,7 @@ const PlanMainSchema = z.object({
   templateName: z.string(),
   prompt: z.string(),
   image: z.object({ role: z.enum(['白底图', '参考图']), hash: z.string() }).nullable(),
+  canvasRatio: z.string().nullable().optional(),
 })
 
 export const JobSchema = z.object({

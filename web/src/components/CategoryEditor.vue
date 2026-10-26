@@ -54,6 +54,7 @@ const saveHint = saver((v) => api.patch(base.value, { hint: v }))
 const saveStyleName = (sid: string) => saver((v) => api.patch(`${base.value}/styles/${sid}`, { name: v }))
 const saveStyleRatio = (sid: string) => saver((v) => api.patch(`${base.value}/styles/${sid}`, { ratio: v }))
 const saveTplName = (tid: string) => saver((v) => api.patch(`${base.value}/templates/${tid}`, { name: v }))
+const saveTplCanvas = (tid: string) => saver((v) => api.patch(`${base.value}/templates/${tid}`, { canvasRatio: v.trim() || null }))
 const saveExtract = saver((v) => api.patch(base.value, { extractPrompt: v }))
 
 async function deleteCategory() {
@@ -265,6 +266,8 @@ function coverageOf(s: Style): { dot: string; text: string } {
           <span class="k"></span>
           <div class="v edit-row">
             模版名称 <AutoText :key="tpl.id" :value="tpl.name" :save="saveTplName(tpl.id)" label="模版名称" />
+            主图比例 <AutoText :key="tpl.id + 'c'" :value="tpl.canvasRatio ?? ''" :save="saveTplCanvas(tpl.id)" label="主图比例" placeholder="跟款式比例" />
+            <span class="muted tiny">没有参考图时，主图按这个比例生成，如 1:1</span>
             <button type="button" class="btn txt sm rd" @click="deleteTemplate"><Trash2 aria-hidden="true" />{{ confirmDeleteTpl ? '再点一次确认删除' : '删除这个模版' }}</button>
           </div>
         </template>

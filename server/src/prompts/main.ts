@@ -9,6 +9,8 @@ export type PlanMain = {
   templateName: string
   prompt: string
   image: null | { role: PlanImageRole; hash: string }
+  /** 自定义模版指定的主图画布比例，只在没有参考图时生效 */
+  canvasRatio?: string | null
 }
 
 export const DEFAULT_TEMPLATE_NAME = '默认 · 贴图'
@@ -45,6 +47,7 @@ export function mainPlanFor(
       templateName: tpl.name,
       prompt: fillPlaceholders(tpl.prompt, values),
       image: ref ? { role: '参考图', hash: ref } : null,
+      canvasRatio: tpl.canvasRatio ?? null,
     },
     missingWhite: false,
     scope: `「${cat.name}」所有款式共用`,
@@ -76,7 +79,8 @@ export function roleSentence(roles: string[]): string {
 
 /**
  * 配方卡预览和流水线 ③ 共用：界面上显示的编号、前置句、提示词，就是实际发送的内容。
- * 有第一张图时画布按它的实际宽高算，没有时按款式比例算；前置句里的比例和 size 来自同一组宽高。
+ * 有第一张图时画布按它的实际宽高算；没有时按模版指定的主图比例，再没有就按款式比例。
+ * 前置句里的比例和 size 来自同一组宽高。
  */
 export async function buildMainRequest(
   main: PlanMain,
@@ -102,7 +106,7 @@ export async function buildMainRequest(
     w = d.width
     h = d.height
   } else {
-    ;[w, h] = ratioToWH(ratio)
+    ;[w, h] = ratioToWH(main.canvasRatio || ratio)
   }
   const canvas = canvasFor(w, h)
   return {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import sharp from 'sharp'
-import { capBytes, capEdge, forceSize, padSquare, shrinkForAnalysis, thumb, toPng, sniffImageType } from '../../server/src/image/process'
+import { capBytes, capEdge, flattenWhite, forceSize, padSquare, shrinkForAnalysis, thumb, toPng, sniffImageType } from '../../server/src/image/process'
 import { jpeg, noisyPng, png, size } from '../helpers'
 
 describe('image/process', () => {
@@ -12,6 +12,14 @@ describe('image/process', () => {
     const out = await toPng(src)
     expect(sniffImageType(out)).toBe('png')
     expect(await size(out)).toEqual([20, 40])
+  })
+
+  it('flattenWhite 把透明区域压成纯白、去掉透明通道', async () => {
+    const transparent = await sharp({ create: { width: 20, height: 10, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer()
+    const out = await flattenWhite(transparent)
+    const { data, info } = await sharp(out).raw().toBuffer({ resolveWithObject: true })
+    expect(info.channels).toBe(3)
+    expect(Array.from(data.subarray(0, 3))).toEqual([255, 255, 255])
   })
 
   it('capEdge 只缩不放', async () => {

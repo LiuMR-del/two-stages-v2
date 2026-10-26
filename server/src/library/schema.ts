@@ -18,6 +18,8 @@ export const TemplateSchema = z.object({
   name: z.string().min(1).max(30),
   prompt: z.string(),
   images: z.record(z.string(), Hash),
+  /** 没有参考图时主图画布用的比例；null 表示跟款式比例 */
+  canvasRatio: Ratio.nullable().default(null),
 })
 
 export const CategorySchema = z.object({

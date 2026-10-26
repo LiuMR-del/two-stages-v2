@@ -127,6 +127,18 @@ describe('模版库接口', () => {
     expect(rv.body.warnings[0]).toContain('提示词里提到「第 2 张」图片，但这里只会发送 1 张')
   })
 
+  it('自定义模版可以设主图比例：格式校验、清空回到跟款式比例、配方预览同步', async () => {
+    const bad = await api.json('PATCH', `/library/categories/${cid}/templates/${tid}`, { canvasRatio: '1x1' })
+    expect(bad.status).toBe(400)
+    const ok = await api.json('PATCH', `/library/categories/${cid}/templates/${tid}`, { canvasRatio: ' 1 : 1 ' })
+    expect(ok.body.library.categories[0].templates[0].canvasRatio).toBe('1:1')
+    const rv = await api.json('GET', `/library/recipe?cid=${cid}&sid=${sV}&tid=${tid}`)
+    expect(rv.body.prefix).toBe('[Canvas: 1:1 square format] 第一张图片是素材图。\n')
+    expect(rv.body.size).toBe('1024x1024')
+    const clr = await api.json('PATCH', `/library/categories/${cid}/templates/${tid}`, { canvasRatio: '' })
+    expect(clr.body.library.categories[0].templates[0].canvasRatio).toBeNull()
+  })
+
   it('删除使用中的模版，回到默认模版；删除款式会去掉它的参考图', async () => {
     const t2 = await api.json('POST', `/library/categories/${cid}/templates`, { name: '临时', prompt: 'x' })
     const id2 = t2.body.template.id

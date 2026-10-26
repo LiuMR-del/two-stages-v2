@@ -1,7 +1,7 @@
 // 与 server/src 里 zod 推导出的类型保持一致
 
 export type Style = { id: string; name: string; ratio: string; whiteImage: string | null }
-export type Template = { id: string; name: string; prompt: string; images: Record<string, string> }
+export type Template = { id: string; name: string; prompt: string; images: Record<string, string>; canvasRatio: string | null }
 export type Category = {
   id: string
   name: string
@@ -88,7 +88,7 @@ export type Job = {
   }
   plan: null | {
     extractPrompt: string
-    main: { templateId: string; templateName: string; prompt: string; image: null | { role: '白底图' | '参考图'; hash: string } }
+    main: { templateId: string; templateName: string; prompt: string; image: null | { role: '白底图' | '参考图'; hash: string }; canvasRatio?: string | null }
   }
   steps: StepRecord[]
   info: null | { scene: string; keywords: string[]; customizable: string[]; blankItems: string[]; blankItemsEn: string[] }

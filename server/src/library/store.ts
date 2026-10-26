@@ -206,12 +206,12 @@ export const ops = {
     const c = findCat(lib, cid)
     const n = name.trim() || `自定义 ${c.templates.length + 1}`
     if (n.length > 30) throw new HttpError(400, '模版名称不能超过 30 个字')
-    const t = { id: newTemplateId(), name: n, prompt, images: {} as Record<string, string> }
+    const t = { id: newTemplateId(), name: n, prompt, images: {} as Record<string, string>, canvasRatio: null }
     c.templates.push(t)
     return t
   },
 
-  patchTemplate(lib: Library, cid: string, tid: string, p: { name?: string; prompt?: string }) {
+  patchTemplate(lib: Library, cid: string, tid: string, p: { name?: string; prompt?: string; canvasRatio?: string | null }) {
     const c = findCat(lib, cid)
     const t = c.templates.find((x) => x.id === tid)
     if (!t) throw new HttpError(404, '模版不存在，可能已被删除')
@@ -221,6 +221,7 @@ export const ops = {
       t.name = n
     }
     if (p.prompt !== undefined) t.prompt = p.prompt
+    if (p.canvasRatio !== undefined) t.canvasRatio = p.canvasRatio?.trim() ? checkRatio(p.canvasRatio) : null
     return t
   },
 

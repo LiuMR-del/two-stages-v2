@@ -3,7 +3,7 @@ import path from 'node:path'
 import type { StepHandler } from './types'
 import { buildMainRequest } from '../prompts/main'
 import { editImage, type ImageInput } from '../ai/imageClient'
-import { capBytes, capEdge, padSquare, readSize } from '../image/process'
+import { capBytes, capEdge, flattenWhite, padSquare, readSize } from '../image/process'
 import { sha256 } from '../library/images'
 import { planImageFile } from './plan'
 import { JOB_FILES, readInput, writeJobImage } from './files'
@@ -48,7 +48,7 @@ export const step2Main: StepHandler = async (ctx) => {
   const res = await ctx.retry(() =>
     editImage(ctx.env.settings().image, { images: inputs, prefix: req.prefix, prompt, size: req.size, signal: ctx.signal }, ctx.env.onFidelityDowngrade),
   )
-  let out = await capEdge(res.buffer, 2000)
+  let out = await capEdge(await flattenWhite(res.buffer), 2000)
   if (ctx.env.settings().padSquare) out = await padSquare(out)
   const capped = await capBytes(out)
   if (capped.shrunk) log.warn(`主图超过 9.5MB，已等比缩小：${ctx.job.source.originalName}`)

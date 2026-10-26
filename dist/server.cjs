@@ -58122,8 +58122,8 @@ async function readSize(buf) {
     format: meta3.format ?? "unknown"
   };
 }
-async function toPng(buf) {
-  return (0, import_sharp.default)(buf).rotate().png().toBuffer();
+async function flattenWhite(buf) {
+  return (0, import_sharp.default)(buf).rotate().flatten({ background: WHITE }).png().toBuffer();
 }
 async function capEdge(buf, maxEdge = MAIN_MAX_EDGE) {
   const { width, height } = await readSize(buf);
@@ -58261,7 +58261,9 @@ var TemplateSchema = external_exports.object({
   id: external_exports.string().min(1),
   name: external_exports.string().min(1).max(30),
   prompt: external_exports.string(),
-  images: external_exports.record(external_exports.string(), Hash)
+  images: external_exports.record(external_exports.string(), Hash),
+  /** 没有参考图时主图画布用的比例；null 表示跟款式比例 */
+  canvasRatio: Ratio.nullable().default(null)
 });
 var CategorySchema = external_exports.object({
   id: external_exports.string().min(1),
@@ -58591,7 +58593,7 @@ var ops = {
     const c = findCat(lib, cid);
     const n = name.trim() || `\u81EA\u5B9A\u4E49 ${c.templates.length + 1}`;
     if (n.length > 30) throw new HttpError(400, "\u6A21\u7248\u540D\u79F0\u4E0D\u80FD\u8D85\u8FC7 30 \u4E2A\u5B57");
-    const t = { id: newTemplateId(), name: n, prompt, images: {} };
+    const t = { id: newTemplateId(), name: n, prompt, images: {}, canvasRatio: null };
     c.templates.push(t);
     return t;
   },
@@ -58605,6 +58607,7 @@ var ops = {
       t.name = n;
     }
     if (p.prompt !== void 0) t.prompt = p.prompt;
+    if (p.canvasRatio !== void 0) t.canvasRatio = p.canvasRatio?.trim() ? checkRatio(p.canvasRatio) : null;
     return t;
   },
   deleteTemplate(lib, cid, tid) {
@@ -58661,7 +58664,8 @@ function mainPlanFor(lib, cat, style, templateId = cat.activeTemplate) {
       templateId: tpl.id,
       templateName: tpl.name,
       prompt: fillPlaceholders(tpl.prompt, values),
-      image: ref ? { role: "\u53C2\u8003\u56FE", hash: ref } : null
+      image: ref ? { role: "\u53C2\u8003\u56FE", hash: ref } : null,
+      canvasRatio: tpl.canvasRatio ?? null
     },
     missingWhite: false,
     scope: `\u300C${cat.name}\u300D\u6240\u6709\u6B3E\u5F0F\u5171\u7528`
@@ -58690,7 +58694,7 @@ async function buildMainRequest(main2, ratio, dimsOf) {
     h = d.height;
   } else {
     ;
-    [w, h] = ratioToWH(ratio);
+    [w, h] = ratioToWH(main2.canvasRatio || ratio);
   }
   const canvas = canvasFor(w, h);
   return {
@@ -59973,7 +59977,7 @@ function registerLibrary(r, ctx) {
     res.json({ template: t, ...libraryPayload(ctx) });
   });
   r.patch("/library/categories/:cid/templates/:tid", async (req, res) => {
-    const b = parseBody(external_exports.object({ name: external_exports.string().optional(), prompt: external_exports.string().optional() }), req.body);
+    const b = parseBody(external_exports.object({ name: external_exports.string().optional(), prompt: external_exports.string().optional(), canvasRatio: external_exports.string().nullable().optional() }), req.body);
     await store.mutate((d) => ops.patchTemplate(d, p(req, "cid"), p(req, "tid"), b));
     res.json(libraryPayload(ctx));
   });
@@ -60054,7 +60058,8 @@ var PlanMainSchema = external_exports.object({
   templateId: external_exports.string(),
   templateName: external_exports.string(),
   prompt: external_exports.string(),
-  image: external_exports.object({ role: external_exports.enum(["\u767D\u5E95\u56FE", "\u53C2\u8003\u56FE"]), hash: external_exports.string() }).nullable()
+  image: external_exports.object({ role: external_exports.enum(["\u767D\u5E95\u56FE", "\u53C2\u8003\u56FE"]), hash: external_exports.string() }).nullable(),
+  canvasRatio: external_exports.string().nullable().optional()
 });
 var JobSchema = external_exports.object({
   id: external_exports.string(),
@@ -60544,7 +60549,7 @@ var step1Extract = async (ctx) => {
   const res = await ctx.retry(
     () => editImage(ctx.env.settings().image, { images: [src], prefix: req.prefix, prompt: req.prompt, size: req.size, signal: ctx.signal }, ctx.env.onFidelityDowngrade)
   );
-  const png = await toPng(res.buffer);
+  const png = await flattenWhite(res.buffer);
   await writeJobImage(ctx.dir, "pattern", JOB_FILES.pattern, png);
   await writeOutput(ctx.env.outputDir(), ctx.job, "pattern", png);
   return {
@@ -60596,7 +60601,7 @@ var step2Main = async (ctx) => {
   const res = await ctx.retry(
     () => editImage(ctx.env.settings().image, { images: inputs, prefix: req.prefix, prompt, size: req.size, signal: ctx.signal }, ctx.env.onFidelityDowngrade)
   );
-  let out = await capEdge(res.buffer, 2e3);
+  let out = await capEdge(await flattenWhite(res.buffer), 2e3);
   if (ctx.env.settings().padSquare) out = await padSquare(out);
   const capped = await capBytes(out);
   if (capped.shrunk) log.warn(`\u4E3B\u56FE\u8D85\u8FC7 9.5MB\uFF0C\u5DF2\u7B49\u6BD4\u7F29\u5C0F\uFF1A${ctx.job.source.originalName}`);
@@ -60739,7 +60744,7 @@ var step4Blank = async (ctx) => {
   const res = await ctx.retry(
     () => editImage(ctx.env.settings().image, { images: [main2], prefix: canvas.prefix, prompt, size: canvas.size, signal: ctx.signal }, ctx.env.onFidelityDowngrade)
   );
-  const sized = await forceSize(res.buffer, width, height);
+  const sized = await forceSize(await flattenWhite(res.buffer), width, height);
   const { buffer } = await capBytes(sized);
   await writeJobImage(ctx.dir, "blank", JOB_FILES.blank, buffer);
   await writeOutput(ctx.env.outputDir(), ctx.job, "blank", buffer);

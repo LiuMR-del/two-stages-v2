@@ -110,7 +110,7 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
   })
 
   r.patch('/library/categories/:cid/templates/:tid', async (req, res) => {
-    const b = parseBody(z.object({ name: z.string().optional(), prompt: z.string().optional() }), req.body)
+    const b = parseBody(z.object({ name: z.string().optional(), prompt: z.string().optional(), canvasRatio: z.string().nullable().optional() }), req.body)
     await store.mutate((d) => ops.patchTemplate(d, p(req, 'cid'), p(req, 'tid'), b))
     res.json(libraryPayload(ctx))
   })

@@ -1,7 +1,7 @@
 import path from 'node:path'
 import type { StepHandler } from './types'
 import { editImage } from '../ai/imageClient'
-import { capBytes, forceSize, readSize } from '../image/process'
+import { capBytes, flattenWhite, forceSize, readSize } from '../image/process'
 import { canvasFor } from '../prompts/canvas'
 import { blankPrompt } from '../prompts/blank'
 import { sha256 } from '../library/images'
@@ -33,7 +33,7 @@ export const step4Blank: StepHandler = async (ctx) => {
   const res = await ctx.retry(() =>
     editImage(ctx.env.settings().image, { images: [main], prefix: canvas.prefix, prompt, size: canvas.size, signal: ctx.signal }, ctx.env.onFidelityDowngrade),
   )
-  const sized = await forceSize(res.buffer, width, height)
+  const sized = await forceSize(await flattenWhite(res.buffer), width, height)
   const { buffer } = await capBytes(sized)
   await writeJobImage(ctx.dir, 'blank', JOB_FILES.blank, buffer)
   await writeOutput(ctx.env.outputDir(), ctx.job, 'blank', buffer)

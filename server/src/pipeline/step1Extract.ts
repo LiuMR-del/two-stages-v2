@@ -3,7 +3,7 @@ import type { StepHandler } from './types'
 import { resolvePlan } from './plan'
 import { buildExtractRequest } from '../prompts/extract'
 import { editImage } from '../ai/imageClient'
-import { toPng } from '../image/process'
+import { flattenWhite } from '../image/process'
 import { JOB_FILES, readInput, writeJobImage } from './files'
 import { writeOutput } from './output'
 import { fidelityParams } from './params'
@@ -42,7 +42,7 @@ export const step1Extract: StepHandler = async (ctx) => {
   const res = await ctx.retry(() =>
     editImage(ctx.env.settings().image, { images: [src], prefix: req.prefix, prompt: req.prompt, size: req.size, signal: ctx.signal }, ctx.env.onFidelityDowngrade),
   )
-  const png = await toPng(res.buffer)
+  const png = await flattenWhite(res.buffer)
   await writeJobImage(ctx.dir, 'pattern', JOB_FILES.pattern, png)
   await writeOutput(ctx.env.outputDir(), ctx.job, 'pattern', png)
   return {
