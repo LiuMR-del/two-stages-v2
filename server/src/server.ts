@@ -13,6 +13,10 @@ import { registerEvents } from './api/events'
 import { registerLibrary } from './api/library'
 import { LibraryStore } from './library/store'
 import { computeChecks } from './library/checks'
+import { JobStore, withView } from './store/jobs'
+import { Scheduler } from './scheduler/scheduler'
+import { registerJobs } from './api/jobs'
+import { log } from './util/log'
 import { errorHandler, HttpError } from './api/util'
 
 export function readVersion(toolDir: string): string {
@@ -34,22 +38,37 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     backupsDir: paths.libraryBackupsDir,
   })
   library.onChange((lib) => bus.emit('library', { library: lib, checks: computeChecks(lib) }))
+  const jobs = new JobStore(paths.jobsDir, (job) => bus.emit('job', { job: withView(job) }))
+  let scheduler: Scheduler | null = null
+  const limiter = new Limiter(() => scheduler?.tick())
+  scheduler = new Scheduler({ jobs, library, settings, limiter, bus })
+  const sched = scheduler
+  library.onChange(() => sched.onLibraryChanged())
   const ctx: AppContext = {
     version: readVersion(paths.toolDir),
     paths,
     bus,
     settings,
-    limiter: new Limiter(),
+    limiter,
     library,
+    jobs,
+    scheduler: sched,
     sse: { clients: 0 },
     onSettingsSaved: () => {},
     start: async () => {
       await library.cleanOrphans()
+      const n = jobs.loadAll()
+      sched.recover()
+      if (n) log.info(`读取到 ${n} 个任务，从断点继续`)
+      sched.onLibraryChanged()
+      sched.tick()
     },
     stop: async () => {
-      ctx.limiter.dispose()
+      sched.stop()
+      limiter.dispose()
+      await jobs.flush()
     },
-    isIdle: () => true,
+    isIdle: () => sched.isIdle(),
   }
   const applyLimits = () => {
     const s = settings.get()
@@ -60,6 +79,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
   ctx.onSettingsSaved = () => {
     applyLimits()
     bus.emit('settings', { settings: settings.get() })
+    sched.onSettingsSaved()
   }
   return ctx
 }
@@ -74,6 +94,7 @@ export function createApp(ctx: AppContext): express.Express {
   registerSettings(api, ctx)
   registerEvents(api, ctx)
   registerLibrary(api, ctx)
+  registerJobs(api, ctx)
   api.use(() => {
     throw new HttpError(404, '接口不存在')
   })

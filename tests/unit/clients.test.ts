@@ -39,6 +39,11 @@ describe('imageClient', () => {
     expect(e.prompt).toBe('[Canvas: 3:2 landscape format] 提取')
   })
 
+  it('提示词里的换行原样发出，不被改成 \\r\\n', async () => {
+    await editImage(imageApi(), { images: [await img()], prefix: '[Canvas: 1:1 square format] 第一张图片是素材图。\n', prompt: '第一行\n第二行「中文」', size: '1024x1024' })
+    expect(mock.log()[0]!.prompt).toBe('[Canvas: 1:1 square format] 第一张图片是素材图。\n第一行\n第二行「中文」')
+  })
+
   it('多张图用 image[] 字段并保持顺序', async () => {
     await editImage(imageApi({ sendFidelity: false }), { images: [await img(10, 20), await img(30, 40)], prefix: '', prompt: 'p', size: '1024x1024' })
     const e = mock.log()[0]!

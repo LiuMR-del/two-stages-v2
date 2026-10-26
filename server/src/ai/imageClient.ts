@@ -3,6 +3,7 @@ import { AiError, CancelledError } from './errors'
 import { authHeaders, request } from './http'
 import type { Settings } from '../store/settings'
 import { log } from '../util/log'
+import { encodeMultipart, type Part } from './multipart'
 
 export type ImageInput = { buffer: Buffer; mime: string; filename: string }
 
@@ -36,22 +37,18 @@ export async function editImage(
   if (req.images.length === 0) throw new AiError('client', '没有要发送的图片')
 
   const send = async (withFidelity: boolean) => {
-    const form = new FormData()
-    form.append('model', api.model)
-    form.append('prompt', req.prefix + req.prompt)
+    const parts: Part[] = [
+      { name: 'model', value: api.model },
+      { name: 'prompt', value: req.prefix + req.prompt },
+    ]
     const field = req.images.length > 1 ? 'image[]' : 'image'
-    for (const img of req.images) {
-      form.append(field, new Blob([new Uint8Array(img.buffer)], { type: img.mime }), img.filename)
-    }
-    form.append('n', '1')
-    form.append('size', req.size)
-    if (withFidelity) {
-      form.append('quality', 'high')
-      form.append('input_fidelity', 'high')
-    }
+    for (const img of req.images) parts.push({ name: field, filename: img.filename, contentType: img.mime, data: img.buffer })
+    parts.push({ name: 'n', value: '1' }, { name: 'size', value: req.size })
+    if (withFidelity) parts.push({ name: 'quality', value: 'high' }, { name: 'input_fidelity', value: 'high' })
+    const { body, contentType } = encodeMultipart(parts)
     const res = await request(
       `${api.baseUrl}/images/edits`,
-      { method: 'POST', headers: authHeaders(api.apiKey), body: form },
+      { method: 'POST', headers: { ...authHeaders(api.apiKey), 'Content-Type': contentType }, body: new Uint8Array(body) },
       api.timeoutSec * 1000,
       req.signal,
     )

@@ -10,7 +10,7 @@ import { exportZip, importZip } from '../library/zip'
 import { UnsupportedImageError } from '../library/images'
 import { buildExtractRequest, extractPromptFor } from '../prompts/extract'
 
-export const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } })
+export const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 }, defParamCharset: 'utf8' })
 
 function fileOf(req: Request): Buffer {
   const f = req.file

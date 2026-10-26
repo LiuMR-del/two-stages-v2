@@ -44,6 +44,37 @@ export async function writeJsonAtomic(file: string, value: unknown): Promise<voi
   await writeFileAtomic(file, JSON.stringify(value, null, 2))
 }
 
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+/** 同步版：任务记录用它，保证接口返回的状态已经落盘，进程被杀也不会倒退 */
+export function writeFileAtomicSync(file: string, data: string | Buffer): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  const tmp = `${file}.tmp-${randomBytes(4).toString('hex')}`
+  const fd = fs.openSync(tmp, 'w')
+  try {
+    fs.writeFileSync(fd, data)
+    fs.fsyncSync(fd)
+  } finally {
+    fs.closeSync(fd)
+  }
+  for (let i = 0; ; i++) {
+    try {
+      fs.renameSync(tmp, file)
+      return
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code
+      if ((code === 'EPERM' || code === 'EBUSY') && i < 5) {
+        sleepSync(50)
+        continue
+      }
+      fs.rmSync(tmp, { force: true })
+      throw e
+    }
+  }
+}
+
 export function readJsonSync<T = unknown>(file: string): T | null {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8')) as T

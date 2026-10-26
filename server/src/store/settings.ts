@@ -8,23 +8,40 @@ import { registerSecret } from '../util/log'
 
 export const DEFAULT_OUTPUT_DIR = path.join('~', 'Downloads', '主图生成')
 
-const ImageApiSchema = z.object({
-  baseUrl: z.string().default(''),
-  apiKey: z.string().default(''),
-  model: z.string().default('gpt-image-2'),
-  concurrency: z.number().int().min(1).max(10).default(2),
-  timeoutSec: z.number().int().min(10).max(1800).default(300),
-  sendFidelity: z.boolean().default(true),
+const imageFields = {
+  baseUrl: z.string(),
+  apiKey: z.string(),
+  model: z.string(),
+  concurrency: z.number().int().min(1).max(10),
+  timeoutSec: z.number().int().min(10).max(1800),
+  sendFidelity: z.boolean(),
   // 中转站不认保真参数时由系统自动关闭，用户重新打开后清除
-  fidelityAutoDisabled: z.boolean().default(false),
+  fidelityAutoDisabled: z.boolean(),
+}
+const analysisFields = {
+  baseUrl: z.string(),
+  apiKey: z.string(),
+  model: z.string(),
+  concurrency: z.number().int().min(1).max(10),
+  timeoutSec: z.number().int().min(10).max(600),
+}
+
+const ImageApiSchema = z.object({
+  baseUrl: imageFields.baseUrl.default(''),
+  apiKey: imageFields.apiKey.default(''),
+  model: imageFields.model.default('gpt-image-2'),
+  concurrency: imageFields.concurrency.default(2),
+  timeoutSec: imageFields.timeoutSec.default(300),
+  sendFidelity: imageFields.sendFidelity.default(true),
+  fidelityAutoDisabled: imageFields.fidelityAutoDisabled.default(false),
 })
 
 const AnalysisApiSchema = z.object({
-  baseUrl: z.string().default(''),
-  apiKey: z.string().default(''),
-  model: z.string().default('gpt-5.5'),
-  concurrency: z.number().int().min(1).max(10).default(3),
-  timeoutSec: z.number().int().min(10).max(600).default(60),
+  baseUrl: analysisFields.baseUrl.default(''),
+  apiKey: analysisFields.apiKey.default(''),
+  model: analysisFields.model.default('gpt-5.5'),
+  concurrency: analysisFields.concurrency.default(3),
+  timeoutSec: analysisFields.timeoutSec.default(60),
 })
 
 export const SettingsSchema = z.object({
@@ -39,9 +56,10 @@ export const SettingsSchema = z.object({
 export type Settings = z.infer<typeof SettingsSchema>
 export type ApiKind = 'image' | 'analysis'
 
+// 不能用带 default 的 schema 再 .partial()：zod 4 会把没传的字段填成默认值，部分保存就把别的设置冲掉了
 export const SettingsPatchSchema = z.object({
-  image: ImageApiSchema.partial().optional(),
-  analysis: AnalysisApiSchema.partial().optional(),
+  image: z.object(imageFields).partial().optional(),
+  analysis: z.object(analysisFields).partial().optional(),
   outputDir: z.string().optional(),
   routeThreshold: z.number().min(0).max(1).optional(),
   padSquare: z.boolean().optional(),

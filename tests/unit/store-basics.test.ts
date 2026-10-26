@@ -45,6 +45,13 @@ describe('SettingsStore', () => {
     await store.update({ image: { apiKey: masked.image.apiKey, model: 'm2' } })
     expect(store.get().image.apiKey).toBe('sk-abcdefgh1234')
     expect(store.get().image.model).toBe('m2')
+    // 只传一个字段时，其他字段保持不变
+    const { SettingsPatchSchema } = await import('../../server/src/store/settings')
+    await store.update(SettingsPatchSchema.parse({ image: { apiKey: 'sk-zzzzzzzz5678' } }))
+    expect(store.get().image).toMatchObject({ baseUrl: 'https://relay.example.com', model: 'm2', apiKey: 'sk-zzzzzzzz5678' })
+    await store.update(SettingsPatchSchema.parse({ padSquare: false }))
+    expect(store.get().image.baseUrl).toBe('https://relay.example.com')
+    await store.update({ image: { apiKey: 'sk-abcdefgh1234' } })
     const reread = new SettingsStore(file).get()
     expect(reread.image.apiKey).toBe('sk-abcdefgh1234')
     expect(fs.readFileSync(file, 'utf8')).toContain('sk-abcdefgh1234')

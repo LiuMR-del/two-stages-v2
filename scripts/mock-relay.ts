@@ -42,7 +42,8 @@ export type MockLogEntry = {
 export type MockRelay = {
   port: number
   url: string
-  script(s: { image?: Behavior[]; chat?: Behavior[] }): void
+  /** route / info 只被对应类型的分析请求消费，优先于 chat */
+  script(s: { image?: Behavior[]; chat?: Behavior[]; route?: Behavior[]; info?: Behavior[] }): void
   setDefaultDelay(ms: number): void
   log(): MockLogEntry[]
   reset(): void
@@ -77,7 +78,7 @@ function defaultRoute(system: string) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export async function startMockRelay(opts: { port?: number } = {}): Promise<MockRelay> {
-  const queues: { image: Behavior[]; chat: Behavior[] } = { image: [], chat: [] }
+  const queues: { image: Behavior[]; chat: Behavior[]; route: Behavior[]; info: Behavior[] } = { image: [], chat: [], route: [], info: [] }
   const entries: MockLogEntry[] = []
   const stored = new Map<string, Buffer>()
   let defaultDelay = 0
@@ -92,13 +93,14 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     const body = req.body ?? {}
     if (Array.isArray(body.image)) queues.image.push(...body.image)
     if (Array.isArray(body.chat)) queues.chat.push(...body.chat)
+    if (Array.isArray(body.route)) queues.route.push(...body.route)
+    if (Array.isArray(body.info)) queues.info.push(...body.info)
     if (typeof body.defaultDelayMs === 'number') defaultDelay = body.defaultDelayMs
-    res.json({ ok: true, pending: { image: queues.image.length, chat: queues.chat.length } })
+    res.json({ ok: true, pending: { image: queues.image.length, chat: queues.chat.length, route: queues.route.length, info: queues.info.length } })
   })
   app.get('/__mock/log', (_req, res) => res.json(entries))
   app.post('/__mock/reset', (_req, res) => {
-    queues.image.length = 0
-    queues.chat.length = 0
+    for (const q of Object.values(queues)) q.length = 0
     entries.length = 0
     defaultDelay = 0
     res.json({ ok: true })
@@ -157,7 +159,7 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       return
     }
     const [w, h] = parseSize(fields.size)
-    const png = await sharp({ create: { width: w, height: h, channels: 3, background: colorFor(fields.prompt ?? '') } }).png().toBuffer()
+    const png = await sharp({ create: { width: w, height: h, channels: 3, background: colorFor((fields.prompt ?? '') + images.map((i) => i.sha256).join()) } }).png().toBuffer()
     const format = behavior === 'url' || behavior === 'binary' || behavior === 'b64' ? behavior : (b.format ?? 'b64')
     if (format === 'binary') {
       res.type('image/png').send(png)
@@ -207,7 +209,8 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       entries.push({ at: Date.now(), endpoint: 'chat/completions', behavior: 'ok', status: 200, fields: { model: String(body.model) }, images, kind, system, userText, messageCount: messages.length, maxTokens: body.max_tokens })
       return void res.json({ model: body.model, choices: [{ message: { role: 'assistant', content: 'h' } }] })
     }
-    const behavior: Behavior = queues.chat.shift() ?? 'ok'
+    const specific = kind === 'route' ? queues.route : kind === 'info' ? queues.info : null
+    const behavior: Behavior = specific?.shift() ?? queues.chat.shift() ?? 'ok'
     const entry: MockLogEntry = {
       at: Date.now(),
       endpoint: 'chat/completions',
@@ -255,14 +258,15 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     script(s) {
       if (s.image) queues.image.push(...s.image)
       if (s.chat) queues.chat.push(...s.chat)
+      if (s.route) queues.route.push(...s.route)
+      if (s.info) queues.info.push(...s.info)
     },
     setDefaultDelay(ms) {
       defaultDelay = ms
     },
     log: () => entries.slice(),
     reset() {
-      queues.image.length = 0
-      queues.chat.length = 0
+      for (const q of Object.values(queues)) q.length = 0
       entries.length = 0
       defaultDelay = 0
     },
