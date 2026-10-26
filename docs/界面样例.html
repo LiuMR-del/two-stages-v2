@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Two stages · 界面样例</title>
+<style>
+  :root{color-scheme:light dark}
+  body{margin:0;padding:24px;background:light-dark(#e9ebe8,#0b0c0c);min-height:100vh;box-sizing:border-box}
+  .wrap{max-width:1360px;margin:0 auto}
+  @media (max-width:600px){body{padding:8px}}
+</style>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+<div id="tsv2" aria-label="Two stages 重构版界面样例 v2">
+<style>
+#tsv2{
+  color-scheme: light dark;
+  --bg: light-dark(#f3f4f2,#101211);
+  --sf: light-dark(#ffffff,#191c1b);
+  --sf2: light-dark(#f7f8f6,#1f2321);
+  --hair: light-dark(#eaece9,#272c29);
+  --tx: light-dark(#1a1f1c,#e9ece9);
+  --sub: light-dark(#6f7872,#97a19b);
+  --faint: light-dark(#a5aca7,#68716c);
+  --ac: light-dark(#11805d,#45c69c);
+  --ac-ink: light-dark(#ffffff,#0b1d16);
+  --ac-soft: light-dark(#e7f3ee,#182f27);
+  --am: light-dark(#a95f0c,#efb066);
+  --am-soft: light-dark(#fdf3e3,#30261a);
+  --rd: light-dark(#bf3a3a,#f08b8b);
+  --rd-soft: light-dark(#fcecec,#352020);
+  --bl: light-dark(#2e62d6,#82aaff);
+  --bl-soft: light-dark(#ecf1fd,#1b2742);
+  --sh: light-dark(0 1px 2px rgba(15,25,20,.04),0 1px 2px rgba(0,0,0,.3));
+  --sh2: light-dark(0 12px 40px rgba(15,25,20,.12),0 12px 40px rgba(0,0,0,.5));
+  container-type:inline-size;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  font-size:13px;line-height:1.55;color:var(--tx);background:var(--bg);
+  border-radius:16px;overflow:hidden;position:relative;border:1px solid var(--hair);
+}
+#tsv2 *{box-sizing:border-box}
+#tsv2 [hidden]{display:none !important}
+#tsv2 button{font:inherit;color:inherit;cursor:pointer}
+#tsv2 svg{width:15px;height:15px;flex:none}
+#tsv2 .top{display:flex;align-items:center;gap:20px;padding:12px 22px;background:var(--sf);border-bottom:1px solid var(--hair)}
+#tsv2 .brand{display:flex;align-items:center;gap:9px}
+#tsv2 .brand .m{width:26px;height:26px;border-radius:8px;background:var(--ac);color:var(--ac-ink);display:grid;place-items:center;font-weight:500;font-size:12px}
+#tsv2 .brand b{font-weight:500;font-size:15px;white-space:nowrap}
+#tsv2 .brand span:last-child{white-space:nowrap}
+@container (max-width: 640px){#tsv2 .brand span:last-child,#tsv2 .ok{display:none !important}#tsv2 .top{gap:10px;padding:10px 14px}#tsv2 .page{padding:14px}}
+#tsv2 .brand span{color:var(--sub)}
+#tsv2 .seg{display:inline-flex;background:var(--sf2);border-radius:10px;padding:3px;gap:2px}
+#tsv2 .seg button{border:0;background:transparent;padding:5px 14px;border-radius:8px;color:var(--sub);display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+#tsv2 .seg button[aria-selected="true"]{background:var(--sf);color:var(--tx);box-shadow:var(--sh);font-weight:500}
+#tsv2 .seg .n{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+#tsv2 .seg .n.am{color:var(--am)}
+#tsv2 .fill{flex:1}
+#tsv2 .ok{display:inline-flex;align-items:center;gap:6px;color:var(--sub);font-size:12px}
+#tsv2 .dot{width:7px;height:7px;border-radius:50%;background:var(--ac);display:inline-block;flex:none}
+#tsv2 .dot.am{background:var(--am)}#tsv2 .dot.rd{background:var(--rd)}#tsv2 .dot.bl{background:var(--bl)}#tsv2 .dot.gr{background:var(--faint)}
+#tsv2 .ib{border:0;background:transparent;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--sub)}
+#tsv2 .ib:hover{background:var(--sf2);color:var(--tx)}
+#tsv2 .btn{border:1px solid var(--hair);background:var(--sf);border-radius:9px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+#tsv2 .btn:hover{border-color:var(--faint)}
+#tsv2 .btn.pri{background:var(--ac);border-color:var(--ac);color:var(--ac-ink)}
+#tsv2 .btn.sm{padding:3px 9px;font-size:12px;border-radius:8px}
+#tsv2 .btn.txt{border-color:transparent;background:transparent;color:var(--ac);padding-left:4px;padding-right:4px}
+#tsv2 .btn.txt.rd{color:var(--rd)}
+#tsv2 .page{padding:20px 22px 26px;display:flex;flex-direction:column;gap:16px}
+#tsv2 .box{background:var(--sf);border-radius:14px;box-shadow:var(--sh);border:1px solid var(--hair)}
+#tsv2 .muted{color:var(--sub)}
+#tsv2 .small{font-size:12px}
+#tsv2 .pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:1px 9px;border-radius:999px;background:var(--sf2);color:var(--sub);white-space:nowrap}
+#tsv2 .pill.ac{background:var(--ac-soft);color:var(--ac)}
+#tsv2 .pill.am{background:var(--am-soft);color:var(--am)}
+#tsv2 .pill.rd{background:var(--rd-soft);color:var(--rd)}
+#tsv2 .pill.bl{background:var(--bl-soft);color:var(--bl)}
+
+/* images */
+#tsv2 .ph{position:relative;border-radius:10px;overflow:hidden;flex:none;background:var(--sf2)}
+#tsv2 .ph.w{background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+#tsv2 .ph .pd{position:absolute;box-shadow:0 3px 8px rgba(0,0,0,.18)}
+#tsv2 .ph .pd.blank{background:#ecebe7}
+#tsv2 .ph .hole{position:absolute;left:34%;top:36%;width:32%;height:28%;border-radius:3px;background:rgba(255,255,255,.88)}
+#tsv2 .ph.empty{background:transparent;border:1.5px dashed var(--hair);display:grid;place-items:center;color:var(--faint)}
+#tsv2 .ph.auto{background:repeating-linear-gradient(45deg,var(--sf2) 0 8px,transparent 8px 16px);border:1.5px dashed var(--faint);display:grid;place-items:center;color:var(--sub);text-align:center;font-size:11px;line-height:1.3}
+#tsv2 .ph.run{border:1.5px solid var(--bl);background:var(--bl-soft);display:grid;place-items:center;color:var(--bl)}
+#tsv2 .ph.err{border:1.5px solid var(--rd);background:var(--rd-soft);display:grid;place-items:center;color:var(--rd)}
+#tsv2 .spin{animation:tsv2s 1.1s linear infinite}
+@keyframes tsv2s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){#tsv2 .spin{animation:none}}
+
+/* workbench */
+#tsv2 .drop{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:14px;border:1.5px dashed var(--hair);background:var(--sf);flex-wrap:wrap}
+#tsv2 .drop .ic{width:40px;height:40px;border-radius:12px;background:var(--ac-soft);color:var(--ac);display:grid;place-items:center}
+#tsv2 .drop .t{flex:1;min-width:200px}
+#tsv2 .drop .t b{font-weight:500;display:block}
+#tsv2 .bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#tsv2 .bar .sum{margin-left:auto;display:flex;gap:16px;color:var(--sub);font-size:12px}
+#tsv2 .bar .sum i{font-style:normal;color:var(--tx);font-variant-numeric:tabular-nums}
+#tsv2 .notice{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:var(--am-soft);color:var(--am)}
+#tsv2 .notice .btn{margin-left:auto}
+#tsv2 .jobs{display:flex;flex-direction:column}
+#tsv2 .job{display:grid;grid-template-columns:minmax(220px,1.1fr) minmax(0,1.6fr) 130px;gap:18px;align-items:center;padding:14px 18px;border-top:1px solid var(--hair)}
+#tsv2 .job:first-child{border-top:0}
+#tsv2 .src{display:flex;gap:12px;align-items:center;min-width:0}
+#tsv2 .src .nm{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+#tsv2 .src .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:3px}
+#tsv2 .flow{display:flex;align-items:center;gap:8px}
+#tsv2 .tile{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:transparent;padding:0}
+#tsv2 .tile .lb{font-size:11px;color:var(--sub)}
+#tsv2 .tile:not([disabled]):hover .ph{outline:2px solid var(--ac);outline-offset:2px}
+#tsv2 .tile[disabled]{cursor:default}
+#tsv2 .arr{color:var(--faint);margin-bottom:18px}
+#tsv2 .st{display:flex;align-items:center;gap:7px;font-size:12px;white-space:nowrap}
+@container (max-width: 860px){
+  #tsv2 .job{grid-template-columns:1fr;gap:10px}
+}
+#tsv2 .exc{display:flex;gap:14px;align-items:center;padding:14px 18px;border-top:1px solid var(--hair);flex-wrap:wrap}
+#tsv2 .exc:first-child{border-top:0}
+#tsv2 .exc .why{flex:1;min-width:220px}
+#tsv2 .exc .why b{font-weight:500}
+#tsv2 .exc .fix{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#tsv2 select,#tsv2 input[type=text],#tsv2 input[type=password],#tsv2 textarea{font:inherit;color:var(--tx);background:var(--sf);border:1px solid var(--hair);border-radius:9px;padding:6px 10px}
+#tsv2 textarea{width:100%;resize:vertical;min-height:70px;line-height:1.6}
+#tsv2 .tbl{width:100%;border-collapse:collapse}
+#tsv2 .tbl th{font-weight:400;color:var(--sub);font-size:12px;text-align:left;padding:10px 16px;border-bottom:1px solid var(--hair)}
+#tsv2 .tbl td{padding:12px 16px;border-bottom:1px solid var(--hair);vertical-align:middle;font-size:12px}
+#tsv2 .tbl tr:last-child td{border-bottom:0}
+#tsv2 .kw{display:flex;gap:4px;flex-wrap:wrap}
+#tsv2 .cp{border:0;background:transparent;color:var(--faint);padding:2px;vertical-align:middle}
+#tsv2 .cp:hover{color:var(--ac)}
+#tsv2 .none{padding:30px;text-align:center;color:var(--sub)}
+
+/* recipe */
+#tsv2 .rcp{display:flex;align-items:stretch;gap:12px;flex-wrap:wrap}
+#tsv2 .slot{display:flex;flex-direction:column;gap:6px;width:132px}
+#tsv2 .slot .no{font-size:11px;font-weight:500;color:var(--ac);display:flex;align-items:center;gap:5px}
+#tsv2 .slot .no.off{color:var(--faint)}
+#tsv2 .slot .cap{font-size:12px;line-height:1.4}
+#tsv2 .slot .cap span{display:block;color:var(--sub);font-size:11px}
+#tsv2 .slot .acts{display:flex;gap:2px}
+#tsv2 .op{align-self:center;color:var(--faint);font-size:18px;padding-bottom:28px}
+#tsv2 .pbox{flex:1;min-width:240px;display:flex;flex-direction:column;gap:6px}
+#tsv2 .pbox .no{font-size:11px;font-weight:500;color:var(--ac)}
+#tsv2 .pbox .body{flex:1;background:var(--sf2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+#tsv2 .pbox .pre{font-size:12px;color:var(--sub);display:flex;gap:6px;align-items:flex-start;padding-bottom:6px;border-bottom:1px dashed var(--hair)}
+#tsv2 .pbox .txt{font-size:12.5px}
+#tsv2 .pbox .foot{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--sub)}
+#tsv2 .pbox .foot .btn{margin-left:auto}
+#tsv2 .warn{display:flex;gap:8px;align-items:center;padding:8px 12px;border-radius:10px;background:var(--am-soft);color:var(--am);font-size:12px;margin-top:12px}
+
+/* library */
+#tsv2 .lib{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}
+@container (max-width: 820px){#tsv2 .lib{grid-template-columns:1fr}}
+#tsv2 .cats{padding:8px}
+#tsv2 .cat{width:100%;border:0;background:transparent;display:flex;gap:10px;align-items:center;padding:8px;border-radius:11px;text-align:left}
+#tsv2 .cat:hover{background:var(--sf2)}
+#tsv2 .cat[aria-selected="true"]{background:var(--ac-soft)}
+#tsv2 .cat .nm{font-weight:500}
+#tsv2 .cat .ds{font-size:11px;color:var(--sub)}
+#tsv2 .cat .d2{margin-left:auto}
+#tsv2 .sep{height:1px;background:var(--hair);margin:6px 8px}
+#tsv2 .glob{width:36px;height:36px;border-radius:10px;background:var(--sf2);display:grid;place-items:center;color:var(--ac);flex:none}
+#tsv2 .cfoot{display:flex;gap:6px;padding:6px 8px 4px;flex-wrap:wrap}
+#tsv2 .cd{padding:22px 24px;display:flex;flex-direction:column;gap:20px}
+#tsv2 .cd-h{display:flex;align-items:flex-start;gap:12px}
+#tsv2 .cd-h h2{margin:0;font-size:18px;font-weight:500}
+#tsv2 .cd-h .hint{color:var(--sub);font-size:12px;display:flex;gap:4px;align-items:center;margin-top:2px}
+#tsv2 .cd-h .r{margin-left:auto}
+#tsv2 .ctl{display:grid;grid-template-columns:auto 1fr;gap:12px 16px;align-items:center}
+#tsv2 .ctl .k{color:var(--sub);font-size:12px;white-space:nowrap}
+#tsv2 .ctl .v{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#tsv2 .chips{display:inline-flex;gap:6px;flex-wrap:wrap}
+#tsv2 .chip{border:1px solid var(--hair);background:var(--sf);border-radius:999px;padding:4px 12px;display:inline-flex;gap:6px;align-items:center}
+#tsv2 .chip[aria-pressed="true"]{border-color:var(--ac);background:var(--ac-soft);color:var(--ac);font-weight:500}
+#tsv2 .chip .rt{font-size:11px;color:var(--faint);font-weight:400}
+#tsv2 .chip .star{font-size:10px;padding:0 6px;border-radius:999px;background:var(--ac);color:var(--ac-ink);font-weight:400}
+#tsv2 .chip.add{border-style:dashed;color:var(--sub)}
+#tsv2 .rc{border:1px solid var(--hair);border-radius:14px;padding:16px 18px}
+#tsv2 .rc-h{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+#tsv2 .rc-h b{font-weight:500}
+#tsv2 .rc-h .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+#tsv2 .cov{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--hair)}
+#tsv2 .cov button{border:0;background:var(--sf2);border-radius:9px;padding:4px 10px;display:inline-flex;gap:6px;align-items:center;font-size:12px}
+#tsv2 .cov button[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--ac)}
+#tsv2 .fold{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--sf2);flex-wrap:wrap}
+#tsv2 .fold .t{flex:1;min-width:200px}
+
+/* sheet & drawer */
+#tsv2 .mask{position:absolute;inset:0;background:rgba(10,15,12,.22);z-index:4}
+#tsv2 .sheet{position:absolute;top:0;right:0;bottom:0;width:min(640px,100%);background:var(--sf);box-shadow:var(--sh2);z-index:5;overflow:auto;display:flex;flex-direction:column}
+#tsv2 .sheet.narrow{width:min(400px,100%)}
+#tsv2 .sh-h{display:flex;gap:12px;align-items:center;padding:16px 20px;border-bottom:1px solid var(--hair)}
+#tsv2 .sh-h .r{margin-left:auto}
+#tsv2 .sh-b{padding:18px 20px;display:flex;flex-direction:column;gap:16px}
+#tsv2 .steps{display:flex;gap:4px;flex-wrap:wrap}
+#tsv2 .steps button{border:0;background:var(--sf2);border-radius:8px;padding:5px 10px;font-size:12px;display:inline-flex;gap:6px;align-items:center;color:var(--sub)}
+#tsv2 .steps button[aria-selected="true"]{background:var(--ac);color:var(--ac-ink)}
+#tsv2 .kv{display:grid;grid-template-columns:80px 1fr;gap:6px 12px}
+#tsv2 .kv dt{color:var(--sub);font-size:12px}
+#tsv2 .kv dd{margin:0}
+#tsv2 .redo{border-top:1px solid var(--hair);padding-top:14px;display:flex;flex-direction:column;gap:10px}
+#tsv2 .redo .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#tsv2 .redo .row .fill{flex:1}
+#tsv2 .grp{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:var(--sf2)}
+#tsv2 .grp h4{margin:0;font-size:13px;font-weight:500;display:flex;gap:7px;align-items:center}
+#tsv2 .fld{display:flex;flex-direction:column;gap:4px}
+#tsv2 .fld label{font-size:12px;color:var(--sub)}
+#tsv2 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#tsv2 .sw{display:flex;gap:8px;align-items:center;font-size:12px}
+#tsv2 .sw input{accent-color:var(--ac)}
+#tsv2 .toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:light-dark(#1a1f1c,#e9ece9);color:light-dark(#fff,#101211);padding:9px 16px;border-radius:10px;font-size:12px;z-index:9;max-width:90%;box-shadow:var(--sh2)}
+</style>
+
+<header class="top">
+  <div class="brand"><span class="m">TS</span><b>Two stages</b><span>主图批量生成</span></div>
+  <div class="seg" role="tablist" aria-label="页面">
+    <button type="button" role="tab" data-act="page" data-v="work" aria-selected="true">工作台</button>
+    <button type="button" role="tab" data-act="page" data-v="lib" aria-selected="false">模版库</button>
+  </div>
+  <div class="fill"></div>
+  <span class="ok"><span class="dot"></span>接口正常</span>
+  <button type="button" class="ib" data-act="settings" aria-label="设置"><i data-lucide="settings" aria-hidden="true"></i></button>
+</header>
+
+<section class="page" data-pg="work">
+  <div class="drop">
+    <div class="ic"><i data-lucide="image-plus" aria-hidden="true"></i></div>
+    <div class="t"><b>拖入或粘贴竞品图</b><span class="muted small">任意品类混在一起都行，运行中也能继续加</span></div>
+    <button type="button" class="btn">选择图片</button>
+    <button type="button" class="btn pri" data-act="append"><i data-lucide="plus" aria-hidden="true"></i>模拟追加 2 张</button>
+  </div>
+  <div class="bar">
+    <div class="seg" role="tablist" aria-label="视图" id="v2-wtabs"></div>
+    <div class="sum" id="v2-sum" aria-live="polite"></div>
+  </div>
+  <div id="v2-wbody"></div>
+</section>
+
+<section class="page" data-pg="lib" hidden>
+  <div class="lib">
+    <div class="box cats" id="v2-cats"></div>
+    <div class="box" id="v2-cd"></div>
+  </div>
+</section>
+
+<div id="v2-ov"></div>
+<div id="v2-toast"></div>
+
+<script>
+(() => {
+  const root = document.getElementById('tsv2');
+  const $ = s => root.querySelector(s);
+  const STEPS = ['识别品类', '提取素材', '生成主图', '信息识别', '空白图'];
+  const ART = {
+    blanket: 'repeating-linear-gradient(45deg,#e7aea6 0 7px,#f7e4cb 7px 14px)',
+    frame: 'radial-gradient(circle at 28% 70%,#f8c76f 0 17%,transparent 18%),linear-gradient(180deg,#5d8fd6,#f19c7c)',
+    mat: 'conic-gradient(from 45deg,#2f6f62 0 25%,#ead9b3 0 50%,#2f6f62 0 75%,#ead9b3 0)',
+    lamp: 'radial-gradient(circle at 50% 42%,#ffd75e 0 16%,transparent 17%),linear-gradient(180deg,#25334b,#3d5c49)',
+    tee: 'radial-gradient(circle at 50% 46%,#ee6d6a 0 24%,transparent 25%),#f3f2ee',
+    mug: 'linear-gradient(135deg,#9cc8e9 0 50%,#f3e6d1 50%)',
+    pillow: 'repeating-radial-gradient(circle at 50% 50%,#c7a0d6 0 5px,#f4ebf7 5px 10px)'
+  };
+  const SHAPE = {
+    blanket: 'left:14%;top:18%;right:14%;bottom:18%;border-radius:8px;transform:rotate(-4deg)',
+    frame: 'left:16%;top:22%;right:16%;bottom:22%;border-radius:2px;border:3px solid #3a3a3a',
+    frameV: 'left:26%;top:14%;right:26%;bottom:14%;border-radius:2px;border:3px solid #3a3a3a',
+    mat: 'left:10%;top:30%;right:10%;bottom:30%;border-radius:5px',
+    lamp: 'left:30%;top:20%;right:30%;bottom:34%;border-radius:50%',
+    tee: 'left:22%;top:16%;right:22%;bottom:16%;border-radius:12px 12px 6px 6px',
+    mug: 'left:26%;top:24%;right:26%;bottom:24%;border-radius:6px'
+  };
+  const shapeOf = (cat, style) => cat === '相框' ? (style === '竖版' ? 'frameV' : 'frame') : ({ 毛毯: 'blanket', 地垫: 'mat', 花园灯: 'lamp', T恤: 'tee', 杯子: 'mug' }[cat] || 'mug');
+
+  // kinds: src | pattern | white | main | blank | scene
+  function ph(kind, art, shape, size) {
+    const st = 'width:' + size + 'px;height:' + size + 'px';
+    if (kind === 'src' || kind === 'pattern') return '<div class="ph" style="' + st + ';background:' + ART[art] + '"></div>';
+    if (kind === 'white') return '<div class="ph w" style="' + st + '"><div class="pd blank" style="' + SHAPE[shape] + '"></div></div>';
+    if (kind === 'scene') return '<div class="ph" style="' + st + ';background:linear-gradient(180deg,#e9e3d8 0 70%,#c9b9a2 70%)"><div class="pd blank" style="' + SHAPE[shape] + '"></div></div>';
+    if (kind === 'main' || kind === 'blank') return '<div class="ph w" style="' + st + '"><div class="pd" style="' + SHAPE[shape] + ';background:' + ART[art] + '">' + (kind === 'blank' ? '<div class="hole"></div>' : '') + '</div></div>';
+    return '';
+  }
+  const phState = (cls, inner, size) => '<div class="ph ' + cls + '" style="width:' + size + 'px;height:' + size + 'px">' + inner + '</div>';
+
+  const DEFAULT_EXTRACT = '这是一张{品类}商品图。识别商品表面印刷的图案，把它完整提取出来还原成平面设计稿：去掉商品外形、透视、褶皱、光影和背景；图案的构图、文字、颜色保持不变，不重绘、不增删；高清输出，比例 {比例}。';
+  const lib = {
+    extract: DEFAULT_EXTRACT,
+    paste: '请自动识别商品底图中用于承载图案的表面及其边界，将素材图直接贴满该区域，贴合原有透视，不额外留白边，不超出边界。直接使用原素材，不重绘，不修改文字、图案和排版。底图的商品外形、比例、角度、材质、光影、背景、构图及图片尺寸保持不变，只完成贴图，不做其他改动。',
+    cats: [
+      { name: '毛毯', hint: '盖毯/沙发毯，图案印满整块毯面', active: 'default', extract: null,
+        styles: [{ name: '', ratio: '5:4' }], white: { '': true }, tpls: [] },
+      { name: '相框', hint: '挂墙帆布画/相框，图案印在矩形画面上', active: 't1', extract: null,
+        styles: [{ name: '横版', ratio: '3:2' }, { name: '竖版', ratio: '2:3' }], white: { 横版: true, 竖版: true },
+        tpls: [{ id: 't1', name: '客厅场景', prompt: '把第二张图片完整贴到第一张图片里墙上挂画的画面区域，保留原图所有内容与文字，不裁切不变形；保持房间的光线、透视和陈设不变，画布有真实的厚度与投影。', imgs: { 横版: true } }] },
+      { name: '地垫', hint: '门垫/地毯，俯拍或斜拍', active: 'default', extract: null,
+        styles: [{ name: '', ratio: '3:2' }], white: { '': true }, tpls: [] },
+      { name: '花园灯', hint: '太阳能花园灯，图案印在亚克力牌上', active: 'default', extract: '这是一张花园灯商品图。只提取亚克力牌面上的图案，忽略灯体与花园背景，还原成平面设计稿，比例 {比例}。',
+        styles: [{ name: '', ratio: '1:1' }], white: { '': false }, tpls: [] }
+    ]
+  };
+  const cat = n => lib.cats.find(c => c.name === n);
+  const sName = s => s || '单款式';
+
+  // what will be sent for (category, style, template)
+  function mainRecipe(cn, style, tid) {
+    const c = cat(cn); const t = tid === 'default' ? null : c.tpls.find(x => x.id === tid);
+    const shape = shapeOf(cn, style);
+    const inputs = [];
+    if (!t) inputs.push({ role: '白底图', sub: (style ? style + '专用' : '本品类') + ' · 必需', has: !!c.white[style], kind: 'white', shape, required: true, slot: 'white' });
+    else inputs.push({ role: '参考图', sub: (style ? style + '专用' : '本品类') + ' · 可选', has: !!(t.imgs || {})[style], kind: 'scene', shape, required: false, slot: 'tpl' });
+    inputs.push({ role: '素材图', sub: '运行时自动填入 · ' + (c.styles.find(s => s.name === style) || c.styles[0]).ratio, auto: true });
+    const prompt = t ? t.prompt : lib.paste;
+    const scope = t ? '「' + c.name + '」所有款式共用' : '全局共用 · 所有品类';
+    return { inputs, prompt, scope, tplName: t ? t.name : '默认 · 贴图', missing: !t && !c.white[style] };
+  }
+  function sentList(inputs) { return inputs.filter(i => i.auto || i.has); }
+  function prefixOf(inputs) {
+    const s = sentList(inputs);
+    return s.map((x, i) => '第' + '一二三四'[i] + '张是' + x.role).join('，') + '。';
+  }
+  function refWarn(prompt, inputs) {
+    const n = sentList(inputs).length; const map = { 一: 1, 二: 2, 三: 3, 四: 4 };
+    let max = 0; (prompt.match(/第([一二三四])张/g) || []).forEach(m => { max = Math.max(max, map[m[1]]); });
+    return max > n ? '提示词里提到「第' + '一二三四'[max - 1] + '张」图片，但这里只会发送 ' + n + ' 张。请上传参考图，或改写提示词。' : '';
+  }
+
+  function recipeHtml(r, opts) {
+    opts = opts || {};
+    let k = 0;
+    const slots = r.inputs.map(inp => {
+      const sent = inp.auto || inp.has;
+      const no = sent ? '图 ' + (++k) : '不发送';
+      let pic;
+      if (inp.auto) pic = opts.pattern ? opts.pattern : phState('auto', '素材图<br>自动填入', 120);
+      else if (inp.has) pic = opts.fixedImg && inp.fixed ? inp.fixed : ph(inp.kind, null, inp.shape, 120);
+      else pic = phState('empty', '<span style="text-align:center;font-size:11px;line-height:1.4">' + (inp.required ? '缺白底图' : '未上传') + '</span>', 120);
+      if (inp.preset) pic = inp.preset;
+      const acts = opts.readonly || inp.auto || inp.preset ? '' :
+        '<div class="acts"><button type="button" class="btn txt sm" data-act="up" data-slot="' + inp.slot + '">' + (inp.has ? '替换' : '上传') + '</button>' +
+        (inp.has ? '<button type="button" class="btn txt sm rd" data-act="rm" data-slot="' + inp.slot + '">移除</button>' : '') + '</div>';
+      return '<div class="slot"><div class="no' + (sent ? '' : ' off') + '">' + no + '</div>' + pic +
+        '<div class="cap">' + inp.role + '<span>' + inp.sub + '</span></div>' + acts + '</div><span class="op">+</span>';
+    }).join('');
+    const warn = refWarn(r.prompt, r.inputs);
+    const pbox = '<div class="pbox"><div class="no">提示词</div><div class="body">' +
+      '<div class="pre"><i data-lucide="lock" aria-hidden="true"></i><span>系统自动加在最前面：' + prefixOf(r.inputs) + '</span></div>' +
+      '<div class="txt">' + r.prompt + '</div>' +
+      '<div class="foot"><span>' + r.scope + '</span>' + (opts.readonly ? '' : '<button type="button" class="btn txt sm" data-act="editprompt">编辑</button>') + '</div></div></div>';
+    const out = opts.out ? '<span class="op">→</span><div class="slot"><div class="no">结果</div>' + opts.out + '<div class="cap">' + (opts.outLabel || '主图') + '</div></div>' : '';
+    return '<div class="rcp">' + slots + pbox + out + '</div>' +
+      (r.missing && !opts.readonly ? '<div class="warn"><i data-lucide="triangle-alert" aria-hidden="true"></i>没有白底图时，这个款式的图会进入「需处理」，不会在缺图的情况下生成。</div>' : '') +
+      (warn ? '<div class="warn"><i data-lucide="triangle-alert" aria-hidden="true"></i>' + warn + '</div>' : '');
+  }
+
+  // ---------- jobs ----------
+  let items = [
+    { id: 1, file: 'blanket_mom_01.jpg', art: 'blanket', cat: '毛毯', style: '', conf: 0.96, why: '可见折叠的绒面毯与流苏边，图案铺满毯面',
+      steps: ['done', 'done', 'done', 'done', 'done'], blank: ['名字', '照片'],
+      info: { scene: '母亲节送妈妈的定制照片毛毯，适合沙发午休保暖', kw: ['personalized blanket', 'mom gifts', 'custom photo throw', 'mothers day gift'], cust: ['名字', '照片', '祝福语'] } },
+    { id: 2, file: 'canvas_family_02.png', art: 'frame', cat: '相框', style: '横版', conf: 0.91, why: '墙上悬挂的矩形帆布画，宽大于高', steps: ['done', 'done', 'run', 'wait', 'wait'] },
+    { id: 3, file: 'doormat_dog_03.jpg', art: 'mat', cat: '地垫', style: '', conf: 0.88, why: '门口地面上的长方形垫子', steps: ['done', 'run', 'wait', 'wait', 'wait'] },
+    { id: 4, file: 'solar_lamp_04.jpg', art: 'lamp', cat: null, style: '', steps: ['run', 'wait', 'wait', 'wait', 'wait'] },
+    { id: 5, file: 'mug_dad_05.jpg', art: 'mug', cat: null, style: '', steps: ['wait', 'wait', 'wait', 'wait', 'wait'] },
+    { id: 6, file: 'tshirt_grandpa_06.jpg', art: 'tee', cat: null, style: '', steps: ['err', 'wait', 'wait', 'wait', 'wait'],
+      exc: { kind: 'nomatch', guess: 'T恤', title: '没找到对应品类', msg: 'AI 判断是「T恤」（置信度 0.93），模版库里还没有这个品类' } },
+    { id: 7, file: 'canvas_pet_07.jpg', art: 'frame', cat: '相框', style: '竖版', conf: 0.94, why: '竖向帆布画', steps: ['done', 'done', 'err', 'wait', 'wait'],
+      exc: { kind: 'fail', step: 2, title: '生成主图失败', msg: '重试 4 次仍失败（502 Bad Gateway）' } }
+  ];
+  let seq = 8; const pool = [['pillow_love_08.jpg', 'pillow'], ['blanket_xmas_09.jpg', 'blanket'], ['mat_home_10.jpg', 'mat'], ['canvas_beach_11.jpg', 'frame']];
+  let wtab = 'queue', libSel = '相框', libStyle = '横版', libTpl = 't1', sheet = null, sheetStep = 2, redo = false, settings = false, tt = null;
+
+  const lbl = it => it.cat ? it.cat + (it.style ? ' · ' + it.style : '') : '';
+  const done = it => !it.exc && it.steps.every(s => s === 'done' || s === 'skip');
+  const runIdx = it => it.steps.indexOf('run');
+  function stateHtml(it) {
+    if (it.exc) return '<span class="st"><span class="dot am"></span>需处理</span>';
+    if (done(it)) return '<span class="st"><span class="dot"></span>完成</span>';
+    const r = runIdx(it);
+    if (r >= 0) return '<span class="st"><span class="dot bl"></span>' + STEPS[r] + '中</span>';
+    return '<span class="st muted"><span class="dot gr"></span>排队中</span>';
+  }
+  function tile(it, step, kind, label) {
+    const s = it.steps[step]; const sh = shapeOf(it.cat, it.style);
+    let pic, dis = true;
+    if (s === 'done') { pic = ph(kind, it.art, sh, 64); dis = false; }
+    else if (s === 'run') pic = phState('run', '<i data-lucide="loader-circle" class="spin" aria-hidden="true"></i>', 64);
+    else if (s === 'err') { pic = phState('err', '<i data-lucide="x" aria-hidden="true"></i>', 64); dis = false; }
+    else if (s === 'skip') pic = phState('empty', '<span style="font-size:11px">无需</span>', 64);
+    else pic = phState('empty', '', 64);
+    return '<button type="button" class="tile" data-act="open" data-id="' + it.id + '" data-step="' + step + '"' + (dis ? ' disabled' : '') + ' aria-label="' + label + '">' + pic + '<span class="lb">' + label + '</span></button>';
+  }
+  function jobRow(it) {
+    const tplName = it.cat ? mainRecipe(it.cat, it.style, cat(it.cat).active).tplName : '';
+    const meta = it.cat ? '<span class="pill ac">' + lbl(it) + '</span><span class="pill">' + tplName + '</span>' :
+      (it.steps[0] === 'run' ? '<span class="pill bl">识别品类中…</span>' : '<span class="pill">待识别</span>');
+    return '<div class="job"><div class="src">' + ph('src', it.art, '', 56) + '<div style="min-width:0"><div class="nm">' + it.file + '</div><div class="meta">' + meta + '</div></div></div>' +
+      '<div class="flow">' + tile(it, 1, 'pattern', '素材图') + '<span class="arr">→</span>' + tile(it, 2, 'main', '主图') + '<span class="arr">→</span>' + tile(it, 4, 'blank', '空白图') + '</div>' +
+      '<div style="display:flex;align-items:center;gap:6px;justify-content:space-between">' + stateHtml(it) +
+      '<button type="button" class="ib" data-act="open" data-id="' + it.id + '" data-step="' + Math.max(0, runIdx(it) >= 0 ? runIdx(it) : 0) + '" aria-label="查看详情"><i data-lucide="chevron-right" aria-hidden="true"></i></button></div></div>';
+  }
+  function catSel(id) {
+    return '<select data-role="fixcat" data-id="' + id + '" aria-label="指定品类"><option value="">选择品类…</option>' +
+      lib.cats.flatMap(c => c.styles.map(s => '<option value="' + c.name + '|' + s.name + '">' + c.name + (s.name ? ' · ' + s.name : '') + '</option>')).join('') + '</select>';
+  }
+  function renderWork() {
+    const live = items.filter(i => !i.exc), ex = items.filter(i => i.exc), dn = items.filter(i => i.info && done(i));
+    $('#v2-wtabs').innerHTML = [['queue', '队列', live.length, ''], ['exc', '需处理', ex.length, ex.length ? 'am' : ''], ['info', '识别信息', dn.length, '']]
+      .map(([k, n, c, cl]) => '<button type="button" role="tab" data-act="wtab" data-v="' + k + '" aria-selected="' + (wtab === k) + '">' + n + ' <span class="n ' + cl + '">' + c + '</span></button>').join('');
+    const run = live.filter(i => runIdx(i) >= 0).length;
+    $('#v2-sum').innerHTML = '<span>进行中 <i>' + run + '</i></span><span>完成 <i>' + live.filter(done).length + '</i></span><span>生图 <i>' + Math.min(2, live.filter(i => [1, 2, 4].includes(runIdx(i))).length) + '/2</i> · 分析 <i>' + Math.min(3, live.filter(i => [0, 3].includes(runIdx(i))).length) + '/3</i></span>';
+    let h = '';
+    if (wtab === 'queue') {
+      if (ex.length) h += '<div class="notice"><i data-lucide="triangle-alert" aria-hidden="true"></i><span>有 ' + ex.length + ' 张图需要你处理，其余照常在跑</span><button type="button" class="btn sm" data-act="wtab" data-v="exc">去处理</button></div>';
+      h += '<div class="box jobs">' + (live.length ? live.map(jobRow).join('') : '<div class="none">队列是空的</div>') + '</div>';
+    } else if (wtab === 'exc') {
+      h = '<div class="box">' + (ex.length ? ex.map(it => {
+        const e = it.exc; let fix;
+        if (e.kind === 'nomatch') fix = catSel(it.id) + '<button type="button" class="btn sm pri" data-act="fix" data-id="' + it.id + '">放回队列</button><button type="button" class="btn sm" data-act="newcat" data-id="' + it.id + '">新建品类「' + e.guess + '」</button>';
+        else if (e.kind === 'nowhite') fix = '<button type="button" class="btn sm pri" data-act="golib" data-cat="' + it.cat + '">去上传白底图</button>';
+        else fix = '<button type="button" class="btn sm pri" data-act="retry" data-id="' + it.id + '">重试</button>';
+        return '<div class="exc">' + ph('src', it.art, '', 48) + '<div class="why"><b>' + e.title + '</b> <span class="muted small">' + it.file + '</span><div class="muted small">' + e.msg + '</div></div><div class="fix">' + fix +
+          '<button type="button" class="ib" data-act="del" data-id="' + it.id + '" aria-label="删除"><i data-lucide="trash-2" aria-hidden="true"></i></button></div></div>';
+      }).join('') : '<div class="none">没有需要处理的图</div>') + '</div>';
+    } else {
+      const cp = '<button type="button" class="cp" aria-label="复制"><i data-lucide="copy" aria-hidden="true"></i></button>';
+      h = '<div class="box"><div style="display:flex;justify-content:flex-end;padding:10px 14px 0"><button type="button" class="btn sm"><i data-lucide="download" aria-hidden="true"></i>导出 CSV</button></div><table class="tbl"><thead><tr><th>主图</th><th>场景</th><th>搜索关键词</th><th>可定制项</th></tr></thead><tbody>' +
+        (dn.length ? dn.map(it => '<tr><td>' + ph('main', it.art, shapeOf(it.cat, it.style), 44) + '</td><td>' + it.info.scene + cp + '</td><td><div class="kw">' + it.info.kw.map(k => '<span class="pill">' + k + '</span>').join('') + cp + '</div></td><td>' + it.info.cust.join('，') + cp + '</td></tr>').join('')
+          : '<tr><td colspan="4" class="none">主图生成后，这里汇总每张图的场景、关键词和可定制项</td></tr>') + '</tbody></table></div>';
+    }
+    $('#v2-wbody').innerHTML = h;
+  }
+
+  // ---------- library ----------
+  function catStatus(c) {
+    if (c.active === 'default' && c.styles.some(s => !c.white[s.name])) return '<span class="dot am" aria-label="缺白底图"></span>';
+    return '';
+  }
+  function renderLib() {
+    $('#v2-cats').innerHTML =
+      '<button type="button" class="cat" data-act="libsel" data-v="__g" aria-selected="' + (libSel === '__g') + '"><span class="glob"><i data-lucide="sparkles" aria-hidden="true"></i></span><span><span class="nm">全局提示词</span><br><span class="ds">提取 · 贴图，所有品类共用</span></span></button><div class="sep"></div>' +
+      lib.cats.map(c => {
+        const s0 = c.styles[0].name;
+        const t = c.active === 'default' ? '默认 · 贴图' : c.tpls.find(x => x.id === c.active).name;
+        return '<button type="button" class="cat" data-act="libsel" data-v="' + c.name + '" aria-selected="' + (libSel === c.name) + '">' +
+          (c.white[s0] ? ph('white', null, shapeOf(c.name, s0), 36) : phState('empty', '', 36)) +
+          '<span><span class="nm">' + c.name + '</span><br><span class="ds">' + (c.styles.length > 1 ? c.styles.length + ' 个款式 · ' : '') + t + '</span></span><span class="d2">' + catStatus(c) + '</span></button>';
+      }).join('') +
+      '<div class="sep"></div><div class="cfoot"><button type="button" class="btn sm" data-act="addcat"><i data-lucide="plus" aria-hidden="true"></i>新增品类</button><span class="fill"></span><button type="button" class="ib" aria-label="导入模版库"><i data-lucide="upload" aria-hidden="true"></i></button><button type="button" class="ib" aria-label="导出模版库"><i data-lucide="download" aria-hidden="true"></i></button></div>';
+
+    const cd = $('#v2-cd');
+    if (libSel === '__g') {
+      const ex = { inputs: [{ role: '竞品图', sub: '上传的原图', auto: true, preset: phState('auto', '竞品图<br>自动填入', 120) }], prompt: lib.extract, scope: '全局默认 · 品类可单独覆盖' };
+      const pa = { inputs: [{ role: '白底图', sub: '按品类和款式自动选', auto: true, preset: phState('auto', '白底图<br>自动选择', 120) }, { role: '素材图', sub: '第 ② 步的结果', auto: true }], prompt: lib.paste, scope: '全局共用 · 所有品类' };
+      cd.innerHTML = '<div class="cd"><div class="cd-h"><div><h2>全局提示词</h2><div class="hint">所有品类共用。提示词里的 {品类}、{比例} 会自动换成识别结果和款式比例</div></div></div>' +
+        '<div class="rc"><div class="rc-h"><b>② 提取素材图</b><span class="pill">默认</span></div>' + recipeHtml(ex, { out: phState('auto', '素材图', 120), outLabel: '素材图' }) + '</div>' +
+        '<div class="rc"><div class="rc-h"><b>③ 生成主图 · 默认模版「贴图」</b></div>' + recipeHtml(pa, { out: phState('auto', '主图', 120), outLabel: '主图' }) + '</div></div>';
+      return;
+    }
+    const c = cat(libSel);
+    if (!c.styles.find(s => s.name === libStyle)) libStyle = c.styles[0].name;
+    if (libTpl !== 'default' && !c.tpls.find(t => t.id === libTpl)) libTpl = c.active;
+    const r = mainRecipe(c.name, libStyle, libTpl);
+    const isActive = c.active === libTpl;
+    const styles = c.styles.length > 1 || c.styles[0].name ?
+      c.styles.map(s => '<button type="button" class="chip" data-act="style" data-v="' + s.name + '" aria-pressed="' + (libStyle === s.name) + '">' + sName(s.name) + '<span class="rt">' + s.ratio + '</span></button>').join('') :
+      '<span class="pill">单款式</span><span class="muted small">素材比例 ' + c.styles[0].ratio + '</span>';
+    const tpls = [{ id: 'default', name: '默认 · 贴图' }].concat(c.tpls).map(t =>
+      '<button type="button" class="chip" data-act="tpl" data-v="' + t.id + '" aria-pressed="' + (libTpl === t.id) + '">' + t.name + (c.active === t.id ? '<span class="star">使用中</span>' : '') + '</button>').join('');
+    const cov = c.styles.map(s => {
+      const rr = mainRecipe(c.name, s.name, libTpl);
+      const bad = rr.missing, warn = refWarn(rr.prompt, rr.inputs);
+      const ic = bad ? '<span class="dot rd"></span>' : warn ? '<span class="dot am"></span>' : '<span class="dot"></span>';
+      const tx = bad ? '缺白底图' : warn ? '图片数量与提示词不符' : (libTpl === 'default' ? '白底图已配' : (rr.inputs[0].has ? '有参考图' : '不发参考图'));
+      return '<button type="button" data-act="style" data-v="' + s.name + '" aria-pressed="' + (libStyle === s.name) + '">' + ic + sName(s.name) + ' · ' + tx + '</button>';
+    }).join('');
+    const fx = c.extract;
+    cd.innerHTML = '<div class="cd"><div class="cd-h"><div><h2>' + c.name + '</h2><div class="hint"><i data-lucide="scan-search" aria-hidden="true"></i>AI 识别说明：' + c.hint + ' <button type="button" class="btn txt sm">修改</button></div></div><button type="button" class="btn txt sm rd r">删除品类</button></div>' +
+      '<div class="ctl"><span class="k">款式</span><div class="v"><div class="chips">' + styles + '</div><button type="button" class="chip add" data-act="addstyle">+ 款式</button></div>' +
+      '<span class="k">主图模版</span><div class="v"><div class="chips">' + tpls + '</div><button type="button" class="chip add" data-act="addtpl">+ 自定义模版</button></div></div>' +
+      '<div class="rc"><div class="rc-h"><b>发送给生图模型</b><span class="muted small">' + c.name + (libStyle ? ' · ' + libStyle : '') + ' · ' + r.tplName + '</span><div class="r">' +
+      (isActive ? '<span class="pill ac"><i data-lucide="check" aria-hidden="true"></i>本品类正在使用</span>' : '<button type="button" class="btn sm pri" data-act="activate">设为本品类使用</button>') + '</div></div>' +
+      recipeHtml(r, { out: phState('auto', '主图', 120), outLabel: '主图' }) +
+      '<div class="cov"><span class="muted small">各款式检查：</span>' + cov + '</div></div>' +
+      '<div class="fold"><div class="t"><b style="font-weight:500">② 提取素材图提示词</b><div class="muted small">' + (fx ? '本品类单独设置：' + fx : '使用全局默认') + '</div></div><button type="button" class="btn sm" data-act="togglex">' + (fx ? '恢复全局默认' : '单独设置') + '</button></div></div>';
+  }
+
+  // ---------- overlays ----------
+  function sheetBody(it) {
+    const s = sheetStep, st = it.steps[s], sh = shapeOf(it.cat, it.style);
+    const tabs = '<div class="steps" role="tablist">' + STEPS.map((n, i) => {
+      const x = it.steps[i];
+      const d = x === 'done' ? 'dot' : x === 'run' ? 'dot bl' : x === 'err' ? 'dot rd' : 'dot gr';
+      return '<button type="button" role="tab" data-act="sstep" data-v="' + i + '" aria-selected="' + (s === i) + '"><span class="' + d + '"></span>' + (i + 1) + ' ' + n + '</button>';
+    }).join('') + '</div>';
+    let body;
+    if (st === 'wait') body = '<div class="none">等待前面的步骤完成</div>';
+    else if (st === 'run' && s > 2) body = '<div class="none">处理中…</div>';
+    else if (s === 0) body = st === 'run' ? '<div class="none">分析模型正在对照模版库判断品类…</div>' :
+      '<dl class="kv"><dt>品类</dt><dd><span class="pill ac">' + lbl(it) + '</span> <span class="muted small">' + (it.conf ? '置信度 ' + it.conf.toFixed(2) : '手动指定') + '</span></dd>' + (it.why ? '<dt>判断理由</dt><dd>' + it.why + '</dd>' : '') +
+      '<dt>接下来</dt><dd>用「' + mainRecipe(it.cat, it.style, cat(it.cat).active).tplName + '」生成主图，素材比例 ' + (cat(it.cat).styles.find(x => x.name === it.style) || cat(it.cat).styles[0]).ratio + '</dd></dl>';
+    else if (s === 1) {
+      const c = cat(it.cat); const ratio = (c.styles.find(x => x.name === it.style) || c.styles[0]).ratio;
+      const r = { inputs: [{ role: '竞品图', sub: it.file, auto: true, preset: ph('src', it.art, '', 120) }], prompt: (c.extract || lib.extract).replace('{品类}', lbl(it)).replace('{比例}', ratio), scope: c.extract ? '本品类单独设置' : '全局默认' };
+      body = recipeHtml(r, { readonly: true, out: st === 'done' ? ph('pattern', it.art, '', 120) : phState('run', '<i data-lucide="loader-circle" class="spin" aria-hidden="true"></i>', 120), outLabel: '素材图' });
+    } else if (s === 2) {
+      const r = mainRecipe(it.cat, it.style, cat(it.cat).active);
+      r.inputs = r.inputs.map(inp => inp.auto ? Object.assign({}, inp, { preset: ph('pattern', it.art, '', 120), sub: '第 ② 步的结果' }) : (inp.has ? Object.assign({}, inp, { preset: ph(inp.kind, null, inp.shape, 120) }) : inp));
+      const out = st === 'done' ? ph('main', it.art, sh, 120) : st === 'err' ? phState('err', '<span style="font-size:11px">失败</span>', 120) : phState('run', '<i data-lucide="loader-circle" class="spin" aria-hidden="true"></i>', 120);
+      body = '<div class="muted small">以下就是这张图实际发出的内容，开始生成时已记录，之后修改模版库不会影响它。</div>' + recipeHtml(r, { readonly: true, out, outLabel: '主图' });
+    } else if (s === 3) body = '<dl class="kv"><dt>场景</dt><dd>' + it.info.scene + '</dd><dt>关键词</dt><dd><div class="kw">' + it.info.kw.map(k => '<span class="pill">' + k + '</span>').join('') + '</div></dd><dt>可定制项</dt><dd>' + it.info.cust.join('、') + '</dd><dt>需要留空</dt><dd>' + it.blank.join('、') + '</dd></dl>';
+    else {
+      const r = { inputs: [{ role: '主图', sub: '第 ③ 步的结果', auto: true, preset: ph('main', it.art, sh, 120) }], prompt: '去掉图中的个人信息占位内容：' + it.blank.join('、') + '。原来的位置只保留背景或商品表面的自然延续，其余全部保持不变。', scope: '系统内置' };
+      body = recipeHtml(r, { readonly: true, out: ph('blank', it.art, sh, 120), outLabel: '空白图' });
+    }
+    const canRedo = st === 'done' || st === 'err';
+    const rd = !canRedo ? '' : redo ?
+      '<div class="redo"><b style="font-weight:500">重做「' + STEPS[s] + '」</b>' + (s === 0 ? '<div class="row"><span class="muted small">直接指定品类：</span>' + catSel(it.id) + '</div>' : '<textarea aria-label="本次使用的提示词">' + (s === 2 ? mainRecipe(it.cat, it.style, cat(it.cat).active).prompt : '') + '</textarea>') +
+      '<div class="row"><span class="muted small fill">只改这一张，不会改模版库' + (s < 4 ? '；之后的 ' + STEPS.slice(s + 1).join('、') + ' 会自动重跑' : '') + '</span><button type="button" class="btn sm" data-act="redo">取消</button><button type="button" class="btn sm pri" data-act="redook">确认重做</button></div></div>' :
+      '<div class="redo"><div class="row"><span class="muted small fill">对结果不满意？</span><button type="button" class="btn sm" data-act="redo"><i data-lucide="rotate-ccw" aria-hidden="true"></i>重做这一步</button></div></div>';
+    return tabs + body + rd;
+  }
+  function renderOv() {
+    let h = '';
+    if (sheet) {
+      const it = items.find(x => x.id === sheet);
+      h = '<div class="mask" data-act="close"></div><aside class="sheet" aria-label="图片详情"><div class="sh-h">' + ph('src', it.art, '', 40) + '<div><b style="font-weight:500">' + it.file + '</b><div class="muted small">' + (lbl(it) || '品类待识别') + '</div></div><button type="button" class="ib r" data-act="close" aria-label="关闭"><i data-lucide="x" aria-hidden="true"></i></button></div><div class="sh-b">' + sheetBody(it) + '</div></aside>';
+    } else if (settings) {
+      h = '<div class="mask" data-act="close"></div><aside class="sheet narrow" aria-label="设置"><div class="sh-h"><b style="font-weight:500">设置</b><button type="button" class="ib r" data-act="close" aria-label="关闭"><i data-lucide="x" aria-hidden="true"></i></button></div><div class="sh-b">' +
+        [['生图接口', 'gpt-image-2', 2], ['分析接口', 'gpt-5.5', 3]].map(([t, m, n]) => '<div class="grp"><h4><span class="dot"></span>' + t + '</h4><div class="fld"><label>地址</label><input type="text" value="http://relay.example.com/v1"></div><div class="fld"><label>Key</label><input type="password" value="sk-xxxxxxxxxxxx"></div><div class="two"><div class="fld"><label>模型</label><input type="text" value="' + m + '"></div><div class="fld"><label>同时处理</label><input type="text" value="' + n + '"></div></div><div><button type="button" class="btn sm">测试连接</button></div></div>').join('') +
+        '<div class="grp"><h4>输出</h4><div class="fld"><label>保存到</label><input type="text" value="~/Downloads/主图生成"></div><div class="fld"><label>品类识别把握低于多少时交给你处理</label><input type="text" value="0.70"></div><label class="sw"><input type="checkbox" checked>主图补成方图（只加白边）</label><label class="sw"><input type="checkbox" checked>有定制项时生成空白图</label></div></div></aside>';
+    }
+    $('#v2-ov').innerHTML = h;
+    root.style.minHeight = h ? '920px' : '';
+  }
+  function icons() { if (window.lucide) lucide.createIcons({ attrs: { width: 15, height: 15 } }); }
+  function render() { renderWork(); renderLib(); renderOv(); icons(); }
+  function toast(m) { $('#v2-toast').innerHTML = '<div class="toast" role="status">' + m + '</div>'; clearTimeout(tt); tt = setTimeout(() => { $('#v2-toast').innerHTML = ''; }, 3200); }
+  function page(p) {
+    root.querySelectorAll('[data-pg]').forEach(s => { s.hidden = s.dataset.pg !== p; });
+    root.querySelectorAll('[data-act="page"]').forEach(b => b.setAttribute('aria-selected', b.dataset.v === p));
+  }
+  const requeue = it => { items = items.filter(x => x !== it); items.push(it); };
+
+  root.addEventListener('click', e => {
+    const t = e.target.closest('[data-act]'); if (!t || !root.contains(t) || t.disabled) return;
+    const v = t.dataset.v, id = +t.dataset.id, it = items.find(x => x.id === id), c = cat(libSel);
+    switch (t.dataset.act) {
+      case 'page': page(v); break;
+      case 'wtab': wtab = v; break;
+      case 'settings': settings = true; break;
+      case 'close': sheet = null; settings = false; redo = false; break;
+      case 'open': sheet = id; sheetStep = +t.dataset.step; redo = false; break;
+      case 'sstep': sheetStep = +v; redo = false; break;
+      case 'redo': redo = !redo; break;
+      case 'redook': {
+        const cur = items.find(x => x.id === sheet);
+        const pick = root.querySelector('[data-role="fixcat"]');
+        if (sheetStep === 0 && pick && pick.value) { const [a, b] = pick.value.split('|'); cur.cat = a; cur.style = b; cur.conf = null; cur.why = null; }
+        cur.steps = cur.steps.map((x, k) => k < sheetStep ? x : k === sheetStep ? 'run' : 'wait');
+        if (cur.exc) { cur.exc = null; requeue(cur); }
+        toast('已重做「' + STEPS[sheetStep] + '」' + (sheetStep < 4 ? '，后面的步骤会自动跟上' : ''));
+        sheet = null; redo = false; break; }
+      case 'append': for (let k = 0; k < 2; k++) { const [f, a] = pool[(seq - 8) % pool.length]; items.splice(items.filter(x => !x.exc).length, 0, { id: seq++, file: f, art: a, cat: null, style: '', steps: ['wait', 'wait', 'wait', 'wait', 'wait'] }); }
+        wtab = 'queue'; toast('已加入队尾，正在跑的不受影响'); break;
+      case 'fix': {
+        const s = root.querySelector('[data-role="fixcat"][data-id="' + id + '"]');
+        if (!s.value) { toast('先选一个品类'); return; }
+        const [a, b] = s.value.split('|'); it.cat = a; it.style = b; it.conf = null; it.why = null; it.exc = null; it.steps = ['done', 'wait', 'wait', 'wait', 'wait']; requeue(it);
+        toast('已按「' + lbl(it) + '」放回队尾'); break; }
+      case 'newcat': {
+        const g = it.exc.guess;
+        if (!cat(g)) lib.cats.push({ name: g, hint: '印花 T 恤，图案在胸前', active: 'default', extract: null, styles: [{ name: '', ratio: '1:1' }], white: { '': false }, tpls: [] });
+        it.cat = g; it.style = ''; it.exc = { kind: 'nowhite', title: '「' + g + '」还没有白底图', msg: '品类已建好。上传白底图后，这张图会自动回到队列' };
+        toast('已新建品类「' + g + '」'); break; }
+      case 'golib': libSel = t.dataset.cat; libTpl = cat(libSel).active; page('lib'); break;
+      case 'retry': { const k = it.exc.step; it.exc = null; it.steps[k] = 'wait'; requeue(it); toast('已放回队尾'); break; }
+      case 'del': items = items.filter(x => x !== it); break;
+      case 'libsel': libSel = v; if (v !== '__g') { libTpl = cat(v).active; libStyle = cat(v).styles[0].name; } break;
+      case 'style': libStyle = v; break;
+      case 'tpl': libTpl = v; break;
+      case 'activate': c.active = libTpl; toast('之后识别为「' + c.name + '」的图，都用「' + mainRecipe(c.name, libStyle, libTpl).tplName + '」'); break;
+      case 'up': case 'rm': {
+        const on = t.dataset.act === 'up';
+        if (t.dataset.slot === 'white') {
+          c.white[libStyle] = on;
+          if (on) { const w = items.filter(x => x.exc && x.exc.kind === 'nowhite' && x.cat === c.name); w.forEach(x => { x.exc = null; x.steps = ['done', 'wait', 'wait', 'wait', 'wait']; requeue(x); }); if (w.length) toast(w.length + ' 张等这张白底图的图已回到队列'); }
+        } else { const tp = c.tpls.find(x => x.id === libTpl); tp.imgs = tp.imgs || {}; tp.imgs[libStyle] = on; }
+        break; }
+      case 'addtpl': { const nid = 't' + Date.now(); c.tpls.push({ id: nid, name: '自定义 ' + (c.tpls.length + 1), prompt: '把第一张图片完整贴到…（在这里写你的提示词）', imgs: {} }); libTpl = nid; break; }
+      case 'addstyle': c.styles.push({ name: '款式' + (c.styles.length + 1), ratio: '1:1' }); if (c.styles[0].name === '') c.styles[0].name = '默认'; c.white[c.styles[0].name] = c.white[c.styles[0].name] || c.white['']; libStyle = c.styles[c.styles.length - 1].name; break;
+      case 'togglex': c.extract = c.extract ? null : DEFAULT_EXTRACT.replace('{品类}', c.name + '（只提取正面印花）'); break;
+      case 'addcat': { const n = '新品类 ' + (lib.cats.length + 1); lib.cats.push({ name: n, hint: '（写一句话帮 AI 认出它）', active: 'default', extract: null, styles: [{ name: '', ratio: '1:1' }], white: { '': false }, tpls: [] }); libSel = n; libTpl = 'default'; libStyle = ''; break; }
+      case 'editprompt': toast('样例里不展开编辑；正式版在这里直接改文字'); return;
+      default: return;
+    }
+    render();
+  });
+  render();
+})();
+</script>
+</div>
+
+</div>
+</body>
+</html>

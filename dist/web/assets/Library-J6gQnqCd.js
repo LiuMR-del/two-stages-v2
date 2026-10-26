@@ -1,0 +1,1 @@
+import{n as e,r as t,t as n}from"./index-DLMdNxaX.js";import{t as r}from"./_plugin-vue_export-helper-BDNMzG2s.js";var i={},a={class:`page`};function o(r,i){return t(),e(`section`,a,[...i[0]||=[n(`div`,{class:`box none`},`模版库还在建设中`,-1)]])}var s=r(i,[[`render`,o]]);export{s as default};
