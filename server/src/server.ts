@@ -10,6 +10,9 @@ import { Limiter } from './ai/limiter'
 import { registerSettings } from './api/settings'
 import { registerMisc } from './api/misc'
 import { registerEvents } from './api/events'
+import { registerLibrary } from './api/library'
+import { LibraryStore } from './library/store'
+import { computeChecks } from './library/checks'
 import { errorHandler, HttpError } from './api/util'
 
 export function readVersion(toolDir: string): string {
@@ -24,15 +27,28 @@ export async function createContext(paths: Paths): Promise<AppContext> {
   ensureDirs(paths)
   const bus = new Bus()
   const settings = new SettingsStore(paths.settingsFile)
+  const library = new LibraryStore({
+    file: paths.libraryFile,
+    imagesDir: paths.libraryImagesDir,
+    thumbsDir: paths.libraryThumbsDir,
+    backupsDir: paths.libraryBackupsDir,
+  })
+  library.onChange((lib) => bus.emit('library', { library: lib, checks: computeChecks(lib) }))
   const ctx: AppContext = {
     version: readVersion(paths.toolDir),
     paths,
     bus,
     settings,
     limiter: new Limiter(),
+    library,
     sse: { clients: 0 },
     onSettingsSaved: () => {},
-    start: async () => {},
+    start: async () => {
+      await library.cleanOrphans()
+    },
+    stop: async () => {
+      ctx.limiter.dispose()
+    },
     isIdle: () => true,
   }
   const applyLimits = () => {
@@ -57,6 +73,7 @@ export function createApp(ctx: AppContext): express.Express {
   registerMisc(api, ctx)
   registerSettings(api, ctx)
   registerEvents(api, ctx)
+  registerLibrary(api, ctx)
   api.use(() => {
     throw new HttpError(404, '接口不存在')
   })

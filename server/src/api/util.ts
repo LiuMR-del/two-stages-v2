@@ -2,14 +2,9 @@ import type { NextFunction, Request, Response } from 'express'
 import type { z } from 'zod'
 import { log } from '../util/log'
 
-export class HttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message)
-  }
-}
+import { HttpError } from '../util/errors'
+
+export { HttpError }
 
 export function parseBody<S extends z.ZodType>(schema: S, body: unknown): z.infer<S> {
   const r = schema.safeParse(body ?? {})
