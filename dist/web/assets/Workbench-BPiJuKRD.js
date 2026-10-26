@@ -1,1 +1,0 @@
-import{b as e,d as t,m as n}from"./index-Bn3vMuhh.js";import{t as r}from"./_plugin-vue_export-helper-BDNMzG2s.js";var i={},a={class:`page`};function o(r,i){return e(),n(`section`,a,[...i[0]||=[t(`div`,{class:`box none`},`工作台还在建设中`,-1)]])}var s=r(i,[[`render`,o]]);export{s as default};

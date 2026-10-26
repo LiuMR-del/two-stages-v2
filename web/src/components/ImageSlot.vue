@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { LoaderCircle, X } from '@lucide/vue'
 
 export type SlotState = 'image' | 'auto' | 'empty' | 'run' | 'err'
@@ -18,6 +18,11 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ drop: [file: File] }>()
 const over = ref(false)
+const broken = ref(false)
+watch(
+  () => props.img,
+  () => (broken.value = false),
+)
 
 function onDrop(e: DragEvent) {
   over.value = false
@@ -36,7 +41,8 @@ function onDrop(e: DragEvent) {
     @dragleave="over = false"
     @drop.prevent="onDrop"
   >
-    <img v-if="state === 'image' && img" :src="img" alt="" loading="lazy" />
+    <span v-if="state === 'image' && img && broken" class="ph-text muted">图片已不在</span>
+    <img v-else-if="state === 'image' && img" :src="img" alt="" loading="lazy" @error="broken = true" />
     <LoaderCircle v-else-if="state === 'run'" class="spin" aria-hidden="true" />
     <template v-else-if="state === 'err'">
       <span v-if="text" style="font-size: 11px">{{ text }}</span>

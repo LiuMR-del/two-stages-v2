@@ -21,7 +21,7 @@ svg.lucide { width: 15px; height: 15px; flex: none; }
 .brand span { color: var(--sub); }
 .brand span:last-child { white-space: nowrap; }
 @container (max-width: 640px) {
-  .brand span:last-child, .top .ok-text { display: none !important; }
+  .brand span:last-child, .top .ok-text, .top .pause-text { display: none !important; }
   .top { gap: 10px; padding: 10px 14px; }
   .page { padding: 14px !important; }
 }
@@ -30,6 +30,7 @@ svg.lucide { width: 15px; height: 15px; flex: none; }
 .seg { display: inline-flex; background: var(--sf2); border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
 .seg button { border: 0; background: transparent; padding: 5px 14px; border-radius: 8px; color: var(--sub); display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
 .seg button[aria-selected="true"] { background: var(--sf); color: var(--tx); box-shadow: var(--sh); font-weight: 500; }
+.top .seg { flex-wrap: nowrap; }
 .seg .n { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .seg .n.am { color: var(--am); }
 .fill { flex: 1; }
@@ -51,6 +52,7 @@ svg.lucide { width: 15px; height: 15px; flex: none; }
 .btn.txt { border-color: transparent; background: transparent; color: var(--ac); padding-left: 4px; padding-right: 4px; }
 .btn.txt.rd { color: var(--rd); }
 .btn.rd { color: var(--rd); }
+a.btn, a.ib { text-decoration: none; color: inherit; }
 
 /* layout */
 .page { padding: 20px 22px 26px; display: flex; flex-direction: column; gap: 16px; max-width: 1360px; margin: 0 auto; }
@@ -227,3 +229,5 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .dialog { position: fixed; left: 50%; top: 20vh; transform: translateX(-50%); width: min(440px, 92vw); background: var(--sf); border-radius: 14px; box-shadow: var(--sh2); z-index: 12; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
 .dialog h3 { margin: 0; font-size: 15px; font-weight: 500; }
 .dialog .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.fld .autotext { display: flex; width: 100%; }
+.fld .autotext input { flex: 1; width: 100%; min-width: 0; }
