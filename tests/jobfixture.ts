@@ -17,5 +17,6 @@ export function fakeJob(id = 'j1', order = 1): Job {
     override: null,
     qc: null,
     mainQc: null,
+    face: null,
   }
 }

@@ -5,10 +5,11 @@ import type { Job, QueueState } from '../types'
 import type { ViewerItem } from './ui'
 
 export const STEP_NAMES = ['识别品类', '提取素材', '生成主图', '信息识别', '空白图'] as const
-export type FileKind = 'source' | 'pattern' | 'main' | 'blank'
-const STEP_OF_KIND: Record<FileKind, number> = { source: -1, pattern: 1, main: 2, blank: 4 }
+export type FileKind = 'source' | 'face' | 'pattern' | 'main' | 'blank'
+const STEP_OF_KIND: Record<FileKind, number> = { source: -1, face: 1, pattern: 1, main: 2, blank: 4 }
 const VIEW_KINDS: { kind: FileKind; label: string; step: number }[] = [
   { kind: 'source', label: '竞品图', step: 0 },
+  { kind: 'face', label: '印刷面', step: 1 },
   { kind: 'pattern', label: '素材图', step: 1 },
   { kind: 'main', label: '主图', step: 2 },
   { kind: 'blank', label: '空白图', step: 4 },
@@ -52,7 +53,9 @@ export const useJobs = defineStore('jobs', () => {
 
   /** 这张图已有的原图，按 竞品图 → 素材图 → 主图 → 空白图 排，给看大图用 */
   function viewItems(job: Job): (ViewerItem & { kind: FileKind })[] {
-    return VIEW_KINDS.filter((k) => k.kind === 'source' || job.steps[STEP_OF_KIND[k.kind]]!.state === 'done').map((k) => ({
+    const has = (k: FileKind) =>
+      k === 'source' || (k === 'face' ? !!job.face && job.steps[1]!.snapshot?.images[0]?.role === '印刷面' : job.steps[STEP_OF_KIND[k]]!.state === 'done')
+    return VIEW_KINDS.filter((k) => has(k.kind)).map((k) => ({
       kind: k.kind,
       label: k.label,
       step: k.step,
@@ -99,7 +102,7 @@ export const useJobs = defineStore('jobs', () => {
     fromClipboard: () =>
       api.post<{ supported: boolean; copied: number; jobs: Job[]; errors: { name: string; error: string }[] }>('/jobs/from-clipboard'),
     remove: (id: string) => api.del(`/jobs/${id}`),
-    redo: (id: string, body: { step: number; prompt?: string; categoryId?: string; styleId?: string }) => post(`/jobs/${id}/redo`, body),
+    redo: (id: string, body: { step: number; prompt?: string; categoryId?: string; styleId?: string; wholePhoto?: boolean }) => post(`/jobs/${id}/redo`, body),
     resolve: (id: string, categoryId: string, styleId: string) => post(`/jobs/${id}/resolve`, { categoryId, styleId }),
     createCategory: (id: string) => post(`/jobs/${id}/create-category`),
     retry: (id: string) => post(`/jobs/${id}/retry`),

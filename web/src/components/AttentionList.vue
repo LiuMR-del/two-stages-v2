@@ -67,7 +67,11 @@ function reExtract(j: Job) {
 function qcPair(j: Job) {
   return j.attention!.step === 2
     ? { qc: j.mainQc, a: { kind: 'pattern' as const, label: '素材图', step: 1 }, b: { kind: 'main' as const, label: '主图', step: 2 } }
-    : { qc: j.qc, a: { kind: 'source' as const, label: '竞品图', step: 0 }, b: { kind: 'pattern' as const, label: '素材图', step: 1 } }
+    : {
+        qc: j.qc,
+        a: j.face && j.qc?.snapshot?.images[0]?.role === '印刷面' ? { kind: 'face' as const, label: '印刷面', step: 1 } : { kind: 'source' as const, label: '竞品图', step: 0 },
+        b: { kind: 'pattern' as const, label: '素材图', step: 1 },
+      }
 }
 
 function viewQc(j: Job, index: number) {

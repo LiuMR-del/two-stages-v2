@@ -7,12 +7,13 @@ import { buildExtractRequest } from '../prompts/extract'
 import { editImage } from '../ai/imageClient'
 import { chatJson } from '../ai/chatClient'
 import { flattenWhite, readSize, shrinkForAnalysis } from '../image/process'
+import { flattenFace } from '../image/face'
 import { compareColors, normalizeBox } from '../image/colorCheck'
 import { checkPatternLayout } from '../image/patternLayout'
-import { compareTexts, QC_SYSTEM, QC_USER, QcAnswerSchema } from '../prompts/qc'
+import { compareTexts, qcSystem, QC_USER, QcAnswerSchema } from '../prompts/qc'
 import { sha256 } from '../library/images'
 import type { Qc } from '../store/jobs'
-import { JOB_FILES, readInput, writeJobImage } from './files'
+import { JOB_FILES, readInput, removeJobImage, writeJobImage } from './files'
 import { writeOutput } from './output'
 import { fidelityParams } from './params'
 import { log } from '../util/log'
@@ -72,10 +73,25 @@ export const step1Extract: StepHandler = async (ctx) => {
 
   const settings = ctx.env.settings()
   const useOverride = ctx.job.override?.step === 1
-  const req = buildExtractRequest(useOverride ? ctx.job.override!.prompt : plan.extractPrompt, ratio)
-  const src = await readInput(path.join(ctx.dir, ctx.job.source.file), 'source')
+  const face = ctx.job.face
+  let src = await readInput(path.join(ctx.dir, ctx.job.source.file), 'source')
+  let shown = { no: 1, role: '竞品图', sha256: ctx.job.source.sha256 }
+  let flat: Buffer | null = null
+  if (face) {
+    // 第①步定位的印刷面按款式比例拉正，只把这块发给生图模型
+    const r = await flattenFace(src.buffer, face, ratio)
+    if (r.buffer) flat = r.buffer
+    else log.warn(`「${ctx.job.source.originalName}」${r.reason}，这次按整张竞品图提取`)
+  }
+  await removeJobImage(ctx.dir, 'face')
+  if (flat) {
+    await writeJobImage(ctx.dir, 'face', JOB_FILES.face, flat)
+    src = { buffer: flat, mime: 'image/png', filename: 'face.png' }
+    shown = { no: 1, role: '印刷面', sha256: sha256(flat) }
+  }
+  const req = buildExtractRequest(useOverride ? ctx.job.override!.prompt : plan.extractPrompt, ratio, !!flat)
   ctx.setSnapshot({
-    images: [{ no: 1, role: '竞品图', sha256: ctx.job.source.sha256 }],
+    images: [shown],
     prefix: req.prefix,
     prompt: req.prompt,
     model: settings.image.model,
@@ -111,24 +127,29 @@ export const step1Extract: StepHandler = async (ctx) => {
 async function runQc(ctx: StepCtx, patternFile: string): Promise<StepResult> {
   const settings = ctx.env.settings()
   const threshold = settings.patternQcThreshold
-  const srcBuf = await fsp.readFile(path.join(ctx.dir, ctx.job.source.file))
+  // 有拉正后的印刷面就拿它对照：和素材图是对齐的，文字、颜色都比对得更准
+  const faceFile = path.join(ctx.dir, JOB_FILES.face)
+  // 只有这次提取发的就是印刷面时才拿它对照
+  const useFace = !!ctx.job.face && ctx.job.steps[1]!.snapshot?.images[0]?.role === '印刷面' && fs.existsSync(faceFile)
+  const srcBuf = await fsp.readFile(useFace ? faceFile : path.join(ctx.dir, ctx.job.source.file))
   const patBuf = await fsp.readFile(patternFile)
   const layout = await checkPatternLayout(patBuf, ctx.job.route!.ratio)
   const images = [await shrinkForAnalysis(srcBuf), await shrinkForAnalysis(patBuf)]
+  const system = qcSystem(useFace)
   const snapshot = {
     images: [
-      { no: 1, role: '竞品图', sha256: ctx.job.source.sha256 },
+      useFace ? { no: 1, role: '印刷面', sha256: sha256(srcBuf) } : { no: 1, role: '竞品图', sha256: ctx.job.source.sha256 },
       { no: 2, role: '素材图', sha256: sha256(patBuf) },
     ],
     prefix: '',
-    prompt: QC_SYSTEM,
+    prompt: system,
     model: settings.analysis.model,
     params: { user: QC_USER },
   }
   ctx.commit((job) => {
     if (job.qc) job.qc.snapshot = snapshot
   })
-  const { data, raw } = await ctx.retry(() => chatJson(settings.analysis, { system: QC_SYSTEM, user: QC_USER, images, signal: ctx.signal }, QcAnswerSchema))
+  const { data, raw } = await ctx.retry(() => chatJson(settings.analysis, { system, user: QC_USER, images, signal: ctx.signal }, QcAnswerSchema))
 
   const text = compareTexts(data.source_texts, data.pattern_texts)
   const reasons = [...text.diffs]
@@ -138,7 +159,7 @@ async function runQc(ctx: StepCtx, patternFile: string): Promise<StepResult> {
   }
   for (const m of data.edge_missing) reasons.push(`四边少了：${m}`)
   for (const m of data.edge_extra) reasons.push(`四边多了：${m}`)
-  const box = normalizeBox(data.print_box, await readSize(images[0]!))
+  const box: [number, number, number, number] | null = useFace ? [0, 0, 1, 1] : normalizeBox(data.print_box, await readSize(images[0]!))
   const color = { ...(await compareColors(srcBuf, patBuf, box, settings.patternQcDeltaE)), threshold: settings.patternQcDeltaE }
   reasons.push(...color.issues)
   reasons.push(...layout.issues)

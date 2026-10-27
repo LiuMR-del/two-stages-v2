@@ -418,7 +418,8 @@ export class Scheduler {
     return { categoryId: cat.id, styleId: style.id, categoryName: cat.name, styleName: style.name, ratio: style.ratio, confidence: null, reason: null, manual: true }
   }
 
-  async redo(jobId: string, p: { step: number; prompt?: string; categoryId?: string; styleId?: string }): Promise<Job> {
+  /** wholePhoto：第①步给的印刷面区域不对时，从第②步重做并改按整张竞品图提取 */
+  async redo(jobId: string, p: { step: number; prompt?: string; categoryId?: string; styleId?: string; wholePhoto?: boolean }): Promise<Job> {
     return this.hold(jobId, async (job) => {
       const n = p.step
       if (!Number.isInteger(n) || n < 0 || n > 4) throw new HttpError(400, '步骤编号不对')
@@ -432,6 +433,7 @@ export class Scheduler {
         resetFrom(j, n)
         j.attention = null
         j.override = p.prompt?.trim() ? { step: n, prompt: p.prompt } : null
+        if (p.wholePhoto && n >= 1) j.face = null
         if (n <= 3) j.info = null
         if (n <= 1) j.plan = null
         if (planR?.ok) {
@@ -445,8 +447,8 @@ export class Scheduler {
           markDone(j, 0)
         }
       })
-      const stepOfFile = { pattern: 1, main: 2, blank: 4 } as const
-      const kinds = (['pattern', 'main', 'blank'] as const).filter((k) => stepOfFile[k] >= n)
+      const stepOfFile = { face: 1, pattern: 1, main: 2, blank: 4 } as const
+      const kinds = (['face', 'pattern', 'main', 'blank'] as const).filter((k) => stepOfFile[k] >= n)
       await Promise.all(kinds.map((k) => removeJobImage(dir, k)))
       log.info(`「${job.source.originalName}」从「${STEP_NAMES[n]}」重做${p.prompt?.trim() ? '（这一次用修改过的提示词）' : ''}`)
       return this.d.jobs.get(jobId)!
@@ -475,7 +477,7 @@ export class Scheduler {
       this.d.jobs.moveToEnd(j)
     })
     const dir = this.d.jobs.dirOf(job.id)
-    await Promise.all((['pattern', 'main', 'blank'] as const).map((k) => removeJobImage(dir, k)))
+    await Promise.all((['face', 'pattern', 'main', 'blank'] as const).map((k) => removeJobImage(dir, k)))
   }
 
   async createCategory(jobId: string): Promise<Job> {

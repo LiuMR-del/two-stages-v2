@@ -129,6 +129,16 @@ export const JobSchema = z.object({
     .nullable(),
   override: z.object({ step: z.number().int(), prompt: z.string() }).nullable(),
   qc: QcSchema.nullable().default(null),
+  /** 竞品图里商品印刷面的区域（第①步模型给四个角，本地往外校正）；没有时第②步按整张竞品图提取 */
+  face: z
+    .object({
+      ai: z.array(z.tuple([z.number(), z.number()])).length(4),
+      corners: z.array(z.tuple([z.number(), z.number()])).length(4),
+      moved: z.array(z.number()),
+      size: z.object({ width: z.number(), height: z.number() }),
+    })
+    .nullable()
+    .default(null),
   /** 第③步里的主图验收，字段同 qc：sourceTexts 是素材图的文字，patternTexts 是主图的文字 */
   mainQc: QcSchema.nullable().default(null),
 })

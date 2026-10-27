@@ -151,6 +151,8 @@ export type Job = {
   attention: null | { kind: AttentionKind; step: number; message: string; guess?: string; at: string }
   override: null | { step: number; prompt: string }
   qc: Qc | null
+  /** 竞品图里印刷面的区域：ai 是模型给的四个角，corners 是本地往外校正后的（0～1 比例，左上、右上、右下、左下） */
+  face: null | { ai: [number, number][]; corners: [number, number][]; moved: number[]; size: { width: number; height: number } }
   /** 主图验收：sourceTexts 是素材图的文字，patternTexts 是主图的文字 */
   mainQc: Qc | null
   /** 服务端算好的展示状态，前端不再自己判断 */

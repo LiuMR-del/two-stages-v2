@@ -17,7 +17,7 @@ export type Behavior =
   | {
       status?: number
       retryAfter?: number
-      route?: { category_id: string | null; style_id: string | null; confidence: number; guess?: string; reason?: string }
+      route?: { category_id: string | null; style_id: string | null; confidence: number; guess?: string; reason?: string; print_corners?: number[][] }
       info?: Record<string, unknown>
       /** 素材图验收的回复（source_texts / pattern_texts / element_score / element_issues） */
       qc?: Record<string, unknown>
@@ -181,7 +181,7 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     let background = colorFor(key)
     // 提取素材图跟竞品图同色、生成主图跟素材图同色（只按提示词微调 ±2），默认能过验收的色差检查
     const p = fields.prompt ?? ''
-    const like = p.includes('竞品商品图') || p.includes('第一张图片是素材图') ? files[0] : p.includes('第二张图片是素材图') ? files[1] : undefined
+    const like = p.includes('竞品商品图') || p.includes('商品印刷面') || p.includes('第一张图片是素材图') ? files[0] : p.includes('第二张图片是素材图') ? files[1] : undefined
     if (like) {
       try {
         const st = await sharp(like.buffer).stats()

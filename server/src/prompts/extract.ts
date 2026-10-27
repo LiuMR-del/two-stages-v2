@@ -18,9 +18,19 @@ export function extractPromptFor(lib: Library, cat: Category, style: Style): str
 export const EXTRACT_CONSTRAINT =
   "Extract the whole printed face of the product exactly as it is printed and output it as a flat, front-facing print file. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. The printed face fills the whole canvas edge to edge: its outer edges are the canvas edges. Leave out only the physical product: its thickness and side edges, the cut-away rounded corners, mounting holes and screws, perspective, reflections, shadows and the background; where a hole or screw covers the artwork, continue the surrounding artwork. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. If the printed face's proportions differ slightly from the canvas, fit the whole printed face to the canvas; never crop, squeeze or drop any text, element or border."
 
-/** ② 只发竞品图一张；画布和 size 都按款式比例 */
-export function buildExtractRequest(prompt: string, ratio: string): { prefix: string; prompt: string; size: ApiSize } {
+/**
+ * 发的是第①步定位、本地拉正后的印刷面时用这段（2026-10-27）。区域已经裁好，模型只需要清理：
+ * 去掉边上残留的一丝背景、手指，螺丝孔、反光，其余印着的全部保留。
+ */
+export const FACE_CONSTRAINT =
+  "The first image is the product's printed face, already cropped out of the competitor photo and flattened. Reproduce it as a clean, flat, front-facing print file that fills the whole canvas edge to edge. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. Remove only what is not printed: thin slivers of background, hands or fingers along the edges, the background showing outside rounded corners, the product's thickness or side edges, mounting holes and screws (continue the surrounding artwork there), reflections, glare and shadows. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge, crop or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution."
+
+/**
+ * ② 只发一张图：有印刷面区域时发拉正后的印刷面，没有时发整张竞品图；画布和 size 都按款式比例
+ */
+export function buildExtractRequest(prompt: string, ratio: string, face = false): { prefix: string; prompt: string; size: ApiSize } {
   const [w, h] = ratioToWH(ratio)
   const c = canvasFor(w, h)
-  return { prefix: c.prefix + roleSentence(['竞品商品图']) + '\n' + EXTRACT_CONSTRAINT + '\n', prompt, size: c.size }
+  const role = face ? roleSentence(['从竞品图裁出并拉正的商品印刷面']) : roleSentence(['竞品商品图'])
+  return { prefix: c.prefix + role + '\n' + (face ? FACE_CONSTRAINT : EXTRACT_CONSTRAINT) + '\n', prompt, size: c.size }
 }

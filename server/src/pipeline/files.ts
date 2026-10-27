@@ -4,7 +4,7 @@ import { thumb } from '../image/process'
 import { writeFileAtomic } from '../store/atomic'
 import type { ImageInput } from '../ai/imageClient'
 
-export const JOB_FILES = { pattern: 'pattern.png', main: 'main.png', blank: 'blank.png' } as const
+export const JOB_FILES = { pattern: 'pattern.png', main: 'main.png', blank: 'blank.png', face: 'face.png' } as const
 export type JobFileKind = 'source' | keyof typeof JOB_FILES
 
 const MIME_BY_EXT: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' }

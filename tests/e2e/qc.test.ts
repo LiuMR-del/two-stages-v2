@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import { startWorld, makeCategory, uploadJobs, waitJob, isDone, hasAttention, imageRequests, getJob, onlyBatch, type World } from './harness'
 import { PASTE_CONSTRAINT } from '../../server/src/prompts/main'
+import { FACE_CONSTRAINT } from '../../server/src/prompts/extract'
 import { waitFor } from '../helpers'
 
 let w: World | null = null
@@ -270,6 +271,74 @@ describe('e2e 15：主图验收（素材图 → 主图）', () => {
     expect((await waitJob(api, b.id, isDone)).mainQc).toBeNull()
     expect(mainQcRequests(w)).toHaveLength(0)
     expect(fs.existsSync(path.join(onlyBatch(w), '铝板画', '主图', 'b.png'))).toBe(true)
+  })
+})
+
+describe('e2e 16：先定印刷面区域，再按区域提取', () => {
+  it('识别品类时给出四个角 → 只把拉正后的印刷面发给生图模型；验收拿印刷面对照', async () => {
+    w = await startWorld()
+    const api = w.api
+    const c = await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    w.mock.script({
+      route: [{ route: { category_id: c.cid, style_id: null, confidence: 0.95, print_corners: [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]] } }],
+    })
+    const [a] = await uploadJobs(api, ['a.png'])
+    const done = await waitJob(api, a.id, isDone)
+    expect(done.face.ai).toEqual([[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]])
+    expect(done.face.corners[0][0]).toBeLessThan(0.1)
+    expect(done.steps[1].snapshot.images.map((i: any) => i.role)).toEqual(['印刷面'])
+    expect(done.steps[1].snapshot.prefix).toContain(FACE_CONSTRAINT)
+
+    const ex = imageRequests(w.mock).filter((r) => r.prompt!.includes('商品印刷面'))
+    expect(ex).toHaveLength(1)
+    expect(ex[0]!.prompt!.startsWith('[Canvas: 3:2 landscape format] 第一张图片是从竞品图裁出并拉正的商品印刷面。\n')).toBe(true)
+    const [img] = ex[0]!.images
+    expect(Math.abs(img!.width / img!.height - 1.5)).toBeLessThan(0.01)
+    expect(img!.width).toBeLessThan(800)
+
+    expect(done.qc.snapshot.images.map((i: any) => i.role)).toEqual(['印刷面', '素材图'])
+    expect(qcRequests(w)[0]!.system).toContain('按透视拉正的商品印刷面')
+    expect(done.qc.color.box).toEqual([0, 0, 1, 1])
+    expect((await api.raw(`/jobs/${a.id}/files/face`)).status).toBe(200)
+  })
+
+  it('区域框错了：第②步重做时选「按整张竞品图提取」', async () => {
+    w = await startWorld()
+    const api = w.api
+    const c = await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    w.mock.script({ route: [{ route: { category_id: c.cid, style_id: null, confidence: 0.95, print_corners: [[0.2, 0.2], [0.8, 0.2], [0.8, 0.6], [0.2, 0.6]] } }] })
+    const [a] = await uploadJobs(api, ['a.png'])
+    expect((await waitJob(api, a.id, isDone)).steps[1].snapshot.images[0].role).toBe('印刷面')
+    await api.json('POST', `/jobs/${a.id}/redo`, { step: 1, wholePhoto: true })
+    const again = await waitJob(api, a.id, (j) => isDone(j) && j.steps[1].snapshot?.images[0].role === '竞品图')
+    expect(again.face).toBeNull()
+    expect(again.qc.snapshot.images[0].role).toBe('竞品图')
+    expect((await api.raw(`/jobs/${a.id}/files/face`)).status).toBe(404)
+  })
+
+  it('款式方向和印刷面方向对不上 → 不硬拉，照旧按整张竞品图提取', async () => {
+    w = await startWorld()
+    const api = w.api
+    const c = await makeCategory(api, '铝板画', [{ name: '', ratio: '2:3', white: [1000, 1500] }])
+    w.mock.script({ route: [{ route: { category_id: c.cid, style_id: null, confidence: 0.95, print_corners: [[0.05, 0.2], [0.95, 0.2], [0.95, 0.7], [0.05, 0.7]] } }] })
+    const [a] = await uploadJobs(api, ['a.png'])
+    const done = await waitJob(api, a.id, isDone)
+    expect(done.face).not.toBeNull()
+    expect(done.steps[1].snapshot.images[0].role).toBe('竞品图')
+    expect(w.srv.logs()).toContain('和款式比例 2:3 差太多，这次按整张竞品图提取')
+  })
+
+  it('没给四个角（或给得不对）→ 照旧按整张竞品图提取', async () => {
+    w = await startWorld()
+    const api = w.api
+    const c = await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    w.mock.script({ route: [{ route: { category_id: c.cid, style_id: null, confidence: 0.95, print_corners: [[0.1, 0.1], [0.9, 0.1], [0.5, 0.3], [0.1, 0.9]] } }] })
+    const [a] = await uploadJobs(api, ['a.png'])
+    const done = await waitJob(api, a.id, isDone)
+    expect(done.face).toBeNull()
+    expect(w.srv.logs()).toContain('AI 给的印刷面四个角不合格，按整张图提取')
+    expect(done.steps[1].snapshot.images.map((i: any) => i.role)).toEqual(['竞品图'])
+    expect(extracts(w)).toHaveLength(1)
   })
 })
 

@@ -33,6 +33,7 @@ const OUT_KIND: Record<number, FileKind> = { 1: 'pattern', 2: 'main', 4: 'blank'
 
 function imgFor(j: Job, role: string, sha: string, thumb = true): string {
   if (role === '竞品图') return jobs.fileUrl(j, 'source', thumb)
+  if (role === '印刷面') return jobs.fileUrl(j, 'face', thumb)
   if (role === '素材图') return jobs.fileUrl(j, 'pattern', thumb)
   if (role === '主图') return jobs.fileUrl(j, 'main', thumb)
   return imageUrl(sha, thumb)
@@ -46,7 +47,16 @@ const recipe = computed(() => {
     key: String(im.no),
     no: im.no,
     role: im.role,
-    sub: im.role === '素材图' ? '第 ② 步的结果' : im.role === '主图' ? '第 ③ 步的结果' : im.role === '竞品图' ? j.source.originalName : '开始生成时记录',
+    sub:
+      im.role === '素材图'
+        ? '第 ② 步的结果'
+        : im.role === '主图'
+          ? '第 ③ 步的结果'
+          : im.role === '竞品图'
+            ? j.source.originalName
+            : im.role === '印刷面'
+              ? '从竞品图裁出并拉正'
+              : '开始生成时记录',
     state: 'image',
     img: imgFor(j, im.role, im.sha256),
     full: imgFor(j, im.role, im.sha256, false),
@@ -103,6 +113,8 @@ const qcSlots = computed<RecipeSlot[]>(() => {
 const redoOpen = ref(false)
 const redoText = ref('')
 const redoPick = ref('')
+/** 第②步重做时改按整张竞品图提取（第①步给的印刷面区域不对时用） */
+const redoWhole = ref(false)
 const busy = ref(false)
 
 function prefill(): string {
@@ -133,6 +145,7 @@ watch(
 function openRedo() {
   redoText.value = prefill()
   redoPick.value = ''
+  redoWhole.value = false
   redoOpen.value = true
 }
 
@@ -141,7 +154,8 @@ const downstream = computed(() => STEP_NAMES.slice(step.value + 1).join('、'))
 
 async function confirmRedo() {
   const j = job.value!
-  const body: { step: number; prompt?: string; categoryId?: string; styleId?: string } = { step: step.value }
+  const body: { step: number; prompt?: string; categoryId?: string; styleId?: string; wholePhoto?: boolean } = { step: step.value }
+  if (step.value === 1 && redoWhole.value) body.wholePhoto = true
   if (step.value === 0) {
     if (redoPick.value) {
       const [cid, sid] = redoPick.value.split('|')
@@ -217,6 +231,22 @@ async function openFolder() {
             <template v-if="job.route.reason"><dt>判断理由</dt><dd>{{ job.route.reason }}</dd></template>
             <dt>接下来</dt>
             <dd>用「{{ nextTemplate }}」生成主图，素材比例 {{ job.route.ratio }}</dd>
+            <dt>印刷面</dt>
+            <dd>
+              <template v-if="job.face">
+                <div class="face">
+                  <img :src="jobs.fileUrl(job, 'source', false)" alt="竞品图" />
+                  <svg viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon :points="job.face.ai.map((p) => p.join(',')).join(' ')" class="ai" />
+                    <polygon :points="job.face.corners.map((p) => p.join(',')).join(' ')" class="fix" />
+                  </svg>
+                </div>
+                <div class="muted tiny">
+                  实线是用来提取的区域（约 {{ job.face.size.width }}×{{ job.face.size.height }} 像素），虚线是 AI 给的位置；上、右、下、左四条边分别往外校正了 {{ job.face.moved.join('、') }} 像素，再多留一点余量。第 ② 步只把这块拉正后发给生图模型；框得不对可以在第 ② 步重做时改按整张图提取。
+                </div>
+              </template>
+              <span v-else class="muted small">AI 没给出印刷面的位置，第 ② 步按整张竞品图提取</span>
+            </dd>
           </dl>
           <div v-else-if="rec!.state === 'pending'" class="none">排队等待识别</div>
         </template>
@@ -313,6 +343,9 @@ async function openFolder() {
             </div>
             <div v-else-if="recipe?.local" class="muted small">本地合成没有提示词可改，重做就是重新合成；想要 AI 版本，请在模版库的配方卡把贴图方式改成「AI 贴图」。</div>
             <textarea v-else v-model="redoText" rows="6" aria-label="本次使用的提示词" placeholder="留空则按原来的提示词重做"></textarea>
+            <label v-if="step === 1 && job.face" class="sw small">
+              <input v-model="redoWhole" type="checkbox" />不用第 ① 步找的印刷面，按整张竞品图提取（区域框错了、切掉了图案时用）
+            </label>
             <div class="row">
               <span class="muted small fill">只改这一张，不会改模版库{{ step < 4 ? '；之后的 ' + downstream + ' 会自动重跑' : '' }}</span>
               <button type="button" class="btn sm" @click="redoOpen = false">取消</button>
@@ -330,6 +363,12 @@ async function openFolder() {
 </template>
 
 <style scoped>
+.face { position: relative; display: inline-block; max-width: 100%; }
+.face img { display: block; max-width: 100%; max-height: 260px; border-radius: 6px; }
+.face svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.face polygon { fill: none; vector-effect: non-scaling-stroke; }
+.face .fix { stroke: #00b8d4; stroke-width: 2; }
+.face .ai { stroke: #ffb300; stroke-width: 1.5; stroke-dasharray: 4 3; }
 .qcbox { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--hair); border-radius: 8px; }
 .qcbox .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .qcbox .reasons { margin: 6px 0; padding-left: 18px; color: var(--rd); }

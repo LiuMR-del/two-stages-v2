@@ -127,6 +127,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           override: null,
           qc: null,
           mainQc: null,
+          face: null,
         }
         await jobs.create(job)
         created.push(withView(job))
@@ -160,7 +161,13 @@ export function registerJobs(r: Router, ctx: AppContext): void {
 
   r.post('/jobs/:id/redo', async (req, res) => {
     const b = parseBody(
-      z.object({ step: z.number().int().min(0).max(4), prompt: z.string().max(20000).optional(), categoryId: z.string().optional(), styleId: z.string().optional() }),
+      z.object({
+        step: z.number().int().min(0).max(4),
+        prompt: z.string().max(20000).optional(),
+        categoryId: z.string().optional(),
+        styleId: z.string().optional(),
+        wholePhoto: z.boolean().optional(),
+      }),
       req.body,
     )
     res.json({ job: withView(await scheduler.redo(id(req), b)) })
@@ -187,7 +194,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
     const job = jobs.get(id(req))
     if (!job) throw new HttpError(404, '这张图已经不在队列里了')
     const kind = String(req.params.kind)
-    if (!['source', 'pattern', 'main', 'blank'].includes(kind)) throw new HttpError(400, '文件类型只能是 source、pattern、main、blank')
+    if (!['source', 'pattern', 'main', 'blank', 'face'].includes(kind)) throw new HttpError(400, '文件类型只能是 source、pattern、main、blank、face')
     const dir = jobs.dirOf(job.id)
     const file =
       req.query.size === 'thumb'

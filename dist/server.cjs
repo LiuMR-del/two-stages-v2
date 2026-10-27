@@ -3174,9 +3174,9 @@ var require_dbcs_codec = __commonJS({
                 throw new Error("Incorrect surrogate pair in " + this.encodingName + " at chunk " + chunk[0]);
               }
             } else if (code > 4080 && code <= 4095) {
-              var len = 4095 - code + 2;
+              var len2 = 4095 - code + 2;
               var seq = [];
-              for (var m = 0; m < len; m++) {
+              for (var m = 0; m < len2; m++) {
                 seq.push(part.charCodeAt(l++));
               }
               writeTable[curAddr++] = SEQ_START - this.decodeTableSeq.length;
@@ -5160,9 +5160,9 @@ var require_lib = __commonJS({
     module2.exports._codecDataCache = { __proto__: null };
     module2.exports.getCodec = function getCodec(encoding) {
       if (!module2.exports.encodings) {
-        var raw = require_encodings();
+        var raw2 = require_encodings();
         module2.exports.encodings = { __proto__: null };
-        mergeModules(module2.exports.encodings, raw);
+        mergeModules(module2.exports.encodings, raw2);
       }
       var enc = module2.exports._canonicalizeEncoding(encoding);
       var codecOptions = {};
@@ -5675,16 +5675,16 @@ var require_dist = __commonJS({
     }
     function parse3(header, options) {
       const stopChar = options?.comma === true ? COMMA : 65536;
-      const len = header.length;
-      let index = skipOWS(header, options?.start ?? 0, len);
+      const len2 = header.length;
+      let index = skipOWS(header, options?.start ?? 0, len2);
       const valueStart = index;
-      index = skipValue(header, index, len, stopChar);
+      index = skipValue(header, index, len2, stopChar);
       const valueEnd = trailingOWS(header, valueStart, index);
       const type = header.slice(valueStart, valueEnd).toLowerCase();
       if (options?.parameters === false) {
         return { type, index, parameters: new NullObject() };
       }
-      return parseParameters(header, type, index, len, stopChar);
+      return parseParameters(header, type, index, len2, stopChar);
     }
     var SP = 32;
     var HTAB = 9;
@@ -5693,14 +5693,14 @@ var require_dist = __commonJS({
     var DQUOTE = 34;
     var BSLASH = 92;
     var COMMA = 44;
-    function parseParameters(header, type, index, len, stopChar) {
+    function parseParameters(header, type, index, len2, stopChar) {
       const parameters = new NullObject();
-      parameter: while (index < len) {
+      parameter: while (index < len2) {
         if (header.charCodeAt(index) === stopChar)
           break;
-        index = skipOWS(header, index + 1, len);
+        index = skipOWS(header, index + 1, len2);
         const keyStart = index;
-        while (index < len) {
+        while (index < len2) {
           const code = header.charCodeAt(index);
           if (code === stopChar)
             break parameter;
@@ -5709,19 +5709,19 @@ var require_dist = __commonJS({
           if (code === EQ) {
             const keyEnd = trailingOWS(header, keyStart, index);
             const key = header.slice(keyStart, keyEnd).toLowerCase();
-            index = skipOWS(header, index + 1, len);
-            if (index < len && header.charCodeAt(index) === DQUOTE) {
+            index = skipOWS(header, index + 1, len2);
+            if (index < len2 && header.charCodeAt(index) === DQUOTE) {
               index++;
               let value = "";
-              while (index < len) {
+              while (index < len2) {
                 const code2 = header.charCodeAt(index++);
                 if (code2 === DQUOTE) {
-                  index = skipValue(header, index, len, stopChar);
+                  index = skipValue(header, index, len2, stopChar);
                   if (parameters[key] === void 0)
                     parameters[key] = value;
                   break;
                 }
-                if (code2 === BSLASH && index < len) {
+                if (code2 === BSLASH && index < len2) {
                   value += header[index++];
                   continue;
                 }
@@ -5730,7 +5730,7 @@ var require_dist = __commonJS({
               continue parameter;
             }
             const valueStart = index;
-            index = skipValue(header, index, len, stopChar);
+            index = skipValue(header, index, len2, stopChar);
             if (parameters[key] === void 0) {
               const valueEnd = trailingOWS(header, valueStart, index);
               parameters[key] = header.slice(valueStart, valueEnd);
@@ -5742,8 +5742,8 @@ var require_dist = __commonJS({
       }
       return { type, index, parameters };
     }
-    function skipValue(str, index, len, stopChar) {
-      while (index < len) {
+    function skipValue(str, index, len2, stopChar) {
+      while (index < len2) {
         const code = str.charCodeAt(index);
         if (code === SEMI || code === stopChar)
           break;
@@ -5751,8 +5751,8 @@ var require_dist = __commonJS({
       }
       return index;
     }
-    function skipOWS(header, index, len) {
-      while (index < len) {
+    function skipOWS(header, index, len2) {
+      while (index < len2) {
         const char = header.charCodeAt(index);
         if (char !== SP && char !== HTAB)
           break;
@@ -15763,8 +15763,8 @@ var require_raw = __commonJS({
     var debug = require_src()("body-parser:raw");
     var read = require_read();
     var { normalizeOptions, passthrough } = require_utils();
-    module2.exports = raw;
-    function raw(options) {
+    module2.exports = raw2;
+    function raw2(options) {
       const normalizedOptions = normalizeOptions(options, "application/octet-stream");
       const readOptions = {
         ...normalizedOptions,
@@ -19068,8 +19068,8 @@ var require_etag = __commonJS({
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
       var hash2 = crypto.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
-      var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
-      return '"' + len.toString(16) + "-" + hash2 + '"';
+      var len2 = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
+      return '"' + len2.toString(16) + "-" + hash2 + '"';
     }
     function etag(entity, options) {
       if (entity == null) {
@@ -19176,7 +19176,7 @@ var require_ipaddr = __commonJS({
         return true;
       };
       ipaddr.subnetMatch = function(address, rangeList, defaultName) {
-        var k, len, rangeName, rangeSubnets, subnet;
+        var k, len2, rangeName, rangeSubnets, subnet;
         if (defaultName == null) {
           defaultName = "unicast";
         }
@@ -19185,7 +19185,7 @@ var require_ipaddr = __commonJS({
           if (rangeSubnets[0] && !(rangeSubnets[0] instanceof Array)) {
             rangeSubnets = [rangeSubnets];
           }
-          for (k = 0, len = rangeSubnets.length; k < len; k++) {
+          for (k = 0, len2 = rangeSubnets.length; k < len2; k++) {
             subnet = rangeSubnets[k];
             if (address.kind() === subnet[0].kind()) {
               if (address.match.apply(address, subnet)) {
@@ -19198,11 +19198,11 @@ var require_ipaddr = __commonJS({
       };
       ipaddr.IPv4 = (function() {
         function IPv4(octets) {
-          var k, len, octet;
+          var k, len2, octet;
           if (octets.length !== 4) {
             throw new Error("ipaddr: ipv4 octet count should be 4");
           }
-          for (k = 0, len = octets.length; k < len; k++) {
+          for (k = 0, len2 = octets.length; k < len2; k++) {
             octet = octets[k];
             if (!(0 <= octet && octet <= 255)) {
               throw new Error("ipaddr: ipv4 octet should fit in 8 bits");
@@ -19298,10 +19298,10 @@ var require_ipaddr = __commonJS({
         };
         if (match = string4.match(ipv4Regexes.fourOctet)) {
           return (function() {
-            var k, len, ref, results;
+            var k, len2, ref, results;
             ref = match.slice(1, 6);
             results = [];
-            for (k = 0, len = ref.length; k < len; k++) {
+            for (k = 0, len2 = ref.length; k < len2; k++) {
               part = ref[k];
               results.push(parseIntAuto(part));
             }
@@ -19326,7 +19326,7 @@ var require_ipaddr = __commonJS({
       };
       ipaddr.IPv6 = (function() {
         function IPv6(parts, zoneId) {
-          var i2, k, l, len, part, ref;
+          var i2, k, l, len2, part, ref;
           if (parts.length === 16) {
             this.parts = [];
             for (i2 = k = 0; k <= 14; i2 = k += 2) {
@@ -19338,7 +19338,7 @@ var require_ipaddr = __commonJS({
             throw new Error("ipaddr: ipv6 part count should be 8 or 16");
           }
           ref = this.parts;
-          for (l = 0, len = ref.length; l < len; l++) {
+          for (l = 0, len2 = ref.length; l < len2; l++) {
             part = ref[l];
             if (!(0 <= part && part <= 65535)) {
               throw new Error("ipaddr: ipv6 part should fit in 16 bits");
@@ -19372,10 +19372,10 @@ var require_ipaddr = __commonJS({
           return string4.substring(0, bestMatchIndex) + "::" + string4.substring(bestMatchIndex + bestMatchLength);
         };
         IPv6.prototype.toByteArray = function() {
-          var bytes, k, len, part, ref;
+          var bytes, k, len2, part, ref;
           bytes = [];
           ref = this.parts;
-          for (k = 0, len = ref.length; k < len; k++) {
+          for (k = 0, len2 = ref.length; k < len2; k++) {
             part = ref[k];
             bytes.push(part >> 8);
             bytes.push(part & 255);
@@ -19385,10 +19385,10 @@ var require_ipaddr = __commonJS({
         IPv6.prototype.toNormalizedString = function() {
           var addr, part, suffix;
           addr = (function() {
-            var k, len, ref, results;
+            var k, len2, ref, results;
             ref = this.parts;
             results = [];
-            for (k = 0, len = ref.length; k < len; k++) {
+            for (k = 0, len2 = ref.length; k < len2; k++) {
               part = ref[k];
               results.push(part.toString(16));
             }
@@ -19403,10 +19403,10 @@ var require_ipaddr = __commonJS({
         IPv6.prototype.toFixedLengthString = function() {
           var addr, part, suffix;
           addr = (function() {
-            var k, len, ref, results;
+            var k, len2, ref, results;
             ref = this.parts;
             results = [];
-            for (k = 0, len = ref.length; k < len; k++) {
+            for (k = 0, len2 = ref.length; k < len2; k++) {
               part = ref[k];
               results.push(part.toString(16).padStart(4, "0"));
             }
@@ -19541,10 +19541,10 @@ var require_ipaddr = __commonJS({
           string4 = string4.slice(0, -1);
         }
         parts = (function() {
-          var k, len, ref, results;
+          var k, len2, ref, results;
           ref = string4.split(":");
           results = [];
-          for (k = 0, len = ref.length; k < len; k++) {
+          for (k = 0, len2 = ref.length; k < len2; k++) {
             part = ref[k];
             results.push(parseInt(part, 16));
           }
@@ -19556,7 +19556,7 @@ var require_ipaddr = __commonJS({
         };
       };
       ipaddr.IPv6.parser = function(string4) {
-        var addr, k, len, match, octet, octets, zoneId;
+        var addr, k, len2, match, octet, octets, zoneId;
         if (ipv6Regexes["native"].test(string4)) {
           return expandIPv6(string4, 8);
         } else if (match = string4.match(ipv6Regexes["transitional"])) {
@@ -19564,7 +19564,7 @@ var require_ipaddr = __commonJS({
           addr = expandIPv6(match[1].slice(0, -1) + zoneId, 6);
           if (addr.parts) {
             octets = [parseInt(match[2]), parseInt(match[3]), parseInt(match[4]), parseInt(match[5])];
-            for (k = 0, len = octets.length; k < len; k++) {
+            for (k = 0, len2 = octets.length; k < len2; k++) {
               octet = octets[k];
               if (!(0 <= octet && octet <= 255)) {
                 return null;
@@ -19828,8 +19828,8 @@ var require_proxy_addr = __commonJS({
       return rangeSubnets;
     }
     function compileTrust(rangeSubnets) {
-      var len = rangeSubnets.length;
-      return len === 0 ? trustNone : len === 1 ? trustSingle(rangeSubnets[0]) : trustMulti(rangeSubnets);
+      var len2 = rangeSubnets.length;
+      return len2 === 0 ? trustNone : len2 === 1 ? trustSingle(rangeSubnets[0]) : trustMulti(rangeSubnets);
     }
     function parseipNotation(note) {
       var pos = note.lastIndexOf("/");
@@ -20302,11 +20302,11 @@ var require_dist2 = __commonJS({
       if (token.type === "group") {
         const fn = tokensToFunction(token.tokens, delimiter, encode3);
         return (data, missing) => {
-          const len = missing.length;
+          const len2 = missing.length;
           const value = fn(data, missing);
-          if (missing.length === len)
+          if (missing.length === len2)
             return value;
-          missing.length = len;
+          missing.length = len2;
           return "";
         };
       }
@@ -20404,9 +20404,9 @@ var require_dist2 = __commonJS({
       while (index < tokens.length) {
         const token = tokens[index++];
         if (token.type === "group") {
-          const len = result.length;
+          const len2 = result.length;
           flatten(token.tokens, 0, result, (seq) => flatten(tokens, index, seq, callback));
-          result.length = len;
+          result.length = len2;
           continue;
         }
         result.push(token);
@@ -21181,7 +21181,7 @@ var require_router = __commonJS({
       return function proxy() {
         const args = new Array(arguments.length + 1);
         args[0] = old;
-        for (let i2 = 0, len = arguments.length; i2 < len; i2++) {
+        for (let i2 = 0, len2 = arguments.length; i2 < len2; i2++) {
           args[i2 + 1] = arguments[i2];
         }
         fn.apply(this, args);
@@ -22019,7 +22019,7 @@ var require_fresh = __commonJS({
       var end = 0;
       var list = [];
       var start = 0;
-      for (var i2 = 0, len = str.length; i2 < len; i2++) {
+      for (var i2 = 0, len2 = str.length; i2 < len2; i2++) {
         switch (str.charCodeAt(i2)) {
           case 32:
             if (start === end) {
@@ -22311,40 +22311,40 @@ var require_dist3 = __commonJS({
     var BSLASH = 92;
     var ASTERISK = 42;
     function parse3(header, options) {
-      const len = header.length;
+      const len2 = header.length;
       const multipart = options?.multipart === true;
       const extended2 = options?.extended !== false;
       let index = skipOWS(header, 0, header.length);
       const typeStart = index;
-      index = parseToken(header, index, len);
+      index = parseToken(header, index, len2);
       const typeEnd = trailingOWS(header, typeStart, index);
       const type = header.slice(typeStart, typeEnd).toLowerCase();
       const parameters = new NullObject();
-      parameter: while (index < len) {
-        index = skipOWS(header, index + 1, len);
+      parameter: while (index < len2) {
+        index = skipOWS(header, index + 1, len2);
         const keyStart = index;
-        while (index < len) {
+        while (index < len2) {
           const char = header.charCodeAt(index);
           if (char === SEMI)
             continue parameter;
           if (char === EQ) {
             const keyEnd = trailingOWS(header, keyStart, index);
             const key = header.slice(keyStart, keyEnd).toLowerCase();
-            index = skipOWS(header, index + 1, len);
-            if (index < len && header.charCodeAt(index) === DQUOTE) {
+            index = skipOWS(header, index + 1, len2);
+            if (index < len2 && header.charCodeAt(index) === DQUOTE) {
               index++;
               let value2 = "";
               if (multipart) {
-                while (index < len) {
+                while (index < len2) {
                   const code = header.charCodeAt(index++);
                   if (code === DQUOTE) {
-                    index = parseToken(header, index, len);
+                    index = parseToken(header, index, len2);
                     if (parameters[key] === void 0)
                       parameters[key] = value2;
                     break;
                   }
                   if (code === /* % */
-                  37 && index + 1 < len) {
+                  37 && index + 1 < len2) {
                     const code2 = header.charCodeAt(index);
                     const code3 = header.charCodeAt(index + 1);
                     if (code2 === 50 && code3 === 50) {
@@ -22368,15 +22368,15 @@ var require_dist3 = __commonJS({
                   value2 += String.fromCharCode(code);
                 }
               } else {
-                while (index < len) {
+                while (index < len2) {
                   const code = header.charCodeAt(index++);
                   if (code === DQUOTE) {
-                    index = parseToken(header, index, len);
+                    index = parseToken(header, index, len2);
                     if (parameters[key] === void 0)
                       parameters[key] = value2;
                     break;
                   }
-                  if (code === BSLASH && index < len) {
+                  if (code === BSLASH && index < len2) {
                     value2 += header[index++];
                     continue;
                   }
@@ -22386,7 +22386,7 @@ var require_dist3 = __commonJS({
               continue parameter;
             }
             const valueStart = index;
-            index = parseToken(header, index, len);
+            index = parseToken(header, index, len2);
             const valueEnd = trailingOWS(header, valueStart, index);
             const value = header.slice(valueStart, valueEnd);
             if (parameters[key] === void 0) {
@@ -22463,8 +22463,8 @@ var require_dist3 = __commonJS({
         return void 0;
       }
     }
-    function parseToken(str, index, len) {
-      while (index < len) {
+    function parseToken(str, index, len2) {
+      while (index < len2) {
         const char = str.charCodeAt(index);
         if (char === SEMI)
           break;
@@ -22472,8 +22472,8 @@ var require_dist3 = __commonJS({
       }
       return index;
     }
-    function skipOWS(str, index, len) {
-      while (index < len) {
+    function skipOWS(str, index, len2) {
+      while (index < len2) {
         const char = str.charCodeAt(index);
         if (char !== SP && char !== HTAB)
           break;
@@ -22606,8 +22606,8 @@ var require_cookie = __commonJS({
         throw new TypeError("argument str must be a string");
       }
       var obj = {};
-      var len = str.length;
-      if (len < 2) return obj;
+      var len2 = str.length;
+      if (len2 < 2) return obj;
       var dec = opt && opt.decode || decode3;
       var index = 0;
       var eqIdx = 0;
@@ -22617,7 +22617,7 @@ var require_cookie = __commonJS({
         if (eqIdx === -1) break;
         endIdx = str.indexOf(";", index);
         if (endIdx === -1) {
-          endIdx = len;
+          endIdx = len2;
         } else if (eqIdx > endIdx) {
           index = str.lastIndexOf(";", eqIdx - 1) + 1;
           continue;
@@ -22636,7 +22636,7 @@ var require_cookie = __commonJS({
           obj[key] = tryDecode(val, dec);
         }
         index = endIdx + 1;
-      } while (index < len);
+      } while (index < len2);
       return obj;
     }
     function startIndex(str, index, max2) {
@@ -22979,7 +22979,7 @@ var require_send = __commonJS({
       return res;
     };
     SendStream.prototype.send = function send2(path21, stat) {
-      var len = stat.size;
+      var len2 = stat.size;
       var options = this.options;
       var opts = {};
       var res = this.res;
@@ -23003,13 +23003,13 @@ var require_send = __commonJS({
           return;
         }
       }
-      len = Math.max(0, len - offset);
+      len2 = Math.max(0, len2 - offset);
       if (options.end !== void 0) {
         var bytes = options.end - offset + 1;
-        if (len > bytes) len = bytes;
+        if (len2 > bytes) len2 = bytes;
       }
       if (this._acceptRanges && BYTES_RANGE_REGEXP.test(ranges)) {
-        ranges = parseRange(len, ranges, {
+        ranges = parseRange(len2, ranges, {
           combine: true
         });
         if (!this.isRangeFresh()) {
@@ -23018,7 +23018,7 @@ var require_send = __commonJS({
         }
         if (ranges === -1) {
           debug("range unsatisfiable");
-          res.setHeader("Content-Range", contentRange("bytes", len));
+          res.setHeader("Content-Range", contentRange("bytes", len2));
           return this.error(416, {
             headers: { "Content-Range": res.getHeader("Content-Range") }
           });
@@ -23026,17 +23026,17 @@ var require_send = __commonJS({
         if (ranges !== -2 && ranges.length === 1) {
           debug("range %j", ranges);
           res.statusCode = 206;
-          res.setHeader("Content-Range", contentRange("bytes", len, ranges[0]));
+          res.setHeader("Content-Range", contentRange("bytes", len2, ranges[0]));
           offset += ranges[0].start;
-          len = ranges[0].end - ranges[0].start + 1;
+          len2 = ranges[0].end - ranges[0].start + 1;
         }
       }
       for (var prop in options) {
         opts[prop] = options[prop];
       }
       opts.start = offset;
-      opts.end = Math.max(offset, offset + len - 1);
-      res.setHeader("Content-Length", len);
+      opts.end = Math.max(offset, offset + len2 - 1);
+      res.setHeader("Content-Length", len2);
       if (req.method === "HEAD") {
         res.end();
         return;
@@ -23205,7 +23205,7 @@ var require_send = __commonJS({
       var end = 0;
       var list = [];
       var start = 0;
-      for (var i2 = 0, len = str.length; i2 < len; i2++) {
+      for (var i2 = 0, len2 = str.length; i2 < len2; i2++) {
         switch (str.charCodeAt(i2)) {
           case 32:
             if (start === end) {
@@ -23279,7 +23279,7 @@ var require_vary = __commonJS({
       var end = 0;
       var list = [];
       var start = 0;
-      for (var i2 = 0, len = header.length; i2 < len; i2++) {
+      for (var i2 = 0, len2 = header.length; i2 < len2; i2++) {
         switch (header.charCodeAt(i2)) {
           case 32:
             if (start === end) {
@@ -23394,23 +23394,23 @@ var require_response = __commonJS({
       }
       var etagFn = app.get("etag fn");
       var generateETag = !this.get("ETag") && typeof etagFn === "function";
-      var len;
+      var len2;
       if (chunk !== void 0) {
         if (Buffer2.isBuffer(chunk)) {
-          len = chunk.length;
+          len2 = chunk.length;
         } else if (!generateETag && chunk.length < 1e3) {
-          len = Buffer2.byteLength(chunk, encoding);
+          len2 = Buffer2.byteLength(chunk, encoding);
         } else {
           chunk = Buffer2.from(chunk, encoding);
           encoding = void 0;
-          len = chunk.length;
+          len2 = chunk.length;
         }
         if (!this.get("Transfer-Encoding")) {
-          this.set("Content-Length", len);
+          this.set("Content-Length", len2);
         }
       }
       var etag;
-      if (generateETag && len !== void 0) {
+      if (generateETag && len2 !== void 0) {
         if (etag = etagFn(chunk, encoding)) {
           this.set("ETag", etag);
         }
@@ -34784,13 +34784,13 @@ var require_sbmh = __commonJS({
       }
     };
     function feed(self, data) {
-      const len = data.length;
+      const len2 = data.length;
       const needle = self._needle;
       const needleLen = needle.length;
       let pos = -self._lookbehindSize;
       const lastNeedleCharPos = needleLen - 1;
       const lastNeedleChar = needle[lastNeedleCharPos];
-      const end = len - needleLen;
+      const end = len2 - needleLen;
       const occ = self._occ;
       const lookbehind = self._lookbehind;
       if (pos < 0) {
@@ -34808,7 +34808,7 @@ var require_sbmh = __commonJS({
           }
           pos += occ[ch];
         }
-        while (pos < 0 && !matchNeedle(self, data, pos, len - pos))
+        while (pos < 0 && !matchNeedle(self, data, pos, len2 - pos))
           ++pos;
         if (pos < 0) {
           const bytesToCutOff = self._lookbehindSize + pos;
@@ -34818,9 +34818,9 @@ var require_sbmh = __commonJS({
           self._lookbehindSize -= bytesToCutOff;
           lookbehind.copy(lookbehind, 0, bytesToCutOff, self._lookbehindSize);
           lookbehind.set(data, self._lookbehindSize);
-          self._lookbehindSize += len;
-          self._bufPos = len;
-          return len;
+          self._lookbehindSize += len2;
+          self._bufPos = len2;
+          return len2;
         }
         self._cb(false, lookbehind, 0, self._lookbehindSize, false);
         self._lookbehindSize = 0;
@@ -34839,25 +34839,25 @@ var require_sbmh = __commonJS({
         }
         pos += occ[ch];
       }
-      while (pos < len) {
-        if (data[pos] !== firstNeedleChar || !memcmp(data, pos, needle, 0, len - pos)) {
+      while (pos < len2) {
+        if (data[pos] !== firstNeedleChar || !memcmp(data, pos, needle, 0, len2 - pos)) {
           ++pos;
           continue;
         }
-        data.copy(lookbehind, 0, pos, len);
-        self._lookbehindSize = len - pos;
+        data.copy(lookbehind, 0, pos, len2);
+        self._lookbehindSize = len2 - pos;
         break;
       }
       if (pos > 0)
-        self._cb(false, data, self._bufPos, pos < len ? pos : len, true);
-      self._bufPos = len;
-      return len;
+        self._cb(false, data, self._bufPos, pos < len2 ? pos : len2, true);
+      self._bufPos = len2;
+      return len2;
     }
-    function matchNeedle(self, data, pos, len) {
+    function matchNeedle(self, data, pos, len2) {
       const lb = self._lookbehind;
       const lbSize = self._lookbehindSize;
       const needle = self._needle;
-      for (let i2 = 0; i2 < len; ++i2, ++pos) {
+      for (let i2 = 0; i2 < len2; ++i2, ++pos) {
         const ch = pos < 0 ? lb[lbSize + pos] : data[pos];
         if (ch !== needle[i2])
           return false;
@@ -35957,13 +35957,13 @@ var require_urlencoded2 = __commonJS({
         if (this._fields >= this.fieldsLimit)
           return cb();
         let i2 = 0;
-        const len = chunk.length;
+        const len2 = chunk.length;
         this._lastPos = 0;
         if (this._byte !== -2) {
-          i2 = readPctEnc(this, chunk, i2, len);
+          i2 = readPctEnc(this, chunk, i2, len2);
           if (i2 === -1)
             return cb(new Error("Malformed urlencoded form"));
-          if (i2 >= len)
+          if (i2 >= len2)
             return cb();
           if (this._inKey)
             ++this._bytesKey;
@@ -35971,10 +35971,10 @@ var require_urlencoded2 = __commonJS({
             ++this._bytesVal;
         }
         main:
-          while (i2 < len) {
+          while (i2 < len2) {
             if (this._inKey) {
-              i2 = skipKeyBytes(this, chunk, i2, len);
-              while (i2 < len) {
+              i2 = skipKeyBytes(this, chunk, i2, len2);
+              while (i2 < len2) {
                 switch (chunk[i2]) {
                   case 61:
                     if (this._lastPos < i2)
@@ -36027,24 +36027,24 @@ var require_urlencoded2 = __commonJS({
                       this._key += chunk.latin1Slice(this._lastPos, i2);
                     this._lastPos = i2 + 1;
                     this._byte = -1;
-                    i2 = readPctEnc(this, chunk, i2 + 1, len);
+                    i2 = readPctEnc(this, chunk, i2 + 1, len2);
                     if (i2 === -1)
                       return cb(new Error("Malformed urlencoded form"));
-                    if (i2 >= len)
+                    if (i2 >= len2)
                       return cb();
                     ++this._bytesKey;
-                    i2 = skipKeyBytes(this, chunk, i2, len);
+                    i2 = skipKeyBytes(this, chunk, i2, len2);
                     continue;
                 }
                 ++i2;
                 ++this._bytesKey;
-                i2 = skipKeyBytes(this, chunk, i2, len);
+                i2 = skipKeyBytes(this, chunk, i2, len2);
               }
               if (this._lastPos < i2)
                 this._key += chunk.latin1Slice(this._lastPos, i2);
             } else {
-              i2 = skipValBytes(this, chunk, i2, len);
-              while (i2 < len) {
+              i2 = skipValBytes(this, chunk, i2, len2);
+              while (i2 < len2) {
                 switch (chunk[i2]) {
                   case 38:
                     if (this._lastPos < i2)
@@ -36090,18 +36090,18 @@ var require_urlencoded2 = __commonJS({
                       this._val += chunk.latin1Slice(this._lastPos, i2);
                     this._lastPos = i2 + 1;
                     this._byte = -1;
-                    i2 = readPctEnc(this, chunk, i2 + 1, len);
+                    i2 = readPctEnc(this, chunk, i2 + 1, len2);
                     if (i2 === -1)
                       return cb(new Error("Malformed urlencoded form"));
-                    if (i2 >= len)
+                    if (i2 >= len2)
                       return cb();
                     ++this._bytesVal;
-                    i2 = skipValBytes(this, chunk, i2, len);
+                    i2 = skipValBytes(this, chunk, i2, len2);
                     continue;
                 }
                 ++i2;
                 ++this._bytesVal;
-                i2 = skipValBytes(this, chunk, i2, len);
+                i2 = skipValBytes(this, chunk, i2, len2);
               }
               if (this._lastPos < i2)
                 this._val += chunk.latin1Slice(this._lastPos, i2);
@@ -36132,16 +36132,16 @@ var require_urlencoded2 = __commonJS({
         cb();
       }
     };
-    function readPctEnc(self, chunk, pos, len) {
-      if (pos >= len)
-        return len;
+    function readPctEnc(self, chunk, pos, len2) {
+      if (pos >= len2)
+        return len2;
       if (self._byte === -1) {
         const hexUpper = HEX_VALUES[chunk[pos++]];
         if (hexUpper === -1)
           return -1;
         if (hexUpper >= 8)
           self._encode = 2;
-        if (pos < len) {
+        if (pos < len2) {
           const hexLower = HEX_VALUES[chunk[pos++]];
           if (hexLower === -1)
             return -1;
@@ -36167,14 +36167,14 @@ var require_urlencoded2 = __commonJS({
       }
       return pos;
     }
-    function skipKeyBytes(self, chunk, pos, len) {
+    function skipKeyBytes(self, chunk, pos, len2) {
       if (self._bytesKey > self.fieldNameSizeLimit) {
         if (!self._keyTrunc) {
           if (self._lastPos < pos)
             self._key += chunk.latin1Slice(self._lastPos, pos - 1);
         }
         self._keyTrunc = true;
-        for (; pos < len; ++pos) {
+        for (; pos < len2; ++pos) {
           const code = chunk[pos];
           if (code === 61 || code === 38)
             break;
@@ -36184,14 +36184,14 @@ var require_urlencoded2 = __commonJS({
       }
       return pos;
     }
-    function skipValBytes(self, chunk, pos, len) {
+    function skipValBytes(self, chunk, pos, len2) {
       if (self._bytesVal > self.fieldSizeLimit) {
         if (!self._valTrunc) {
           if (self._lastPos < pos)
             self._val += chunk.latin1Slice(self._lastPos, pos - 1);
         }
         self._valTrunc = true;
-        for (; pos < len; ++pos) {
+        for (; pos < len2; ++pos) {
           if (chunk[pos] === 38)
             break;
           ++self._bytesVal;
@@ -36526,16 +36526,16 @@ var require_parse_path = __commonJS({
       }
       var firstKey = reFirstKey.exec(key)[0];
       if (!firstKey) return failure2();
-      var len = key.length;
+      var len2 = key.length;
       var pos = firstKey.length;
       var tail = { type: "object", key: firstKey };
       var steps = [tail];
-      while (pos < len) {
+      while (pos < len2) {
         var m;
         if (key[pos] === "[" && key[pos + 1] === "]") {
           pos += 2;
           tail.append = true;
-          if (pos !== len) return failure2();
+          if (pos !== len2) return failure2();
           continue;
         }
         m = reDigitPath.exec(key.substring(pos));
@@ -37167,8 +37167,8 @@ var require_disk = __commonJS({
       if (flush.onClosed) flush.onClosed();
     }
     function getFilename(req, file2, cb) {
-      crypto.randomBytes(16, function(err2, raw) {
-        cb(err2, err2 ? void 0 : raw.toString("hex"));
+      crypto.randomBytes(16, function(err2, raw2) {
+        cb(err2, err2 ? void 0 : raw2.toString("hex"));
       });
     }
     function getDestination(req, file2, cb) {
@@ -37477,10 +37477,10 @@ var import_node_path2 = __toESM(require("node:path"), 1);
 // server/src/util/ids.ts
 var import_node_crypto = require("node:crypto");
 var ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
-function randomId(len) {
-  const bytes = (0, import_node_crypto.randomBytes)(len);
+function randomId(len2) {
+  const bytes = (0, import_node_crypto.randomBytes)(len2);
   let s = "";
-  for (let i2 = 0; i2 < len; i2++) s += ALPHABET[bytes[i2] % ALPHABET.length];
+  for (let i2 = 0; i2 < len2; i2++) s += ALPHABET[bytes[i2] % ALPHABET.length];
   return s;
 }
 var newCategoryId = () => "c_" + randomId(8);
@@ -38447,9 +38447,9 @@ function putProp(target, key, value) {
     target[key] = value;
 }
 function mirrorShape(target, source, keys, wrap) {
-  const raw = sourceShape(source);
+  const raw2 = sourceShape(source);
   for (const key of keys) {
-    const desc = Object.getOwnPropertyDescriptor(raw, key);
+    const desc = Object.getOwnPropertyDescriptor(raw2, key);
     if (!desc.enumerable)
       continue;
     if (desc.get) {
@@ -38715,10 +38715,10 @@ function pick(schema, mask) {
   return clone(schema, mergeDefs(currDef, { shape: newShape, checks: [] }));
 }
 function maskedKeys(schema, mask) {
-  const raw = sourceShape(schema);
+  const raw2 = sourceShape(schema);
   const keys = [];
   for (const key of Reflect.ownKeys(mask)) {
-    if (!Object.getOwnPropertyDescriptor(raw, key)?.enumerable) {
+    if (!Object.getOwnPropertyDescriptor(raw2, key)?.enumerable) {
       throw new Error(`Unrecognized key: "${String(key)}"`);
     }
     if (mask[key])
@@ -40765,8 +40765,8 @@ var $ZodCreditCard = /* @__PURE__ */ $constructor("$ZodCreditCard", (inst, def) 
 });
 function isIso7064Mod97(iban3) {
   let remainder = 0;
-  const len = iban3.length;
-  for (let i2 = 4; i2 < len; i2++) {
+  const len2 = iban3.length;
+  for (let i2 = 4; i2 < len2; i2++) {
     const code = iban3.charCodeAt(i2);
     remainder = (code >= 65 ? remainder * 100 + (code - 55) : remainder * 10 + (code - 48)) % 97;
   }
@@ -42768,8 +42768,8 @@ function isRecursive(inst, stack, resolve) {
   const kind = def.type;
   switch (kind) {
     case "object": {
-      const raw = rawShape(def);
-      merge2(raw ? shape(raw, true) : ASSUMED);
+      const raw2 = rawShape(def);
+      merge2(raw2 ? shape(raw2, true) : ASSUMED);
       check2(def.catchall);
       break;
     }
@@ -50824,20 +50824,20 @@ function generateChecks(doc, ctx, schema, accessor) {
         break;
       case "min_length": {
         const min = numericOperand(def.minimum, "min_length");
-        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${min} && ${currentAccessor}.length < ${def.minimum * 2}`);
-        doc.write(`if (${len} < ${min}) return INVALID;`);
+        const len2 = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${min} && ${currentAccessor}.length < ${def.minimum * 2}`);
+        doc.write(`if (${len2} < ${min}) return INVALID;`);
         break;
       }
       case "max_length": {
         const max2 = numericOperand(def.maximum, "max_length");
-        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length > ${max2}`);
-        doc.write(`if (${len} > ${max2}) return INVALID;`);
+        const len2 = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length > ${max2}`);
+        doc.write(`if (${len2} > ${max2}) return INVALID;`);
         break;
       }
       case "length_equals": {
         const exact = numericOperand(def.length, "length_equals");
-        const len = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${exact} && ${currentAccessor}.length <= ${def.length * 2}`);
-        doc.write(`if (${len} !== ${exact}) return INVALID;`);
+        const len2 = codePointLengthVar(doc, ctx, currentAccessor, `${currentAccessor}.length >= ${exact} && ${currentAccessor}.length <= ${def.length * 2}`);
+        doc.write(`if (${len2} !== ${exact}) return INVALID;`);
         break;
       }
       case "min_size":
@@ -56597,8 +56597,8 @@ function canonicalKey(value, seen) {
   if (type !== "object") {
     if (type === "number" && Number.isNaN(value))
       return null;
-    const raw = String(value);
-    return `${type[0]}${raw.length}:${raw}`;
+    const raw2 = String(value);
+    return `${type[0]}${raw2.length}:${raw2}`;
   }
   if (seen.has(value))
     return null;
@@ -57486,14 +57486,14 @@ function maskSettings(s) {
   };
 }
 function resolveOutputDir(s) {
-  const raw = s.outputDir.trim() || DEFAULT_OUTPUT_DIR;
-  return import_node_path4.default.resolve(expandHome(raw === "~" ? import_node_os2.default.homedir() : raw));
+  const raw2 = s.outputDir.trim() || DEFAULT_OUTPUT_DIR;
+  return import_node_path4.default.resolve(expandHome(raw2 === "~" ? import_node_os2.default.homedir() : raw2));
 }
 var SettingsStore = class {
   constructor(file2) {
     this.file = file2;
-    const raw = readJsonSync(file2);
-    const parsed = SettingsSchema.safeParse(raw ?? {});
+    const raw2 = readJsonSync(file2);
+    const parsed = SettingsSchema.safeParse(raw2 ?? {});
     this.value = parsed.success ? parsed.data : SettingsSchema.parse({});
     if (this.value.outputDir === OLD_DEFAULT_OUTPUT_DIR) this.value.outputDir = DEFAULT_OUTPUT_DIR;
     registerSecret(this.value.image.apiKey);
@@ -57983,17 +57983,17 @@ async function chatJson(api, req, schema) {
   ];
   let lastProblem = "";
   for (let round = 0; round < 2; round++) {
-    const raw = await complete(api, messages, req.signal);
+    const raw2 = await complete(api, messages, req.signal);
     let parsed;
     try {
-      parsed = extractFirstJsonObject(raw);
+      parsed = extractFirstJsonObject(raw2);
     } catch {
       lastProblem = "\u56DE\u590D\u91CC\u6CA1\u6709\u5408\u6CD5\u7684 JSON";
       if (round === 0) messages.push({ role: "user", content: REASK_TEXT });
       continue;
     }
     const v = schema.safeParse(parsed);
-    if (v.success) return { data: v.data, raw };
+    if (v.success) return { data: v.data, raw: raw2 };
     lastProblem = "\u5B57\u6BB5\u4E0D\u7B26\u5408\u8981\u6C42\uFF1A" + v.error.issues.map((i2) => `${i2.path.join(".") || "(\u6839)"} ${i2.message}`).join("\uFF1B");
     if (round === 0) messages.push({ role: "user", content: REASK_TEXT });
   }
@@ -58472,9 +58472,9 @@ function validateIntegrity(lib) {
   }
   return null;
 }
-function migrateLibrary(raw) {
-  const lib = raw;
-  if (!lib || typeof lib !== "object" || lib.version !== 1 || !Array.isArray(lib.categories)) return raw;
+function migrateLibrary(raw2) {
+  const lib = raw2;
+  if (!lib || typeof lib !== "object" || lib.version !== 1 || !Array.isArray(lib.categories)) return raw2;
   return {
     ...lib,
     version: LIBRARY_VERSION,
@@ -58830,12 +58830,12 @@ var LibraryStore = class {
     import_node_fs7.default.mkdirSync(p.imagesDir, { recursive: true });
     import_node_fs7.default.mkdirSync(p.thumbsDir, { recursive: true });
     this.images = new ImageStore(p.imagesDir, p.thumbsDir);
-    const raw = readJsonSync(p.file);
-    if (raw === null) {
+    const raw2 = readJsonSync(p.file);
+    if (raw2 === null) {
       this.value = initialLibrary();
       import_node_fs7.default.writeFileSync(p.file, JSON.stringify(this.value, null, 2));
     } else {
-      const migrated = migrateLibrary(raw);
+      const migrated = migrateLibrary(raw2);
       const r = LibrarySchema.safeParse(migrated);
       if (!r.success) {
         const bad = import_node_path8.default.join(import_node_path8.default.dirname(p.file), `library.broken-${Date.now()}.json`);
@@ -58844,7 +58844,7 @@ var LibraryStore = class {
         this.value = initialLibrary();
       } else {
         this.value = r.data;
-        if (migrated !== raw) {
+        if (migrated !== raw2) {
           const old = import_node_path8.default.join(import_node_path8.default.dirname(p.file), `library.v1-${Date.now()}.json`);
           import_node_fs7.default.copyFileSync(p.file, old);
           writeFileAtomicSync(p.file, JSON.stringify(this.value, null, 2));
@@ -59772,9 +59772,9 @@ var wblk = function(dat, out, final, syms, lf, df, eb, li, bs, bl, p) {
     for (var it = 0; it < 2; ++it) {
       var clct = lcts[it];
       for (var i2 = 0; i2 < clct.length; ++i2) {
-        var len = clct[i2] & 31;
-        wbits(out, p, llm[len]), p += lct[len];
-        if (len > 15)
+        var len2 = clct[i2] & 31;
+        wbits(out, p, llm[len2]), p += lct[len2];
+        if (len2 > 15)
           wbits(out, p, clct[i2] >> 5 & 127), p += clct[i2] >> 12;
       }
     }
@@ -59784,10 +59784,10 @@ var wblk = function(dat, out, final, syms, lf, df, eb, li, bs, bl, p) {
   for (var i2 = 0; i2 < li; ++i2) {
     var sym = syms[i2];
     if (sym > 255) {
-      var len = sym >> 18 & 31;
-      wbits16(out, p, lm[len + 257]), p += ll[len + 257];
-      if (len > 7)
-        wbits(out, p, sym >> 23 & 31), p += fleb[len];
+      var len2 = sym >> 18 & 31;
+      wbits16(out, p, lm[len2 + 257]), p += ll[len2 + 257];
+      if (len2 > 7)
+        wbits(out, p, sym >> 23 & 31), p += fleb[len2];
       var dst = sym & 31;
       wbits16(out, p, dm[dst]), p += dl[dst];
       if (dst > 3)
@@ -60244,13 +60244,13 @@ async function parseZip(buf) {
   const jsonName = names.find((n) => n === "library.json") ?? names.find((n) => /(^|\/)library\.json$/.test(n));
   if (!jsonName) throw new HttpError(400, "zip \u91CC\u6CA1\u6709 library.json\uFF0C\u4E0D\u662F\u6A21\u7248\u5E93\u5BFC\u51FA\u7684\u6587\u4EF6");
   const root = jsonName.slice(0, jsonName.length - "library.json".length);
-  let raw;
+  let raw2;
   try {
-    raw = JSON.parse(strFromU8(entries[jsonName]));
+    raw2 = JSON.parse(strFromU8(entries[jsonName]));
   } catch {
     throw new HttpError(400, "library.json \u4E0D\u662F\u5408\u6CD5\u7684 JSON");
   }
-  const r = LibrarySchema.safeParse(migrateLibrary(raw));
+  const r = LibrarySchema.safeParse(migrateLibrary(raw2));
   if (!r.success) {
     const i2 = r.error.issues[0];
     throw new HttpError(400, `library.json \u683C\u5F0F\u4E0D\u5BF9\uFF1A${i2.path.join(".")} ${i2.message}`);
@@ -60329,14 +60329,16 @@ async function importZip(store, buf, mode) {
 
 // server/src/prompts/extract.ts
 function extractPromptFor(lib, cat, style) {
-  const raw = cat.extractPrompt?.trim() ? cat.extractPrompt : lib.defaults.extractPrompt;
-  return fillPlaceholders(raw, { category: cat.name, style: style.name, ratio: style.ratio });
+  const raw2 = cat.extractPrompt?.trim() ? cat.extractPrompt : lib.defaults.extractPrompt;
+  return fillPlaceholders(raw2, { category: cat.name, style: style.name, ratio: style.ratio });
 }
 var EXTRACT_CONSTRAINT = "Extract the whole printed face of the product exactly as it is printed and output it as a flat, front-facing print file. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. The printed face fills the whole canvas edge to edge: its outer edges are the canvas edges. Leave out only the physical product: its thickness and side edges, the cut-away rounded corners, mounting holes and screws, perspective, reflections, shadows and the background; where a hole or screw covers the artwork, continue the surrounding artwork. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. If the printed face's proportions differ slightly from the canvas, fit the whole printed face to the canvas; never crop, squeeze or drop any text, element or border.";
-function buildExtractRequest(prompt, ratio) {
+var FACE_CONSTRAINT = "The first image is the product's printed face, already cropped out of the competitor photo and flattened. Reproduce it as a clean, flat, front-facing print file that fills the whole canvas edge to edge. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. Remove only what is not printed: thin slivers of background, hands or fingers along the edges, the background showing outside rounded corners, the product's thickness or side edges, mounting holes and screws (continue the surrounding artwork there), reflections, glare and shadows. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge, crop or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution.";
+function buildExtractRequest(prompt, ratio, face = false) {
   const [w, h] = ratioToWH(ratio);
   const c = canvasFor(w, h);
-  return { prefix: c.prefix + roleSentence(["\u7ADE\u54C1\u5546\u54C1\u56FE"]) + "\n" + EXTRACT_CONSTRAINT + "\n", prompt, size: c.size };
+  const role = face ? roleSentence(["\u4ECE\u7ADE\u54C1\u56FE\u88C1\u51FA\u5E76\u62C9\u6B63\u7684\u5546\u54C1\u5370\u5237\u9762"]) : roleSentence(["\u7ADE\u54C1\u5546\u54C1\u56FE"]);
+  return { prefix: c.prefix + role + "\n" + (face ? FACE_CONSTRAINT : EXTRACT_CONSTRAINT) + "\n", prompt, size: c.size };
 }
 
 // server/src/prompts/ratio.ts
@@ -60519,7 +60521,7 @@ function registerLibrary(r, ctx) {
     const cat = store.category(q.cid);
     const style = cat.styles.find((s) => s.id === q.sid);
     if (!style) throw new HttpError(404, "\u6B3E\u5F0F\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
-    const r2 = buildExtractRequest(extractPromptFor(lib, cat, style), style.ratio);
+    const r2 = buildExtractRequest(extractPromptFor(lib, cat, style), style.ratio, true);
     res.json({ ...r2, scope: cat.extractPrompt?.trim() ? `\u300C${cat.name}\u300D\u5355\u72EC\u8BBE\u7F6E` : "\u5168\u5C40\u9ED8\u8BA4" });
   });
   r.get("/library/images/:hash", async (req, res) => {
@@ -60653,6 +60655,13 @@ var JobSchema = external_exports.object({
   }).nullable(),
   override: external_exports.object({ step: external_exports.number().int(), prompt: external_exports.string() }).nullable(),
   qc: QcSchema.nullable().default(null),
+  /** 竞品图里商品印刷面的区域（第①步模型给四个角，本地往外校正）；没有时第②步按整张竞品图提取 */
+  face: external_exports.object({
+    ai: external_exports.array(external_exports.tuple([external_exports.number(), external_exports.number()])).length(4),
+    corners: external_exports.array(external_exports.tuple([external_exports.number(), external_exports.number()])).length(4),
+    moved: external_exports.array(external_exports.number()),
+    size: external_exports.object({ width: external_exports.number(), height: external_exports.number() })
+  }).nullable().default(null),
   /** 第③步里的主图验收，字段同 qc：sourceTexts 是素材图的文字，patternTexts 是主图的文字 */
   mainQc: QcSchema.nullable().default(null)
 });
@@ -60830,11 +60839,12 @@ function routeCatalog(lib) {
 }
 function routeSystem(lib) {
   return `\u4F60\u662F\u7535\u5546\u5546\u54C1\u56FE\u5206\u7C7B\u52A9\u624B\u3002\u7ED9\u4F60\u4E00\u5F20\u7ADE\u54C1\u5546\u54C1\u56FE\u548C\u4E00\u4EFD\u54C1\u7C7B\u6E05\u5355\uFF0C\u5224\u65AD\u56FE\u4E2D\u5546\u54C1\u5C5E\u4E8E\u6E05\u5355\u4E2D\u7684\u54EA\u4E2A\u54C1\u7C7B\u3001\u54EA\u4E2A\u6B3E\u5F0F\u3002\u53EA\u8F93\u51FA\u4E00\u4E2A JSON \u5BF9\u8C61\uFF0C\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
-{"category_id": "\u6E05\u5355\u4E2D\u7684\u54C1\u7C7B id\uFF1B\u6E05\u5355\u91CC\u6CA1\u6709\u5BF9\u5E94\u54C1\u7C7B\u65F6\u4E3A null", "style_id": "\u8BE5\u54C1\u7C7B\u4E0B\u7684\u6B3E\u5F0F id\uFF1B\u65E0\u6CD5\u5224\u65AD\u65F6\u4E3A null", "confidence": 0 \u5230 1 \u4E4B\u95F4\u7684\u5C0F\u6570, "reason": "\u4E00\u53E5\u8BDD\u4E2D\u6587\u5224\u65AD\u7406\u7531", "guess": "\u56FE\u4E2D\u5546\u54C1\u7684\u4E2D\u6587\u54C1\u7C7B\u540D\uFF0C\u65E0\u8BBA\u662F\u5426\u5339\u914D\u90FD\u5FC5\u987B\u586B\u5199"}
+{"category_id": "\u6E05\u5355\u4E2D\u7684\u54C1\u7C7B id\uFF1B\u6E05\u5355\u91CC\u6CA1\u6709\u5BF9\u5E94\u54C1\u7C7B\u65F6\u4E3A null", "style_id": "\u8BE5\u54C1\u7C7B\u4E0B\u7684\u6B3E\u5F0F id\uFF1B\u65E0\u6CD5\u5224\u65AD\u65F6\u4E3A null", "confidence": 0 \u5230 1 \u4E4B\u95F4\u7684\u5C0F\u6570, "reason": "\u4E00\u53E5\u8BDD\u4E2D\u6587\u5224\u65AD\u7406\u7531", "guess": "\u56FE\u4E2D\u5546\u54C1\u7684\u4E2D\u6587\u54C1\u7C7B\u540D\uFF0C\u65E0\u8BBA\u662F\u5426\u5339\u914D\u90FD\u5FC5\u987B\u586B\u5199", "print_corners": [[\u5DE6\u4E0Ax, \u5DE6\u4E0Ay], [\u53F3\u4E0Ax, \u53F3\u4E0Ay], [\u53F3\u4E0Bx, \u53F3\u4E0By], [\u5DE6\u4E0Bx, \u5DE6\u4E0By]]}
 \u89C4\u5219\uFF1A
 1. \u53EA\u80FD\u4ECE\u6E05\u5355\u4E2D\u9009\u62E9\uFF0C\u4E0D\u5F97\u7F16\u9020 id\u3002\u770B\u4E0D\u6E05\u6216\u6E05\u5355\u4E2D\u6CA1\u6709\u5BF9\u5E94\u54C1\u7C7B\u65F6 category_id \u586B null\u3002
 2. \u6B3E\u5F0F\u6309\u5546\u54C1\u5370\u5237\u9762\u7684\u5F62\u72B6\u548C\u65B9\u5411\u5224\u65AD\uFF08\u4F8B\u5982\u6A2A\u7248/\u7AD6\u7248\u770B\u5370\u5237\u9762\u7684\u5BBD\u9AD8\uFF09\uFF0C\u4E0D\u8981\u6309\u6574\u5F20\u7167\u7247\u7684\u5BBD\u9AD8\u5224\u65AD\u3002
 3. confidence \u8868\u793A\u4F60\u5BF9\u54C1\u7C7B\u5224\u65AD\u7684\u628A\u63E1\uFF0C\u4E0D\u8981\u4E60\u60EF\u6027\u7ED9\u9AD8\u5206\u3002
+4. print_corners \u662F\u5546\u54C1\u300C\u5370\u5237\u9762\u300D\u56DB\u4E2A\u89D2\u5728\u56FE\u91CC\u7684\u4F4D\u7F6E\uFF0C\u5750\u6807\u7528 0\uFF5E1 \u7684\u6BD4\u4F8B\uFF08\u76F8\u5BF9\u6574\u5F20\u56FE\u7684\u5BBD\u548C\u9AD8\uFF09\uFF0C\u987A\u5E8F\u5DE6\u4E0A\u3001\u53F3\u4E0A\u3001\u53F3\u4E0B\u3001\u5DE6\u4E0B\u3002\u5370\u5237\u9762 = \u5546\u54C1\u4E0A\u5370\u7740\u56FE\u6848\u7684\u6574\u5757\u9762\uFF0C\u4E00\u76F4\u5230\u5546\u54C1\u7684\u5B9E\u4F53\u5916\u7F18\uFF1A\u5370\u5728\u9762\u4E0A\u7684\u8FB9\u6846\u3001\u7EBF\u6846\u3001\u505A\u65E7\u8FB9\u3001\u9508\u8FF9\u90FD\u7B97\u5728\u91CC\u9762\uFF0C\u4E0D\u80FD\u5F80\u91CC\u7F29\uFF1B\u80CC\u666F\u3001\u5899\u9762\u3001\u62FF\u7740\u5B83\u7684\u624B\u548C\u4EBA\u3001\u76F8\u6846\u6216\u753B\u6846\u7684\u6728\u6846\u3001\u5546\u54C1\u7684\u539A\u5EA6\u548C\u4FA7\u8FB9\u3001\u9634\u5F71\u90FD\u4E0D\u7B97\u3002\u5546\u54C1\u6709\u5706\u89D2\u65F6\u628A\u5706\u89D2\u8865\u6210\u76F4\u89D2\u7ED9\u51FA\u89D2\u70B9\uFF1B\u659C\u7740\u62CD\u65F6\u6309\u900F\u89C6\u7ED9\u51FA\u56DB\u4E2A\u5B9E\u9645\u7684\u89D2\u70B9\uFF08\u4E0D\u662F\u5916\u63A5\u77E9\u5F62\uFF09\u3002\u5370\u5237\u9762\u4E0D\u662F\u4E00\u5757\u5E73\u6574\u7684\u56DB\u8FB9\u5F62\uFF08\u5982\u63C9\u76B1\u7684\u5E03\u3001\u5F2F\u66F2\u7684\u706F\u7F69\uFF09\u65F6\uFF0C\u7ED9\u51FA\u80FD\u6846\u4F4F\u5B83\u7684\u56DB\u4E2A\u89D2\u3002\u770B\u4E0D\u5230\u5546\u54C1\u65F6\u4E3A null\u3002
 \u54C1\u7C7B\u6E05\u5355\uFF1A
 ${routeCatalog(lib)}`;
 }
@@ -60844,8 +60854,213 @@ var RouteAnswerSchema = external_exports.object({
   style_id: nullableId.optional().default(null),
   confidence: external_exports.coerce.number().min(0).max(1),
   reason: external_exports.string().optional().default(""),
-  guess: external_exports.string().optional().default("")
+  guess: external_exports.string().optional().default(""),
+  /** 交给 image/face.ts 校验，不合格当作没给 */
+  print_corners: external_exports.unknown().optional()
 });
+
+// server/src/image/face.ts
+var import_sharp4 = __toESM(require("sharp"), 1);
+var SEARCH_OUT = 0.035;
+var MARGIN = 4e-3;
+var STEP_K = 3;
+var MIN_EDGE = 40;
+var STRONG = 0.6;
+var SAMPLES = 40;
+var MIN_HITS = 4;
+var MAX_EDGE = 2048;
+var LOCATE_EDGE = 3e3;
+var MIN_AREA = 0.05;
+var ORIENT_TOLERANCE = 1.4;
+var cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+function area(q) {
+  let s = 0;
+  for (let i2 = 0; i2 < q.length; i2++) {
+    const a = q[i2];
+    const b = q[(i2 + 1) % q.length];
+    s += a[0] * b[1] - b[0] * a[1];
+  }
+  return Math.abs(s) / 2;
+}
+function validQuad(raw2, seen) {
+  if (!Array.isArray(raw2) || raw2.length !== 4) return null;
+  let q = raw2.map((p) => Array.isArray(p) && p.length === 2 ? [Number(p[0]), Number(p[1])] : null);
+  if (q.some((p) => !p || !p.every((v) => Number.isFinite(v)))) return null;
+  if (seen && q.some((p) => Math.max(...p) > 1.5)) q = q.map((p) => [p[0] / seen.width, p[1] / seen.height]);
+  if (q.some((p) => !p.every((v) => v >= -0.02 && v <= 1.02))) return null;
+  const pts = q.map((p) => [Math.min(1, Math.max(0, p[0])), Math.min(1, Math.max(0, p[1]))]);
+  const cx = pts.reduce((s, p) => s + p[0], 0) / 4;
+  const cy = pts.reduce((s, p) => s + p[1], 0) / 4;
+  pts.sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+  let start = 0;
+  for (let i2 = 1; i2 < 4; i2++) if (pts[i2][0] + pts[i2][1] < pts[start][0] + pts[start][1]) start = i2;
+  const quad = [0, 1, 2, 3].map((i2) => pts[(start + i2) % 4]);
+  for (let i2 = 0; i2 < 4; i2++) if (cross(quad[i2], quad[(i2 + 1) % 4], quad[(i2 + 2) % 4]) <= 0) return null;
+  if (area(quad) < MIN_AREA) return null;
+  return quad;
+}
+function intersect(p1, d1, p2, d2) {
+  const den = d1[0] * d2[1] - d1[1] * d2[0];
+  const t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / den;
+  return [p1[0] + t * d1[0], p1[1] + t * d1[1]];
+}
+async function raw(buf, maxEdge) {
+  let s = (0, import_sharp4.default)(buf).rotate().flatten({ background: "#ffffff" });
+  if (maxEdge) s = s.resize({ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true });
+  const { data, info } = await s.removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  return { data, width: info.width, height: info.height };
+}
+var median = (xs) => {
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+};
+function fitLine(hits) {
+  if (hits.length < MIN_HITS * 2) return null;
+  const lsq = (pts) => {
+    const n = pts.length;
+    const mt = pts.reduce((s, p) => s + p.t, 0) / n;
+    const mo = pts.reduce((s, p) => s + p.off, 0) / n;
+    const vt = pts.reduce((s, p) => s + (p.t - mt) ** 2, 0);
+    const b = vt > 0 ? pts.reduce((s, p) => s + (p.t - mt) * (p.off - mo), 0) / vt : 0;
+    return { a: mo - b * mt, b };
+  };
+  let f2 = lsq(hits);
+  const res = hits.map((h) => Math.abs(h.off - (f2.a + f2.b * h.t)));
+  const cut = Math.max(2, median(res) * 3);
+  const kept = hits.filter((_, i2) => res[i2] <= cut);
+  if (kept.length >= MIN_HITS * 2) f2 = lsq(kept);
+  return f2;
+}
+function refineQuad(img, norm) {
+  const { data, width: W, height: H } = img;
+  const at = (x2, y, c) => data[(Math.min(H - 1, Math.max(0, Math.round(y))) * W + Math.min(W - 1, Math.max(0, Math.round(x2)))) * 3 + c];
+  const q = norm.map(([x2, y]) => [x2 * W, y * H]);
+  const m = Math.min(W, H);
+  const cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4;
+  const cy = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4;
+  const hi = Math.round(m * SEARCH_OUT);
+  const margin = Math.round(m * MARGIN);
+  const lines = [];
+  const moved = [];
+  for (let s = 0; s < 4; s++) {
+    const a = q[s];
+    const b = q[(s + 1) % 4];
+    const d = [b[0] - a[0], b[1] - a[1]];
+    const len2 = Math.hypot(d[0], d[1]);
+    let n = [-d[1] / len2, d[0] / len2];
+    if (((a[0] + b[0]) / 2 - cx) * n[0] + ((a[1] + b[1]) / 2 - cy) * n[1] < 0) n = [-n[0], -n[1]];
+    const hits = [];
+    for (let i2 = 1; i2 < SAMPLES; i2++) {
+      const t = 0.1 + 0.8 * (i2 / SAMPLES);
+      const px = a[0] + d[0] * t;
+      const py = a[1] + d[1] * t;
+      const prof = [];
+      for (let o = -STEP_K; o <= hi + STEP_K; o++) {
+        const x2 = px + n[0] * o;
+        const y = py + n[1] * o;
+        prof.push([at(x2, y, 0), at(x2, y, 1), at(x2, y, 2)]);
+      }
+      const str = [];
+      for (let j = STEP_K; j < prof.length - STEP_K; j++) {
+        let dr = 0;
+        let dg = 0;
+        let db = 0;
+        for (let k = 1; k <= STEP_K; k++) {
+          dr += prof[j - k][0] - prof[j + k][0];
+          dg += prof[j - k][1] - prof[j + k][1];
+          db += prof[j - k][2] - prof[j + k][2];
+        }
+        str.push(Math.hypot(dr, dg, db) / STEP_K);
+      }
+      const max2 = Math.max(...str);
+      if (max2 < MIN_EDGE) continue;
+      for (let j = str.length - 1; j >= 0; j--) {
+        if (str[j] >= STRONG * max2) {
+          hits.push({ t, off: j });
+          break;
+        }
+      }
+    }
+    const fit = fitLine(hits);
+    const offA = fit ? Math.max(0, fit.a) : 0;
+    const offB = fit ? Math.max(0, fit.a + fit.b) : 0;
+    moved.push(Math.round(Math.max(offA, offB)));
+    const pa = [a[0] + n[0] * (offA + margin), a[1] + n[1] * (offA + margin)];
+    const pb = [b[0] + n[0] * (offB + margin), b[1] + n[1] * (offB + margin)];
+    lines.push({ p: pa, d: [pb[0] - pa[0], pb[1] - pa[1]] });
+  }
+  const quad = [0, 1, 2, 3].map((s) => intersect(lines[(s + 3) % 4].p, lines[(s + 3) % 4].d, lines[s].p, lines[s].d));
+  return { quad, moved };
+}
+function squareToQuad(q) {
+  const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = q;
+  const dx1 = x1 - x2;
+  const dx2 = x3 - x2;
+  const dy1 = y1 - y2;
+  const dy2 = y3 - y2;
+  const sx = x0 - x1 + x2 - x3;
+  const sy = y0 - y1 + y2 - y3;
+  const den = dx1 * dy2 - dx2 * dy1;
+  const g = (sx * dy2 - dx2 * sy) / den;
+  const h = (dx1 * sy - sx * dy1) / den;
+  return (u, v) => {
+    const w = g * u + h * v + 1;
+    return [((x1 - x0 + g * x1) * u + (x3 - x0 + h * x3) * v + x0) / w, ((y1 - y0 + g * y1) * u + (y3 - y0 + h * y3) * v + y0) / w];
+  };
+}
+function rectify(img, quad, W, H) {
+  const { data, width, height } = img;
+  const f2 = squareToQuad(quad);
+  const out = Buffer.alloc(W * H * 3);
+  const px = (x2, y, c) => data[(Math.min(height - 1, Math.max(0, y)) * width + Math.min(width - 1, Math.max(0, x2))) * 3 + c];
+  for (let y = 0; y < H; y++) {
+    for (let x2 = 0; x2 < W; x2++) {
+      const [sx, sy] = f2((x2 + 0.5) / W, (y + 0.5) / H);
+      const x0 = Math.floor(sx - 0.5);
+      const y0 = Math.floor(sy - 0.5);
+      const fx = sx - 0.5 - x0;
+      const fy = sy - 0.5 - y0;
+      for (let c = 0; c < 3; c++) {
+        out[(y * W + x2) * 3 + c] = Math.round(
+          px(x0, y0, c) * (1 - fx) * (1 - fy) + px(x0 + 1, y0, c) * fx * (1 - fy) + px(x0, y0 + 1, c) * (1 - fx) * fy + px(x0 + 1, y0 + 1, c) * fx * fy
+        );
+      }
+    }
+  }
+  return out;
+}
+var len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+async function locateFace(source, ai) {
+  const { width: fullW } = await readSize(source);
+  const img = await raw(source, LOCATE_EDGE);
+  const scale = fullW / img.width;
+  const { quad, moved } = refineQuad(img, ai);
+  const corners = quad.map(([x2, y]) => [Math.min(1, Math.max(0, x2 / img.width)), Math.min(1, Math.max(0, y / img.height))]);
+  const px = corners.map(([x2, y]) => [x2 * img.width * scale, y * img.height * scale]);
+  return {
+    ai,
+    corners,
+    moved: moved.map((v) => Math.round(v * scale)),
+    size: { width: Math.round((len(px[0], px[1]) + len(px[3], px[2])) / 2), height: Math.round((len(px[0], px[3]) + len(px[1], px[2])) / 2) }
+  };
+}
+async function flattenFace(source, face, ratio) {
+  const r = ratioValue(ratio);
+  const measured = face.size.width / Math.max(1, face.size.height);
+  const k = measured / r;
+  if (k > ORIENT_TOLERANCE || k < 1 / ORIENT_TOLERANCE) {
+    return { buffer: null, reason: `\u5370\u5237\u9762\u91CF\u51FA\u6765\u5BBD\u9AD8\u6BD4 ${measured.toFixed(2)}\uFF0C\u548C\u6B3E\u5F0F\u6BD4\u4F8B ${ratio} \u5DEE\u592A\u591A` };
+  }
+  const long = Math.min(MAX_EDGE, Math.max(face.size.width, face.size.height, 64));
+  const W = r >= 1 ? long : Math.round(long * r);
+  const H = r >= 1 ? Math.round(long / r) : long;
+  const full = await readSize(source);
+  const fullLong = Math.max(full.width, full.height);
+  const faceLong = Math.max(face.size.width, face.size.height, 1);
+  const img = await raw(source, Math.round(fullLong * Math.min(1, MAX_EDGE / faceLong)));
+  const quad = face.corners.map(([x2, y]) => [x2 * img.width, y * img.height]);
+  return { buffer: await (0, import_sharp4.default)(rectify(img, quad, W, H), { raw: { width: W, height: H, channels: 3 } }).png().toBuffer() };
+}
 
 // server/src/pipeline/step0Route.ts
 var step0Route = async (ctx) => {
@@ -60867,30 +61082,46 @@ var step0Route = async (ctx) => {
   const { data } = await ctx.retry(
     () => chatJson(settings.analysis, { system, user: ROUTE_USER, imageJpeg: jpeg, signal: ctx.signal }, RouteAnswerSchema)
   );
+  const ai = validQuad(data.print_corners, await readSize(jpeg));
+  if (!ai && data.print_corners != null) log.warn(`\u300C${ctx.job.source.originalName}\u300DAI \u7ED9\u7684\u5370\u5237\u9762\u56DB\u4E2A\u89D2\u4E0D\u5408\u683C\uFF0C\u6309\u6574\u5F20\u56FE\u63D0\u53D6\uFF1A${JSON.stringify(data.print_corners).slice(0, 200)}`);
+  let face = null;
+  if (ai) {
+    try {
+      face = await locateFace(src, ai);
+    } catch (e) {
+      log.warn(`\u300C${ctx.job.source.originalName}\u300D\u5370\u5237\u9762\u533A\u57DF\u6821\u6B63\u5931\u8D25\uFF0C\u6309\u6574\u5F20\u56FE\u63D0\u53D6\uFF1A${e.message}`);
+    }
+  }
+  const setFace = (job) => {
+    job.face = face;
+  };
   const guess = data.guess.trim() || void 0;
   const cat = data.category_id ? lib.categories.find((c) => c.id === data.category_id) : void 0;
   if (!cat) {
     return {
       kind: "attention",
       state: "failed",
-      attention: { kind: "nomatch", step: 0, message: `AI \u5224\u65AD\u662F\u300C${guess ?? "\u672A\u77E5\u5546\u54C1"}\u300D\uFF0C\u6A21\u7248\u5E93\u91CC\u6CA1\u6709\u8FD9\u4E2A\u54C1\u7C7B`, guess }
+      attention: { kind: "nomatch", step: 0, message: `AI \u5224\u65AD\u662F\u300C${guess ?? "\u672A\u77E5\u5546\u54C1"}\u300D\uFF0C\u6A21\u7248\u5E93\u91CC\u6CA1\u6709\u8FD9\u4E2A\u54C1\u7C7B`, guess },
+      patch: setFace
     };
   }
   let style = cat.styles.length === 1 ? cat.styles[0] : cat.styles.find((s) => s.id === data.style_id);
   if (!style) {
-    return { kind: "attention", state: "failed", attention: { kind: "nomatch", step: 0, message: `\u8BA4\u51FA\u662F${cat.name}\uFF0C\u4F46\u5224\u65AD\u4E0D\u4E86\u6B3E\u5F0F`, guess } };
+    return { kind: "attention", state: "failed", attention: { kind: "nomatch", step: 0, message: `\u8BA4\u51FA\u662F${cat.name}\uFF0C\u4F46\u5224\u65AD\u4E0D\u4E86\u6B3E\u5F0F`, guess }, patch: setFace };
   }
   if (data.confidence < settings.routeThreshold) {
     return {
       kind: "attention",
       state: "failed",
-      attention: { kind: "nomatch", step: 0, message: `AI \u8BA4\u4E3A\u662F\u300C${labelOf(cat.name, style.name)}\u300D\uFF0C\u4F46\u628A\u63E1\u53EA\u6709 ${data.confidence.toFixed(2)}`, guess }
+      attention: { kind: "nomatch", step: 0, message: `AI \u8BA4\u4E3A\u662F\u300C${labelOf(cat.name, style.name)}\u300D\uFF0C\u4F46\u628A\u63E1\u53EA\u6709 ${data.confidence.toFixed(2)}`, guess },
+      patch: setFace
     };
   }
   const chosen = style;
   return {
     kind: "done",
     patch: (job) => {
+      setFace(job);
       job.route = {
         categoryId: cat.id,
         styleId: chosen.id,
@@ -60950,7 +61181,7 @@ async function resolvePlan(job, lib, images, jobDir, scope = "all") {
 }
 
 // server/src/ai/imageClient.ts
-var import_sharp4 = __toESM(require("sharp"), 1);
+var import_sharp5 = __toESM(require("sharp"), 1);
 
 // server/src/ai/multipart.ts
 var import_node_crypto4 = require("node:crypto");
@@ -61018,7 +61249,7 @@ async function editImage(api, req, onDowngrade) {
   }
   let meta3;
   try {
-    meta3 = await (0, import_sharp4.default)(buf).metadata();
+    meta3 = await (0, import_sharp5.default)(buf).metadata();
     if (!meta3.width || !meta3.height) throw new Error("no size");
   } catch {
     throw new AiError("badImage", "\u8FD4\u56DE\u7684\u56FE\u7247\u65E0\u6CD5\u89E3\u7801");
@@ -61055,7 +61286,7 @@ async function parseImageResponse(body, contentType, signal) {
 }
 
 // server/src/image/colorCheck.ts
-var import_sharp5 = __toESM(require("sharp"), 1);
+var import_sharp6 = __toESM(require("sharp"), 1);
 var INSET = 0.06;
 var GRID = 3;
 var SAMPLE_W = 96;
@@ -61079,7 +61310,7 @@ function rgbToLab(r, g, b) {
 var dE = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
 var round1 = (v) => Math.round(v * 10) / 10;
 async function sample(buf, rect, w, h) {
-  const d = await (0, import_sharp5.default)(buf).rotate().flatten({ background: "#ffffff" }).extract(rect).resize(w, h, { fit: "fill" }).removeAlpha().raw().toBuffer();
+  const d = await (0, import_sharp6.default)(buf).rotate().flatten({ background: "#ffffff" }).extract(rect).resize(w, h, { fit: "fill" }).removeAlpha().raw().toBuffer();
   const out = [];
   for (let i2 = 0; i2 < w * h; i2++) out.push(rgbToLab(d[i2 * 3], d[i2 * 3 + 1], d[i2 * 3 + 2]));
   return out;
@@ -61167,7 +61398,7 @@ async function compareColors(source, pattern, box, threshold, judgePhoto = false
 }
 
 // server/src/image/patternLayout.ts
-var import_sharp6 = __toESM(require("sharp"), 1);
+var import_sharp7 = __toESM(require("sharp"), 1);
 var WORK_EDGE2 = 1e3;
 var WHITE_MIN = 236;
 var WHITE_SPREAD = 18;
@@ -61242,13 +61473,13 @@ function roundCorners(im) {
 }
 var pct = (v) => `${Math.round(v * 100)}%`;
 async function checkPatternLayout(buf, productRatio) {
-  const meta3 = await (0, import_sharp6.default)(buf).metadata();
+  const meta3 = await (0, import_sharp7.default)(buf).metadata();
   const W = meta3.width;
   const H = meta3.height;
   const s = Math.min(1, WORK_EDGE2 / Math.max(W, H));
   const w = Math.max(8, Math.round(W * s));
   const h = Math.max(8, Math.round(H * s));
-  const d = await (0, import_sharp6.default)(buf).rotate().flatten({ background: "#ffffff" }).resize(w, h, { fit: "fill" }).removeAlpha().raw().toBuffer();
+  const d = await (0, import_sharp7.default)(buf).rotate().flatten({ background: "#ffffff" }).resize(w, h, { fit: "fill" }).removeAlpha().raw().toBuffer();
   const im = { d, w, h };
   const issues = [];
   const m = margins(im);
@@ -61281,9 +61512,14 @@ async function checkPatternLayout(buf, productRatio) {
 }
 
 // server/src/prompts/qc.ts
-var QC_SYSTEM = `\u4F60\u662F\u7D20\u6750\u56FE\u9A8C\u6536\u52A9\u624B\u3002\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u56FE\u7247\u662F\u4ECE\u5B83\u63D0\u53D6\u51FA\u6765\u7684\u5E73\u9762\u7D20\u6750\u56FE\uFF08\u53EA\u4FDD\u7559\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u56FE\u6848\uFF09\u3002\u8BF7\u5B8C\u6210\u4E24\u4EF6\u4E8B\uFF0C\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
+var FIRST_PHOTO = "\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u7ADE\u54C1\u5546\u54C1\u56FE";
+var FIRST_FACE = "\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u4ECE\u7ADE\u54C1\u5546\u54C1\u56FE\u91CC\u88C1\u51FA\u3001\u6309\u900F\u89C6\u62C9\u6B63\u7684\u5546\u54C1\u5370\u5237\u9762\uFF08\u8FB9\u4E0A\u53EF\u80FD\u6B8B\u7559\u4E00\u4E1D\u80CC\u666F\u6216\u624B\u6307\uFF0C\u90A3\u4E0D\u7B97\u5370\u5237\u9762\uFF09";
+function qcSystem(face) {
+  return QC_SYSTEM.replace(FIRST_PHOTO, face ? FIRST_FACE : FIRST_PHOTO);
+}
+var QC_SYSTEM = `\u4F60\u662F\u7D20\u6750\u56FE\u9A8C\u6536\u52A9\u624B\u3002\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u56FE\u7247\u662F\u4ECE\u5B83\u63D0\u53D6\u51FA\u6765\u7684\u5E73\u9762\u7D20\u6750\u56FE\uFF08\u53EA\u4FDD\u7559\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u56FE\u6848\uFF09\u3002\u8BF7\u5B8C\u6210\u4E0B\u9762\u51E0\u4EF6\u4E8B\uFF0C\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
 1. \u9010\u5B57\u6284\u5199\u6587\u5B57\uFF1A\u5206\u522B\u628A\u7B2C\u4E00\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u6240\u6709\u6587\u5B57\u3001\u7B2C\u4E8C\u5F20\u56FE\u91CC\u7684\u6240\u6709\u6587\u5B57\u9010\u5B57\u6284\u4E0B\u6765\u3002\u7167\u539F\u6837\u6284\uFF0C\u4E0D\u7FFB\u8BD1\u3001\u4E0D\u7EA0\u9519\u3001\u4E0D\u8865\u5168\u3001\u4E0D\u6539\u5927\u5C0F\u5199\uFF1B\u6309\u4ECE\u4E0A\u5230\u4E0B\u3001\u4ECE\u5DE6\u5230\u53F3\u7684\u987A\u5E8F\uFF0C\u6BCF\u4E00\u884C\uFF08\u6216\u8FDE\u5728\u4E00\u8D77\u7684\u4E00\u5C0F\u6BB5\uFF09\u4F5C\u4E3A\u6570\u7EC4\u91CC\u7684\u4E00\u9879\u3002\u5546\u54C1\u5370\u5237\u9762\u4EE5\u5916\u7684\u6587\u5B57\uFF08\u80CC\u666F\u3001\u6C34\u5370\u3001\u5305\u88C5\u3001\u4EF7\u683C\u6807\u7B7E\uFF09\u4E0D\u8981\u6284\u3002\u6CA1\u6709\u6587\u5B57\u7ED9\u7A7A\u6570\u7EC4\u3002
-2. \u6807\u51FA\u5370\u5237\u9762\u4F4D\u7F6E\uFF1A\u7ED9\u51FA\u7B2C\u4E00\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\uFF08\u5370\u7740\u56FE\u6848\u7684\u90A3\u4E00\u9762\uFF0C\u4E0D\u542B\u8FB9\u6846\u3001\u80CC\u666F\uFF09\u7684\u5916\u63A5\u77E9\u5F62 print_box\uFF0C\u683C\u5F0F [\u5DE6, \u4E0A, \u53F3, \u4E0B]\uFF0C\u7528 0\uFF5E1 \u7684\u6BD4\u4F8B\u8868\u793A\uFF08\u76F8\u5BF9\u7B2C\u4E00\u5F20\u56FE\u7684\u5BBD\u548C\u9AD8\uFF09\u3002
+2. \u6807\u51FA\u5370\u5237\u9762\u4F4D\u7F6E\uFF1A\u7ED9\u51FA\u7B2C\u4E00\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\uFF08\u5370\u7740\u56FE\u6848\u7684\u6574\u5757\u9762\uFF0C\u4E00\u76F4\u5230\u5546\u54C1\u7684\u5B9E\u4F53\u5916\u7F18\uFF0C\u5370\u5728\u9762\u4E0A\u7684\u8FB9\u6846\u4E5F\u7B97\uFF1B\u4E0D\u542B\u80CC\u666F\uFF09\u7684\u5916\u63A5\u77E9\u5F62 print_box\uFF0C\u683C\u5F0F [\u5DE6, \u4E0A, \u53F3, \u4E0B]\uFF0C\u7528 0\uFF5E1 \u7684\u6BD4\u4F8B\u8868\u793A\uFF08\u76F8\u5BF9\u7B2C\u4E00\u5F20\u56FE\u7684\u5BBD\u548C\u9AD8\uFF09\u3002
 3. \u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF1A\u6BD4\u5BF9\u4E24\u5F20\u56FE\u5370\u5237\u9762\u4E0A\u7684\u4E3B\u8981\u5143\u7D20\uFF08\u4EBA\u7269\u3001\u52A8\u7269\u3001\u5EFA\u7B51\u3001\u7269\u54C1\u3001\u88C5\u9970\uFF0C\u5982\u661F\u661F\u3001\u96EA\u82B1\u7403\uFF09\uFF0C\u770B\u7D20\u6750\u56FE\u6709\u6CA1\u6709\u7F3A\u5931\u3001\u591A\u51FA\u6216\u660E\u663E\u53D8\u6837\u7684\u5143\u7D20\u3002\u7ED9 0\uFF5E1 \u7684\u76F8\u4F3C\u5206\uFF081 \u8868\u793A\u5B8C\u5168\u4E00\u81F4\uFF09\uFF0C\u5E76\u7528\u4E2D\u6587\u77ED\u53E5\u5217\u51FA\u53D1\u73B0\u7684\u95EE\u9898\uFF0C\u6CA1\u6709\u95EE\u9898\u7ED9\u7A7A\u6570\u7EC4\u3002\u6587\u5B57\u5DEE\u5F02\u4E0D\u7528\u5199\u8FDB\u5143\u7D20\u95EE\u9898\u3002
 4. \u6BD4\u5BF9\u56DB\u8FB9\uFF1A\u5370\u5237\u9762\u4E0A\u770B\u5F97\u5230\u7684\u90FD\u5C5E\u4E8E\u56FE\u6848\uFF0C\u5305\u62EC\u56DB\u5468\u5370\u5237\u7684\u8FB9\u6846\u548C\u7EBF\u6846\u3001\u505A\u65E7\u8FB9\u3001\u9508\u8FF9\u3001\u5212\u75D5\u3002\u9010\u6761\u5217\u51FA\u7B2C\u4E00\u5F20\u56FE\u5370\u5237\u9762\u56DB\u8FB9\u6709\u3001\u7D20\u6750\u56FE\u91CC\u5374\u6CA1\u6709\u7684\u5185\u5BB9\uFF08edge_missing\uFF0C\u5982\u300C\u56DB\u5468\u7684\u7EA2\u8272\u505A\u65E7\u8FB9\u6CA1\u4E86\u300D\uFF09\uFF0C\u4EE5\u53CA\u7D20\u6750\u56FE\u56DB\u8FB9\u591A\u51FA\u6765\u3001\u7B2C\u4E00\u5F20\u56FE\u5370\u5237\u9762\u4E0A\u6CA1\u6709\u7684\u4E1C\u897F\uFF08edge_extra\uFF0C\u5982\u300C\u591A\u4E86\u4E00\u5708\u91D1\u5C5E\u8FB9\u300D\u300C\u5E26\u7740\u5706\u89D2\u300D\u300C\u5E26\u7740\u5B89\u88C5\u5B54\u6216\u87BA\u4E1D\u300D\u300C\u5E26\u7740\u80CC\u666F\u300D\uFF09\u3002\u6CA1\u6709\u5C31\u7ED9\u7A7A\u6570\u7EC4\u3002
 \u7D20\u6750\u56FE\u53BB\u6389\u4E86\u5546\u54C1\u7684\u539A\u5EA6\u548C\u4FA7\u8FB9\u3001\u5706\u89D2\u5916\u7684\u7A7A\u767D\u3001\u5B89\u88C5\u5B54\u548C\u87BA\u4E1D\u3001\u900F\u89C6\u3001\u53CD\u5149\u3001\u9634\u5F71\u548C\u80CC\u666F\u662F\u6B63\u5E38\u7684\uFF0C\u4E0D\u8981\u56E0\u6B64\u6263\u5206\u3002
@@ -61345,7 +61581,7 @@ function compareTexts(source, pattern, names = { from: "\u539F\u56FE", to: "\u7D
 // server/src/pipeline/files.ts
 var import_promises6 = __toESM(require("node:fs/promises"), 1);
 var import_node_path12 = __toESM(require("node:path"), 1);
-var JOB_FILES = { pattern: "pattern.png", main: "main.png", blank: "blank.png" };
+var JOB_FILES = { pattern: "pattern.png", main: "main.png", blank: "blank.png", face: "face.png" };
 var MIME_BY_EXT2 = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
 function mimeOf(file2) {
   return MIME_BY_EXT2[import_node_path12.default.extname(file2).toLowerCase()] ?? "image/png";
@@ -61417,10 +61653,24 @@ var step1Extract = async (ctx) => {
   }
   const settings = ctx.env.settings();
   const useOverride = ctx.job.override?.step === 1;
-  const req = buildExtractRequest(useOverride ? ctx.job.override.prompt : plan.extractPrompt, ratio);
-  const src = await readInput(import_node_path13.default.join(ctx.dir, ctx.job.source.file), "source");
+  const face = ctx.job.face;
+  let src = await readInput(import_node_path13.default.join(ctx.dir, ctx.job.source.file), "source");
+  let shown = { no: 1, role: "\u7ADE\u54C1\u56FE", sha256: ctx.job.source.sha256 };
+  let flat = null;
+  if (face) {
+    const r = await flattenFace(src.buffer, face, ratio);
+    if (r.buffer) flat = r.buffer;
+    else log.warn(`\u300C${ctx.job.source.originalName}\u300D${r.reason}\uFF0C\u8FD9\u6B21\u6309\u6574\u5F20\u7ADE\u54C1\u56FE\u63D0\u53D6`);
+  }
+  await removeJobImage(ctx.dir, "face");
+  if (flat) {
+    await writeJobImage(ctx.dir, "face", JOB_FILES.face, flat);
+    src = { buffer: flat, mime: "image/png", filename: "face.png" };
+    shown = { no: 1, role: "\u5370\u5237\u9762", sha256: sha256(flat) };
+  }
+  const req = buildExtractRequest(useOverride ? ctx.job.override.prompt : plan.extractPrompt, ratio, !!flat);
   ctx.setSnapshot({
-    images: [{ no: 1, role: "\u7ADE\u54C1\u56FE", sha256: ctx.job.source.sha256 }],
+    images: [shown],
     prefix: req.prefix,
     prompt: req.prompt,
     model: settings.image.model,
@@ -61454,24 +61704,27 @@ var step1Extract = async (ctx) => {
 async function runQc(ctx, patternFile) {
   const settings = ctx.env.settings();
   const threshold = settings.patternQcThreshold;
-  const srcBuf = await import_promises7.default.readFile(import_node_path13.default.join(ctx.dir, ctx.job.source.file));
+  const faceFile = import_node_path13.default.join(ctx.dir, JOB_FILES.face);
+  const useFace = !!ctx.job.face && ctx.job.steps[1].snapshot?.images[0]?.role === "\u5370\u5237\u9762" && import_node_fs10.default.existsSync(faceFile);
+  const srcBuf = await import_promises7.default.readFile(useFace ? faceFile : import_node_path13.default.join(ctx.dir, ctx.job.source.file));
   const patBuf = await import_promises7.default.readFile(patternFile);
   const layout = await checkPatternLayout(patBuf, ctx.job.route.ratio);
   const images = [await shrinkForAnalysis(srcBuf), await shrinkForAnalysis(patBuf)];
+  const system = qcSystem(useFace);
   const snapshot = {
     images: [
-      { no: 1, role: "\u7ADE\u54C1\u56FE", sha256: ctx.job.source.sha256 },
+      useFace ? { no: 1, role: "\u5370\u5237\u9762", sha256: sha256(srcBuf) } : { no: 1, role: "\u7ADE\u54C1\u56FE", sha256: ctx.job.source.sha256 },
       { no: 2, role: "\u7D20\u6750\u56FE", sha256: sha256(patBuf) }
     ],
     prefix: "",
-    prompt: QC_SYSTEM,
+    prompt: system,
     model: settings.analysis.model,
     params: { user: QC_USER }
   };
   ctx.commit((job) => {
     if (job.qc) job.qc.snapshot = snapshot;
   });
-  const { data, raw } = await ctx.retry(() => chatJson(settings.analysis, { system: QC_SYSTEM, user: QC_USER, images, signal: ctx.signal }, QcAnswerSchema));
+  const { data, raw: raw2 } = await ctx.retry(() => chatJson(settings.analysis, { system, user: QC_USER, images, signal: ctx.signal }, QcAnswerSchema));
   const text = compareTexts(data.source_texts, data.pattern_texts);
   const reasons = [...text.diffs];
   if (data.element_score < threshold) {
@@ -61480,7 +61733,7 @@ async function runQc(ctx, patternFile) {
   }
   for (const m of data.edge_missing) reasons.push(`\u56DB\u8FB9\u5C11\u4E86\uFF1A${m}`);
   for (const m of data.edge_extra) reasons.push(`\u56DB\u8FB9\u591A\u4E86\uFF1A${m}`);
-  const box = normalizeBox(data.print_box, await readSize(images[0]));
+  const box = useFace ? [0, 0, 1, 1] : normalizeBox(data.print_box, await readSize(images[0]));
   const color = { ...await compareColors(srcBuf, patBuf, box, settings.patternQcDeltaE), threshold: settings.patternQcDeltaE };
   reasons.push(...color.issues);
   reasons.push(...layout.issues);
@@ -61501,7 +61754,7 @@ async function runQc(ctx, patternFile) {
     color,
     reasons,
     snapshot,
-    raw
+    raw: raw2
   };
   if (reasons.length) {
     log.warn(`\u300C${ctx.job.source.originalName}\u300D\u7D20\u6750\u56FE\u6CA1\u8FC7\u9A8C\u6536\uFF1A${reasons.join("\uFF1B")}`);
@@ -61670,7 +61923,7 @@ async function runMainQc(ctx, mainFile) {
   ctx.commit((job) => {
     if (job.mainQc) job.mainQc.snapshot = snapshot;
   });
-  const { data, raw } = await ctx.retry(
+  const { data, raw: raw2 } = await ctx.retry(
     () => chatJson(settings.analysis, { system: MAIN_QC_SYSTEM, user: MAIN_QC_USER, images, signal: ctx.signal }, MainQcAnswerSchema)
   );
   const text = compareTexts(data.pattern_texts, data.main_texts, { from: "\u7D20\u6750\u56FE", to: "\u4E3B\u56FE" });
@@ -61699,7 +61952,7 @@ async function runMainQc(ctx, mainFile) {
     color,
     reasons,
     snapshot,
-    raw
+    raw: raw2
   };
   if (reasons.length) return qcFailed(ctx, qc);
   await writeOutput(ctx.env.outputDir(), ctx.job, "main", mainBuf);
@@ -62167,6 +62420,7 @@ var Scheduler = class {
     if (!style) throw new HttpError(400, cat.styles.length > 1 ? `\u300C${cat.name}\u300D\u6709\u591A\u4E2A\u6B3E\u5F0F\uFF0C\u8BF7\u9009\u4E00\u4E2A` : "\u9009\u62E9\u7684\u6B3E\u5F0F\u4E0D\u5B58\u5728");
     return { categoryId: cat.id, styleId: style.id, categoryName: cat.name, styleName: style.name, ratio: style.ratio, confidence: null, reason: null, manual: true };
   }
+  /** wholePhoto：第①步给的印刷面区域不对时，从第②步重做并改按整张竞品图提取 */
   async redo(jobId, p) {
     return this.hold(jobId, async (job) => {
       const n = p.step;
@@ -62181,6 +62435,7 @@ var Scheduler = class {
         resetFrom(j, n);
         j.attention = null;
         j.override = p.prompt?.trim() ? { step: n, prompt: p.prompt } : null;
+        if (p.wholePhoto && n >= 1) j.face = null;
         if (n <= 3) j.info = null;
         if (n <= 1) j.plan = null;
         if (planR?.ok) {
@@ -62194,8 +62449,8 @@ var Scheduler = class {
           markDone(j, 0);
         }
       });
-      const stepOfFile = { pattern: 1, main: 2, blank: 4 };
-      const kinds = ["pattern", "main", "blank"].filter((k) => stepOfFile[k] >= n);
+      const stepOfFile = { face: 1, pattern: 1, main: 2, blank: 4 };
+      const kinds = ["face", "pattern", "main", "blank"].filter((k) => stepOfFile[k] >= n);
       await Promise.all(kinds.map((k) => removeJobImage(dir, k)));
       log.info(`\u300C${job.source.originalName}\u300D\u4ECE\u300C${STEP_NAMES[n]}\u300D\u91CD\u505A${p.prompt?.trim() ? "\uFF08\u8FD9\u4E00\u6B21\u7528\u4FEE\u6539\u8FC7\u7684\u63D0\u793A\u8BCD\uFF09" : ""}`);
       return this.d.jobs.get(jobId);
@@ -62222,7 +62477,7 @@ var Scheduler = class {
       this.d.jobs.moveToEnd(j);
     });
     const dir = this.d.jobs.dirOf(job.id);
-    await Promise.all(["pattern", "main", "blank"].map((k) => removeJobImage(dir, k)));
+    await Promise.all(["face", "pattern", "main", "blank"].map((k) => removeJobImage(dir, k)));
   }
   async createCategory(jobId) {
     return this.hold(jobId, async (job) => {
@@ -62311,7 +62566,7 @@ var Scheduler = class {
 var import_node_fs12 = __toESM(require("node:fs"), 1);
 var import_promises11 = __toESM(require("node:fs/promises"), 1);
 var import_node_path18 = __toESM(require("node:path"), 1);
-var import_sharp7 = __toESM(require("sharp"), 1);
+var import_sharp8 = __toESM(require("sharp"), 1);
 var MAX_FILES = 500;
 var MAX_BYTES = 50 * 1024 * 1024;
 var IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|tiff?|heic|heif|avif)$/i;
@@ -62343,7 +62598,7 @@ async function normalizeSource(buf) {
     return { buffer: n.buffer, ext: n.ext };
   }
   try {
-    const png = await (0, import_sharp7.default)(buf).rotate().png().toBuffer();
+    const png = await (0, import_sharp8.default)(buf).rotate().png().toBuffer();
     return { buffer: png, ext: EXT_OF.png };
   } catch {
     throw new Error("\u65E0\u6CD5\u8BC6\u522B\u7684\u56FE\u7247\u683C\u5F0F\uFF0C\u6216\u6587\u4EF6\u5DF2\u635F\u574F");
@@ -62409,7 +62664,8 @@ function registerJobs(r, ctx) {
           attention: null,
           override: null,
           qc: null,
-          mainQc: null
+          mainQc: null,
+          face: null
         };
         await jobs.create(job);
         created.push(withView(job));
@@ -62439,7 +62695,13 @@ function registerJobs(r, ctx) {
   });
   r.post("/jobs/:id/redo", async (req, res) => {
     const b = parseBody(
-      external_exports.object({ step: external_exports.number().int().min(0).max(4), prompt: external_exports.string().max(2e4).optional(), categoryId: external_exports.string().optional(), styleId: external_exports.string().optional() }),
+      external_exports.object({
+        step: external_exports.number().int().min(0).max(4),
+        prompt: external_exports.string().max(2e4).optional(),
+        categoryId: external_exports.string().optional(),
+        styleId: external_exports.string().optional(),
+        wholePhoto: external_exports.boolean().optional()
+      }),
       req.body
     );
     res.json({ job: withView(await scheduler.redo(id(req), b)) });
@@ -62461,7 +62723,7 @@ function registerJobs(r, ctx) {
     const job = jobs.get(id(req));
     if (!job) throw new HttpError(404, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u4E0D\u5728\u961F\u5217\u91CC\u4E86");
     const kind = String(req.params.kind);
-    if (!["source", "pattern", "main", "blank"].includes(kind)) throw new HttpError(400, "\u6587\u4EF6\u7C7B\u578B\u53EA\u80FD\u662F source\u3001pattern\u3001main\u3001blank");
+    if (!["source", "pattern", "main", "blank", "face"].includes(kind)) throw new HttpError(400, "\u6587\u4EF6\u7C7B\u578B\u53EA\u80FD\u662F source\u3001pattern\u3001main\u3001blank\u3001face");
     const dir = jobs.dirOf(job.id);
     const file2 = req.query.size === "thumb" ? import_node_path18.default.join(dir, "thumbs", `${kind}.webp`) : import_node_path18.default.join(dir, kind === "source" ? job.source.file : JOB_FILES[kind]);
     if (!import_node_fs12.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");

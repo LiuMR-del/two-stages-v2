@@ -24,6 +24,7 @@ const job = (i: number): Job => ({
   override: null,
   qc: null,
   mainQc: null,
+  face: null,
   view: { phase: 'queued', runningStep: null, label: '排队中' },
 })
 
