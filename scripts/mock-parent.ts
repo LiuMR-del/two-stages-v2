@@ -28,6 +28,8 @@ export type ParentMockState = {
     sellerId: string
     access: Set<string>
     listings: MockListing[]
+    /** 接下来这么多次商品请求返回 429（Retry-After 0.01 秒） */
+    throttle: number
   }
   calls: { at: number; service: 'feishu' | 'spapi'; method: string; path: string }[]
 }
@@ -49,6 +51,7 @@ export function newParentMockState(): ParentMockState {
       sellerId: 'AMOCKSELLER01',
       access: new Set(),
       listings: [],
+      throttle: 0,
     },
     calls: [],
   }
@@ -131,6 +134,11 @@ export function mountParentMock(app: express.Express, state: () => ParentMockSta
 
   const spAuthed = (req: express.Request, res: express.Response): boolean => {
     const sp = state().spapi
+    if (sp.throttle > 0) {
+      sp.throttle--
+      res.status(429).set('Retry-After', '0.01').json({ errors: [{ code: 'QuotaExceeded', message: 'You exceeded your quota' }] })
+      return false
+    }
     if (!sp.access.has(String(req.headers['x-amz-access-token'] ?? ''))) {
       res.status(403).json({ errors: [{ code: 'Unauthorized', message: 'Access to requested resource is denied.' }] })
       return false
