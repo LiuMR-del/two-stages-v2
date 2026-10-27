@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>父体绑定界面样例</title><style>:root{color-scheme:light dark}body{margin:24px;background:Canvas}</style></head><body>
+<div id="pb2">
+<style>
+#pb2 {
+  --bg: light-dark(#f3f4f2, #101211);
+  --sf: light-dark(#ffffff, #191c1b);
+  --sf2: light-dark(#f7f8f6, #1f2321);
+  --hair: light-dark(#eaece9, #272c29);
+  --tx: light-dark(#1a1f1c, #e9ece9);
+  --sub: light-dark(#6f7872, #97a19b);
+  --faint: light-dark(#a5aca7, #68716c);
+  --ac: light-dark(#11805d, #45c69c);
+  --ac-ink: light-dark(#ffffff, #0b1d16);
+  --ac-soft: light-dark(#e7f3ee, #182f27);
+  --am: light-dark(#a95f0c, #efb066);
+  --am-soft: light-dark(#fdf3e3, #30261a);
+  --new: light-dark(#2e62d6, #82aaff);
+  --new-soft: light-dark(#ecf1fd, #1b2742);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--tx);
+  display: flex; flex-direction: column; gap: 22px;
+}
+#pb2 .cap { font-size: 12px; color: var(--sub); margin: 0 0 6px 2px; }
+#pb2 .win { background: var(--bg); border: 1px solid var(--hair); border-radius: 14px; padding: 14px; }
+#pb2 .box { background: var(--sf); border-radius: 12px; border: 1px solid var(--hair); overflow: hidden; }
+#pb2 .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+#pb2 .tabs span { font-size: 13px; padding: 5px 12px; border-radius: 8px; color: var(--sub); }
+#pb2 .tabs span.on { background: var(--sf); color: var(--tx); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+#pb2 table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#pb2 th { text-align: left; font-weight: 500; color: var(--sub); font-size: 12px; padding: 10px 12px; border-bottom: 1px solid var(--hair); white-space: nowrap; }
+#pb2 td { padding: 12px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+#pb2 th.new { color: var(--new); }
+#pb2 td.newc { background: color-mix(in srgb, var(--new-soft) 55%, transparent); min-width: 150px; }
+#pb2 .thumb { width: 44px; height: 44px; border-radius: 8px; background: var(--sf2); border: 1px solid var(--hair); display: grid; place-items: center; color: var(--faint); font-size: 10px; }
+#pb2 .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--sf2); color: var(--sub); margin: 0 4px 4px 0; }
+#pb2 .val { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#pb2 .sku { font-weight: 500; word-break: break-all; }
+#pb2 .name { font-size: 15px; font-weight: 500; color: var(--ac); }
+#pb2 .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+#pb2 .tag { font-size: 11px; padding: 1px 7px; border-radius: 99px; }
+#pb2 .tag.ok { background: var(--ac-soft); color: var(--ac); }
+#pb2 .tag.am { background: var(--am-soft); color: var(--am); }
+#pb2 .tag.gr { background: var(--sf2); color: var(--sub); }
+#pb2 .muted { color: var(--sub); font-size: 12px; }
+#pb2 .lnk { border: 0; background: none; color: var(--ac); font: inherit; font-size: 12px; padding: 0; cursor: pointer; }
+#pb2 .cp { border: 1px solid var(--hair); background: var(--sf); color: var(--sub); font: inherit; font-size: 11px; border-radius: 6px; padding: 1px 6px; cursor: pointer; white-space: nowrap; }
+#pb2 .cp.done { color: var(--ac); border-color: var(--ac); }
+#pb2 .sheet { display: grid; gap: 12px; padding: 16px; }
+#pb2 .steps { display: flex; gap: 6px; flex-wrap: wrap; }
+#pb2 .steps span { font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--hair); color: var(--sub); }
+#pb2 .steps span.on { background: var(--ac); color: var(--ac-ink); border-color: var(--ac); }
+#pb2 .card { border: 1px solid var(--hair); border-radius: 10px; padding: 12px; background: var(--sf); }
+#pb2 .card h4 { margin: 0 0 8px; font-size: 13px; font-weight: 500; }
+#pb2 .kids { display: flex; gap: 6px; flex-wrap: wrap; }
+#pb2 .kid { font-size: 12px; padding: 4px 8px; border-radius: 6px; background: var(--sf2); }
+#pb2 .kid.next { background: var(--ac-soft); color: var(--ac); font-weight: 500; border: 1px dashed var(--ac); }
+#pb2 .grp { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; border-top: 1px solid var(--hair); }
+#pb2 .cand { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--hair); background: var(--sf); color: var(--tx); margin-top: 6px; font: inherit; font-size: 12px; cursor: pointer; }
+#pb2 .cand[aria-pressed="true"] { border-color: var(--ac); background: var(--ac-soft); }
+#pb2 .cand .s { flex: 1; min-width: 0; word-break: break-all; }
+#pb2 .btn { border: 1px solid var(--hair); background: var(--sf); color: var(--tx); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+#pb2 .btn.pri { background: var(--ac); border-color: var(--ac); color: var(--ac-ink); }
+#pb2 .set { padding: 16px; display: grid; gap: 10px; }
+#pb2 .set h4 { margin: 4px 0 0; font-size: 13px; font-weight: 500; }
+#pb2 .fld { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 12px; }
+#pb2 .fld > label { color: var(--sub); }
+#pb2 .inp { border: 1px solid var(--hair); border-radius: 8px; padding: 6px 8px; background: var(--sf); color: var(--tx); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+#pb2 .status { display: flex; align-items: center; gap: 8px; font-size: 12px; flex-wrap: wrap; }
+#pb2 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ac); display: inline-block; }
+#pb2 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+#pb2 .chip { font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--hair); color: var(--sub); }
+@media (max-width: 560px) { #pb2 .fld { grid-template-columns: 1fr; } }
+</style>
+
+<div>
+  <p class="cap">① 识别信息：父体 SKU、变体名各自一个复制按钮</p>
+  <div class="win">
+    <div class="tabs"><span>队列</span><span>需处理</span><span class="on">识别信息</span></div>
+    <div class="box" style="overflow-x:auto">
+      <table>
+        <thead><tr><th>主图</th><th>场景</th><th>搜索关键词</th><th class="new">父体</th><th class="new">下一个变体名</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="thumb">主图</div></td>
+            <td>宝宝第一个圣诞节的纪念挂饰</td>
+            <td><span class="pill">christmas ornament</span><span class="pill">baby first christmas</span></td>
+            <td class="newc">
+              <div class="val"><span class="sku">HJ-cn-yklgj-Christmas Baby</span><button class="cp" type="button">复制</button></div>
+              <div class="row muted">圣诞节婴儿 · B0HKJ8G5QP</div>
+            </td>
+            <td class="newc">
+              <div class="val"><span class="name">Design 05</span><button class="cp" type="button">复制</button></div>
+              <div class="row"><span class="tag ok">把握 0.91</span></div>
+            </td>
+          </tr>
+          <tr>
+            <td><div class="thumb">主图</div></td>
+            <td>小笼包造型的圣诞陶瓷挂饰</td>
+            <td><span class="pill">christmas ornament</span><span class="pill">dumpling ornament</span></td>
+            <td class="newc">
+              <div class="val"><span class="sku">HJ-cn-yklgj5-Christmas Dumpling</span><button class="cp" type="button">复制</button></div>
+              <div class="row muted">圣诞节小笼包挂件 · B0HKVTLKHX</div>
+            </td>
+            <td class="newc">
+              <div class="val"><span class="name">Design 04</span><button class="cp" type="button">复制</button></div>
+              <div class="row"><span class="tag am">待确认 · 0.62</span><button class="lnk" type="button">去确认 ›</button></div>
+            </td>
+          </tr>
+          <tr>
+            <td><div class="thumb">主图</div></td>
+            <td>家庭合照定制毛毯</td>
+            <td><span class="pill">throw blanket</span></td>
+            <td class="newc" colspan="2">
+              <div class="row" style="margin-top:0"><span class="tag gr">「毛毯」标签页里没有合适的父体</span><button class="lnk" type="button">手动选 ›</button></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div>
+  <p class="cap">② 详情第 6 步「匹配父体」：候选来自飞书表对应标签页，可点选切换</p>
+  <div class="win">
+    <div class="box sheet">
+      <div class="steps"><span>1 识别品类</span><span>2 提取素材</span><span>3 生成主图</span><span>4 信息识别</span><span>5 空白图</span><span class="on">6 匹配父体</span></div>
+      <div class="card">
+        <h4>候选父体 <span class="muted" style="font-weight:400">· 飞书「亚克力挂件」标签页，本次运行 10:32 读取</span></h4>
+        <div id="pb2-cands"></div>
+      </div>
+      <div class="card">
+        <h4>变体命名 <span class="muted" style="font-weight:400">· 店铺 SP-API 实时查询</span></h4>
+        <div class="muted" id="pb2-meta"></div>
+        <div class="kids" id="pb2-kids" style="margin:8px 0"></div>
+        <div id="pb2-groups"></div>
+        <div class="row" style="margin-top:10px">
+          <span class="muted">父体</span><span class="sku" id="pb2-psku"></span><button class="cp" type="button">复制</button>
+        </div>
+        <div class="row">
+          <span class="muted">推荐变体名</span><span class="name" id="pb2-next"></span><button class="cp" type="button">复制</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div>
+  <p class="cap">③ 设置 ·「父体匹配」：链接随时换，用过的链接留着下次选</p>
+  <div class="win">
+    <div class="box set">
+      <h4>飞书</h4>
+      <div class="status"><span class="dot"></span>已用你的飞书账号授权（Liu） · 你能看的表这里都能读 <button class="btn" type="button">重新授权</button></div>
+      <div class="fld"><label>父体表链接</label><div class="inp">https://jvp0pdxrgz8.feishu.cn/wiki/K7iKwxoJDilnu9kJoQvcdNbDnoe?sheet=0ddCxN</div></div>
+      <div class="fld"><label>用过的链接</label><div class="chips"><span class="chip">父体分类汇总（当前）</span><span class="chip">店铺 B 父体表</span></div></div>
+      <div class="fld"><label>读到的标签页</label><div class="chips"><span class="chip">帆布画</span><span class="chip">毛毯</span><span class="chip">铝板画</span><span class="chip">庭院灯</span><span class="chip">亚克力挂件</span><span class="chip">…共 13 个</span></div></div>
+      <div class="status"><button class="btn" type="button">读一下试试</button><span class="muted">平时不同步，每次跑到第 6 步时现读</span></div>
+      <h4>店铺 SP-API</h4>
+      <div class="fld"><label>店铺 / 站点</label><div class="inp">A28LU3EFGREW2P · 美国</div></div>
+      <div class="fld"><label>凭证</label><div class="inp">Client ID ••••　Secret ••••　Refresh Token ••••</div></div>
+      <div class="status"><span class="dot"></span>连接正常 <button class="btn" type="button">从文件导入</button><button class="btn" type="button">测试连接</button></div>
+    </div>
+  </div>
+</div>
+
+<div>
+  <p class="cap">④ 模版库每个品类：对应飞书表的哪个标签页（同名自动选上）</p>
+  <div class="win">
+    <div class="box set">
+      <div class="fld"><label>相框</label><div class="inp">帆布画 ▾</div></div>
+      <div class="fld"><label>花园灯</label><div class="inp">庭院灯 ▾</div></div>
+      <div class="fld"><label>铝板画</label><div class="inp">铝板画 ▾（同名，自动）</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const root = document.getElementById('pb2');
+  const cands = [
+    { sku: 'HJ-cn-yklgj5-Christmas Dumpling', theme: '圣诞节小笼包挂件', asin: 'B0HKVTLKHX', score: 0.62,
+      kids: ['Design 02', 'Design 03', 'Ceramic'], groups: [['Design ##', 2], ['Ceramic', 1]], next: 'Design 04' },
+    { sku: 'HJ-cn-yklgj-Christmas', theme: '圣诞节挂件', asin: 'B0HKN6DD1K', score: 0.55,
+      kids: ['Design 01', 'Design 02', 'Design 03', 'Design 04', 'Design 05'], groups: [['Design ##', 5]], next: 'Design 06' },
+    { sku: 'HJ-cn-yklgj-Christmas Baby', theme: '圣诞节婴儿', asin: 'B0HKJ8G5QP', score: 0.21,
+      kids: ['Design 01', 'Design 02', 'Design 03', 'Design 04'], groups: [['Design ##', 4]], next: 'Design 05' },
+  ];
+  let sel = 0;
+  const $ = (id) => root.querySelector('#' + id);
+  function render() {
+    $('pb2-cands').innerHTML = cands.map((c, i) =>
+      `<button type="button" class="cand" aria-pressed="${i === sel}" data-i="${i}"><span class="s"><b style="font-weight:500">${c.theme}</b>　<span class="muted">${c.sku}</span></span><span class="tag ${c.score >= 0.8 ? 'ok' : c.score >= 0.5 ? 'am' : 'gr'}">${c.score.toFixed(2)}</span></button>`).join('');
+    const c = cands[sel];
+    $('pb2-meta').textContent = `父体 ASIN ${c.asin} · 变体按 color 区分 · 现有 ${c.kids.length} 个子体`;
+    $('pb2-kids').innerHTML = c.kids.map((k) => `<span class="kid">${k}</span>`).join('') + `<span class="kid next">${c.next}</span>`;
+    $('pb2-groups').innerHTML = c.groups.map(([p, n], i) => `<div class="grp"><span>${p}</span><span>${n} 个${i === 0 && c.groups.length > 1 ? ' · 最多，按它往下排' : ''}</span></div>`).join('');
+    $('pb2-psku').textContent = c.sku;
+    $('pb2-next').textContent = c.next;
+    root.querySelectorAll('.cand').forEach((b) => b.addEventListener('click', () => { sel = Number(b.dataset.i); render(); }));
+  }
+  root.addEventListener('click', (e) => {
+    const b = e.target.closest('.cp');
+    if (!b) return;
+    b.textContent = '已复制'; b.classList.add('done');
+    setTimeout(() => { b.textContent = '复制'; b.classList.remove('done'); }, 1200);
+  });
+  render();
+})();
+</script>
+</div>
+
+</body></html>
