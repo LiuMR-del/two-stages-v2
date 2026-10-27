@@ -29,6 +29,8 @@ export type JobPatch = (job: Job) => void
 export type StepResult =
   | { kind: 'done'; output?: string; patch?: JobPatch; skipNext?: boolean }
   | { kind: 'skipped'; patch?: JobPatch }
+  /** 这一步还没完，回到排队等下一段（第②步提取完等验收） */
+  | { kind: 'requeue'; patch?: JobPatch }
   | { kind: 'attention'; state: 'failed' | 'pending'; attention: Omit<Attention, 'at'>; patch?: JobPatch }
 
 export type StepHandler = (ctx: StepCtx) => Promise<StepResult>

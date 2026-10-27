@@ -15,5 +15,6 @@ export function fakeJob(id = 'j1', order = 1): Job {
     info: null,
     attention: null,
     override: null,
+    qc: null,
   }
 }

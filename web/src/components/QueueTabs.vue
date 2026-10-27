@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useJobs } from '../stores/jobs'
 import { useUi } from '../stores/ui'
+import { showClearAll, useConfirmTwice } from '../confirmTwice'
 
 const jobs = useJobs()
 const ui = useUi()
@@ -11,17 +11,10 @@ async function clearDone() {
   if (r) ui.toast(`已从队列移除 ${r.removed} 张已完成的图（输出文件不受影响）`)
 }
 
-const confirmClear = ref(false)
-async function clearAll() {
-  if (!confirmClear.value) {
-    confirmClear.value = true
-    setTimeout(() => (confirmClear.value = false), 4000)
-    return
-  }
-  confirmClear.value = false
+const { armed: confirmClear, click: clearAll } = useConfirmTwice(async () => {
   const r = await ui.act(() => jobs.clearAll())
   if (r) ui.toast(`已清空队列，移除 ${r.removed} 张图（已生成的文件不受影响；之后加的图会放进新的文件夹）`)
-}
+})
 </script>
 
 <template>
@@ -38,7 +31,7 @@ async function clearAll() {
       <span>完成 <i>{{ jobs.finished.length }}</i></span>
       <span v-if="jobs.queue">生图 <i>{{ jobs.queue.slots.image.busy }}/{{ jobs.queue.slots.image.limit }}</i> · 分析 <i>{{ jobs.queue.slots.analysis.busy }}/{{ jobs.queue.slots.analysis.limit }}</i></span>
       <button v-if="jobs.finished.length" type="button" class="btn txt sm" @click="clearDone">清除已完成</button>
-      <button v-if="jobs.all.length" type="button" class="btn txt sm rd" @click="clearAll">{{ confirmClear ? `再点一次，清空全部 ${jobs.all.length} 张` : '清空队列' }}</button>
+      <button v-if="showClearAll(jobs.all.length)" type="button" class="btn txt sm rd" @click="clearAll">{{ confirmClear ? `再点一次，清空全部 ${jobs.all.length} 张` : '清空队列' }}</button>
     </div>
   </div>
 </template>

@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Job } from '../store/jobs'
-import { writeFileAtomic } from '../store/atomic'
+import { readJsonSync, writeFileAtomic, writeFileAtomicSync } from '../store/atomic'
+import { log } from '../util/log'
 import { localDay } from '../util/ids'
 
 export type OutputKind = 'pattern' | 'main' | 'blank'
@@ -18,32 +19,81 @@ export function baseNameOf(originalName: string): string {
   return safeName(ext ? originalName.slice(0, -ext.length) : originalName)
 }
 
-/** 一批图一个文件夹，直接放在保存位置下，如 下载/主图生成-2026-10-27-1530 */
+/** 一批图一个文件夹，直接放在保存位置下，如 下载/主图生成-2026-10-27-1 */
 export function batchDir(outputDir: string, folder: string): string {
   return path.join(outputDir, folder)
 }
 
-const recentFolders = new Set<string>()
+/** 第 n 批：0 → 主图生成-2026-10-27，1 → 主图生成-2026-10-27-1 */
+export function batchFolderName(day: string, n: number): string {
+  return n === 0 ? `主图生成-${day}` : `主图生成-${day}-${n}`
+}
 
-/** 新批次的文件夹名：日期加开始时间；同一分钟里已经有了（磁盘上或本次运行刚分出去的）就加 -2、-3 */
-export function newBatchFolder(outputDir: string, now = new Date()): string {
-  const hm = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`
-  const base = `主图生成-${localDay(now)}-${hm}`
-  for (let n = 1; ; n++) {
-    const cand = n === 1 ? base : `${base}-${n}`
-    if (recentFolders.has(cand) || fs.existsSync(path.join(outputDir, cand))) continue
-    recentFolders.add(cand)
-    return cand
+/** 旧版「日期-时分」（如 -1530）不是批次序号，按没有记录处理 */
+const MAX_BATCH_INDEX = 999
+
+function batchIndex(day: string, folder: string): number | null {
+  if (folder === batchFolderName(day, 0)) return 0
+  const m = new RegExp(`^主图生成-${day}-(\\d+)$`).exec(folder)
+  return m && Number(m[1]) <= MAX_BATCH_INDEX ? Number(m[1]) : null
+}
+
+/** after 之后的下一个名字；磁盘上已经有的跳过 */
+export function nextBatchFolder(outputDir: string, day: string, after: string | null): string {
+  const i = after === null ? null : batchIndex(day, after)
+  for (let n = i === null ? 0 : i + 1; ; n++) {
+    const cand = batchFolderName(day, n)
+    if (!fs.existsSync(path.join(outputDir, cand))) return cand
   }
 }
 
+type BatchState = { day: string; folder: string; closed: boolean }
+
 /**
- * 新加的图归到哪一批：队列里还有没完成的今天的图（含需处理），就跟它们同一批；
- * 否则（队列清空了，或者之前的都跑完了）开一个新文件夹。
+ * 当前批次用哪个文件夹，存在 data/batch.json，重启后接着用。
+ * 只有清空队列（close）或换了日期才开新文件夹；图跑完了但没清空，新加的图还进同一个。
  */
-export function folderForNewJobs(jobs: Job[], outputDir: string, isFinished: (j: Job) => boolean, now = new Date()): string {
-  const open = jobs.filter((j) => !isFinished(j) && j.outputDay === localDay(now) && j.outputFolder).at(-1)
-  return open ? open.outputFolder : newBatchFolder(outputDir, now)
+export class BatchFolders {
+  constructor(
+    private file: string,
+    private outputDir: () => string,
+  ) {}
+
+  private read(): BatchState | null {
+    const s = readJsonSync<Partial<BatchState>>(this.file)
+    return s && typeof s.day === 'string' && typeof s.folder === 'string' ? { day: s.day, folder: s.folder, closed: s.closed === true } : null
+  }
+
+  private save(s: BatchState): void {
+    try {
+      writeFileAtomicSync(this.file, JSON.stringify(s))
+    } catch (e) {
+      log.warn(`保存当前批次文件夹失败：${(e as Error).message}`)
+    }
+  }
+
+  /** 新加的图放进哪个文件夹；jobs 只在第一次用（没有记录）时参考：队列里有今天的图就接着用它们的文件夹 */
+  current(jobs: Job[], now = new Date()): string {
+    const day = localDay(now)
+    let st = this.read()
+    if (!st) {
+      const last = jobs.filter((j) => j.outputDay === day && j.outputFolder).at(-1)
+      if (last) {
+        st = { day, folder: last.outputFolder, closed: false }
+        this.save(st)
+      }
+    }
+    if (st && st.day === day && !st.closed) return st.folder
+    const folder = nextBatchFolder(this.outputDir(), day, st && st.day === day ? st.folder : null)
+    this.save({ day, folder, closed: false })
+    return folder
+  }
+
+  /** 清空队列：之后加的图进下一个文件夹 */
+  close(): void {
+    const st = this.read()
+    if (st && !st.closed) this.save({ ...st, closed: true })
+  }
 }
 
 export function categoryDir(outputDir: string, job: Job): string {

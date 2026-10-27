@@ -1,13 +1,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { assignOutputBase, batchDir, folderForNewJobs, newBatchFolder, writeOutput } from '../../server/src/pipeline/output'
-import { JobStore, isFinished, markDone } from '../../server/src/store/jobs'
+import { assignOutputBase, batchDir, BatchFolders, nextBatchFolder, writeOutput } from '../../server/src/pipeline/output'
+import { writeBatchCsv } from '../../server/src/pipeline/csv'
+import { JobStore } from '../../server/src/store/jobs'
 import { startInProcess } from '../inprocess'
 import { Scheduler } from '../../server/src/scheduler/scheduler'
 import { png } from '../helpers'
 import { DEFAULT_OUTPUT_DIR, SettingsStore } from '../../server/src/store/settings'
 import { fakeJob } from '../jobfixture'
+import { localDay } from '../../server/src/util/ids'
 import { rmDir, tmpDir } from '../helpers'
 
 let dir = ''
@@ -57,26 +59,68 @@ describe('保存位置', () => {
   })
 })
 
-describe('每批图一个文件夹', () => {
-  const at = new Date(2026, 9, 27, 15, 30)
-  const job = (id: string, folder: string, done: boolean) => {
-    const j = fakeJob(id)
-    j.outputDay = '2026-10-27'
-    j.outputFolder = folder
-    if (done) for (let i = 0; i < j.steps.length; i++) markDone(j, i)
-    return j
-  }
+describe('每批图一个文件夹（只有清空队列才开新的）', () => {
+  const d27 = new Date(2026, 9, 27, 15, 30)
+  const d28 = new Date(2026, 9, 28, 9, 0)
+  const mk = () => new BatchFolders(path.join(dir, 'data', 'batch.json'), () => path.join(dir, 'out'))
 
-  it('队列里还有今天没完成的图就跟它们同一批，否则开新文件夹（日期加时间，重名加 -2）', () => {
+  it('跑完不清空继续同一个文件夹；清空后依次 -1、-2', () => {
     dir = tmpDir()
-    expect(folderForNewJobs([job('a', '主图生成-2026-10-27-0900', false)], dir, isFinished, at)).toBe('主图生成-2026-10-27-0900')
-    expect(folderForNewJobs([job('a', '主图生成-2026-10-27-0900', true)], dir, isFinished, at)).toBe('主图生成-2026-10-27-1530')
-    expect(folderForNewJobs([], dir, isFinished, at)).toBe('主图生成-2026-10-27-1530-2')
-    fs.mkdirSync(path.join(dir, '主图生成-2026-10-27-1531'))
-    expect(newBatchFolder(dir, new Date(2026, 9, 27, 15, 31))).toBe('主图生成-2026-10-27-1531-2')
-    const old = job('b', '主图生成-2026-10-26-0900', false)
-    old.outputDay = '2026-10-26'
-    expect(folderForNewJobs([old], dir, isFinished, at)).toBe('主图生成-2026-10-27-1530-3')
+    const b = mk()
+    expect(b.current([], d27)).toBe('主图生成-2026-10-27')
+    expect(b.current([], new Date(2026, 9, 27, 18, 0))).toBe('主图生成-2026-10-27')
+    b.close()
+    expect(b.current([], d27)).toBe('主图生成-2026-10-27-1')
+    expect(b.current([], d27)).toBe('主图生成-2026-10-27-1')
+    b.close()
+    b.close()
+    expect(b.current([], d27)).toBe('主图生成-2026-10-27-2')
+  })
+
+  it('磁盘上已经有的名字跳过', () => {
+    dir = tmpDir()
+    fs.mkdirSync(path.join(dir, 'out', '主图生成-2026-10-27'), { recursive: true })
+    fs.mkdirSync(path.join(dir, 'out', '主图生成-2026-10-27-1'))
+    fs.mkdirSync(path.join(dir, 'out', '主图生成-2026-10-27-3'))
+    const b = mk()
+    expect(b.current([], d27)).toBe('主图生成-2026-10-27-2')
+    b.close()
+    expect(b.current([], d27)).toBe('主图生成-2026-10-27-4')
+    expect(nextBatchFolder(path.join(dir, 'out'), '2026-10-27', null)).toBe('主图生成-2026-10-27-2')
+  })
+
+  it('换了一天从新日期不带序号的名字开始', () => {
+    dir = tmpDir()
+    const b = mk()
+    expect(b.current([], d27)).toBe('主图生成-2026-10-27')
+    b.close()
+    expect(b.current([], d27)).toBe('主图生成-2026-10-27-1')
+    expect(b.current([], d28)).toBe('主图生成-2026-10-28')
+    expect(b.current([], d28)).toBe('主图生成-2026-10-28')
+  })
+
+  it('重启后接着用；第一次用时队列里有今天的图就接着用它们的文件夹', () => {
+    dir = tmpDir()
+    expect(mk().current([], d27)).toBe('主图生成-2026-10-27')
+    expect(mk().current([], d27)).toBe('主图生成-2026-10-27')
+    const a = mk()
+    a.close()
+    expect(mk().current([], d27)).toBe('主图生成-2026-10-27-1')
+
+    const dir2 = tmpDir()
+    try {
+      const j = fakeJob('a')
+      j.outputDay = '2026-10-27'
+      j.outputFolder = '主图生成-2026-10-27-1530'
+      const b = new BatchFolders(path.join(dir2, 'batch.json'), () => dir2)
+      expect(b.current([j], d27)).toBe('主图生成-2026-10-27-1530')
+      expect(new BatchFolders(path.join(dir2, 'batch.json'), () => dir2).current([], d27)).toBe('主图生成-2026-10-27-1530')
+      // 旧版「日期-时分」的 1530 不是批次序号：清空后从不带序号的名字找空位
+      b.close()
+      expect(b.current([], d27)).toBe('主图生成-2026-10-27')
+    } finally {
+      rmDir(dir2)
+    }
   })
 
   it('旧任务没有文件夹字段，读入时按日期补上', () => {
@@ -90,20 +134,22 @@ describe('每批图一个文件夹', () => {
     expect(store.get('old')!.outputFolder).toBe('主图生成-2026-10-26')
   })
 
-  it('清空队列后再加的图进新文件夹；暂停时也能清空', async () => {
+  it('暂停时也能清空；清空后再加的图进 -1，「清除已完成」不开新文件夹', async () => {
     const srv = await startInProcess()
     try {
       await srv.ctx.scheduler.pause()
+      const day = localDay()
       const files = async (n: string) => [{ name: n, buffer: await png(50, 50), type: 'image/png' }]
       const a = await srv.api.upload('POST', '/jobs', 'files', await files('a.png'))
       const b = await srv.api.upload('POST', '/jobs', 'files', await files('b.png'))
+      expect(a.body.jobs[0].outputFolder).toBe(`主图生成-${day}`)
       expect(b.body.jobs[0].outputFolder).toBe(a.body.jobs[0].outputFolder)
+      expect((await srv.api.json('POST', '/jobs/clear-done')).body.removed).toBe(0)
       const r = await srv.api.json('POST', '/jobs/clear-all')
       expect(r.body.removed).toBe(2)
       expect((await srv.api.json('GET', '/jobs')).body.jobs).toEqual([])
       const c = await srv.api.upload('POST', '/jobs', 'files', await files('c.png'))
-      expect(c.body.jobs[0].outputFolder).not.toBe(a.body.jobs[0].outputFolder)
-      expect(c.body.jobs[0].outputFolder).toMatch(/^主图生成-\d{4}-\d{2}-\d{2}-\d{4}(-\d+)?$/)
+      expect(c.body.jobs[0].outputFolder).toBe(`主图生成-${day}-1`)
     } finally {
       await srv.close()
     }
@@ -128,3 +174,30 @@ describe('暂停队列', () => {
     }
   })
 })
+
+describe('识别信息 CSV', () => {
+  it('清除已完成后同一文件夹再加图，CSV 里前面的行不丢；队列里的图重做后行更新', async () => {
+    dir = tmpDir()
+    const rows = path.join(dir, 'data', 'batches', 'b.json')
+    const done = (id: string, scene: string) => {
+      const j = routed(id, id + '.png')
+      j.outputFolder = 'b'
+      j.createdAt = `2026-10-27T00:00:0${id.length}.000Z`
+      j.steps[3]!.state = 'done'
+      j.info = { scene, keywords: ['k'], customizable: [], blankItems: [], blankItemsEn: [] }
+      return j
+    }
+    const csv = () => fs.readFileSync(path.join(dir, 'b', '识别信息.csv'), 'utf8')
+    await writeBatchCsv(dir, [done('a', '场景A'), done('bb', '场景B')], 'b', rows)
+    expect(csv().trim().split('\r\n')).toHaveLength(3)
+    // a、bb 已经清除，只剩新加的 ccc
+    await writeBatchCsv(dir, [done('ccc', '场景C')], 'b', rows)
+    expect(csv().trim().split('\r\n')).toHaveLength(4)
+    expect(csv()).toContain('场景A')
+    await writeBatchCsv(dir, [done('ccc', '场景C2')], 'b', rows)
+    expect(csv()).toContain('场景C2')
+    expect(csv()).not.toContain('场景C,')
+    expect(csv().trim().split('\r\n')).toHaveLength(4)
+  })
+})
+

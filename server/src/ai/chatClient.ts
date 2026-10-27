@@ -13,6 +13,8 @@ export type ChatRequest = {
   user: string
   /** 已经过 shrinkForAnalysis 的 JPEG */
   imageJpeg?: Buffer
+  /** 多张图时按顺序发送（同样是缩小后的 JPEG） */
+  images?: Buffer[]
   signal?: AbortSignal
 }
 
@@ -54,8 +56,8 @@ export async function chatJson<S extends z.ZodType>(
   schema: S,
 ): Promise<{ data: z.infer<S>; raw: string }> {
   const userContent: unknown[] = [{ type: 'text', text: req.user }]
-  if (req.imageJpeg) {
-    userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${req.imageJpeg.toString('base64')}` } })
+  for (const img of req.images ?? (req.imageJpeg ? [req.imageJpeg] : [])) {
+    userContent.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${img.toString('base64')}` } })
   }
   const messages: Message[] = [
     { role: 'system', content: req.system },

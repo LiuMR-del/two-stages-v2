@@ -12,6 +12,8 @@ export type PlanMain = {
   image: null | { role: PlanImageRole; hash: string }
   /** 自定义模版指定的主图画布比例，只在没有参考图时生效 */
   canvasRatio?: string | null
+  /** 默认模版的贴图方式（款式上的设置） */
+  pasteMode?: 'auto' | 'local' | 'ai'
 }
 
 export const DEFAULT_TEMPLATE_NAME = '默认 · 贴图'
@@ -36,6 +38,7 @@ export function mainPlanFor(
         templateName: DEFAULT_TEMPLATE_NAME,
         prompt: fillPlaceholders(lib.defaults.pastePrompt, values),
         image: style.whiteImage ? { role: '白底图', hash: style.whiteImage } : null,
+        pasteMode: style.pasteMode,
       },
       missingWhite: !style.whiteImage,
       scope: '全局共用 · 所有品类',
@@ -72,6 +75,10 @@ export type MainRequest = {
   prompt: string
   size: ApiSize
 }
+
+/** 默认模版走 AI 贴图时，前置句后面固定加的约束 */
+export const PASTE_CONSTRAINT =
+  "Cover the product's printable face in the first image with the second image, like an opaque sticker laid over the whole face: inside the printable area only the second image is visible, edge to edge up to the product's outline. None of the product's original material, color or texture shows through anywhere, including the white or light areas of the design. Keep physical features such as mounting holes. Keep the product's shape, position, framing, background and shadows exactly as in the first image."
 
 export function roleSentence(roles: string[]): string {
   return roles.map((r, i) => `第${CN_NUM[i]}张图片是${r}`).join('，') + '。'
@@ -112,7 +119,7 @@ export async function buildMainRequest(
   return {
     slots,
     sent,
-    prefix: canvas.prefix + roleSentence(sent.map((s) => s.role)) + '\n',
+    prefix: canvas.prefix + roleSentence(sent.map((s) => s.role)) + '\n' + (main.templateId === 'default' && main.image ? PASTE_CONSTRAINT + '\n' : ''),
     prompt: main.prompt,
     size: canvas.size,
   }

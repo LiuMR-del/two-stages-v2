@@ -5,7 +5,8 @@ import { Mutex } from '../util/mutex'
 import { HttpError } from '../util/errors'
 import { log } from '../util/log'
 import { ImageStore } from './images'
-import { initialLibrary, LibrarySchema, migrateLibrary, referencedHashes, validateIntegrity, type Category, type Library, type Style } from './schema'
+import { initialLibrary, LibrarySchema, migrateLibrary, referencedHashes, upgradeDefaults, validateIntegrity, type Category, type Library, type Style, type WhiteShapeRecord } from './schema'
+import { detectWhiteShape } from '../image/whiteShape'
 import { newCategoryId, newStyleId, newTemplateId } from '../util/ids'
 import { ratioToWH } from '../prompts/canvas'
 
@@ -18,6 +19,7 @@ export class LibraryStore {
   private mutex = new Mutex()
   readonly images: ImageStore
   private listeners: ((lib: Library) => void)[] = []
+  private shapeCache = new Map<string, WhiteShapeRecord>()
 
   constructor(private p: LibraryPaths) {
     fs.mkdirSync(p.imagesDir, { recursive: true })
@@ -43,6 +45,11 @@ export class LibraryStore {
           writeFileAtomicSync(p.file, JSON.stringify(this.value, null, 2))
           log.info(`模版库已升级：自定义模版改为每个款式各一套（旧文件另存为 ${old}）`)
         }
+        if (upgradeDefaults(this.value)) {
+          this.backupCurrent()
+          writeFileAtomicSync(p.file, JSON.stringify(this.value, null, 2))
+          log.info('全局默认的提取 / 贴图提示词还是旧版默认，已换成新版默认（改过的不动；旧文件在 backups 里）')
+        }
       }
     }
   }
@@ -58,6 +65,24 @@ export class LibraryStore {
   /** 只在启动时和导入完成后调用；和写操作串行，避免删掉刚上传、还没写进库的图 */
   cleanOrphans(): Promise<number> {
     return this.mutex.run(() => this.images.cleanOrphans(referencedHashes(this.value)))
+  }
+
+  /**
+   * 白底图的图形检测结果：库里有就直接用，没有就现算；图片还在库里引用着才存进库。
+   * buffer 给了就不再读库里的图（任务目录里复制的那份）。
+   */
+  async whiteShape(hash: string, buffer?: Buffer): Promise<WhiteShapeRecord> {
+    const cached = this.value.whiteChecks[hash] ?? this.shapeCache.get(hash)
+    if (cached) return cached
+    const buf = buffer ?? (await this.images.read(hash)).buffer
+    const shape = await detectWhiteShape(buf)
+    this.shapeCache.set(hash, shape)
+    if (referencedHashes(this.value).has(hash)) {
+      await this.mutate((d) => {
+        d.whiteChecks[hash] = shape
+      }).catch((e) => log.warn(`保存白底图检测结果失败：${(e as Error).message}`))
+    }
+    return shape
   }
 
   category(cid: string): Category {
@@ -143,7 +168,7 @@ export const ops = {
       name: checkCategoryName(lib, name),
       hint: '',
       extractPrompt: null,
-      styles: [{ id: newStyleId(), name: '', ratio: '1:1', whiteImage: null, activeTemplate: 'default', templates: [] }],
+      styles: [{ id: newStyleId(), name: '', ratio: '1:1', whiteImage: null, activeTemplate: 'default', templates: [], pasteMode: 'auto' }],
     }
     lib.categories.push(c)
     return c
@@ -178,12 +203,12 @@ export const ops = {
     if (c.styles.some((s) => s.name === n)) throw new HttpError(400, `「${c.name}」已经有叫「${n}」的款式了`)
     // 单款式品类的款式没有名字；加第二个款式时给它补一个，否则两个款式没法区分
     for (const s of c.styles) if (!s.name) s.name = n === '默认' ? '原款式' : '默认'
-    const st: Style = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: 'default', templates: [] }
+    const st: Style = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: 'default', templates: [], pasteMode: 'auto' }
     c.styles.push(st)
     return st
   },
 
-  patchStyle(lib: Library, cid: string, sid: string, p: { name?: string; ratio?: string; activeTemplate?: string }) {
+  patchStyle(lib: Library, cid: string, sid: string, p: { name?: string; ratio?: string; activeTemplate?: string; pasteMode?: Style['pasteMode'] }) {
     const c = findCat(lib, cid)
     const s = c.styles.find((x) => x.id === sid)
     if (!s) throw new HttpError(404, '款式不存在，可能已被删除')
@@ -199,6 +224,7 @@ export const ops = {
       if (p.activeTemplate !== 'default' && !s.templates.some((t) => t.id === p.activeTemplate)) throw new HttpError(400, '要使用的模版不存在')
       s.activeTemplate = p.activeTemplate
     }
+    if (p.pasteMode !== undefined) s.pasteMode = p.pasteMode
     return s
   },
 
@@ -209,11 +235,12 @@ export const ops = {
     c.styles = c.styles.filter((s) => s.id !== sid)
   },
 
-  setWhite(lib: Library, cid: string, sid: string, hash: string | null): void {
+  setWhite(lib: Library, cid: string, sid: string, hash: string | null, shape?: WhiteShapeRecord): void {
     const c = findCat(lib, cid)
     const s = c.styles.find((x) => x.id === sid)
     if (!s) throw new HttpError(404, '款式不存在，可能已被删除')
     s.whiteImage = hash
+    if (hash && shape) lib.whiteChecks[hash] = shape
   },
 
   addTemplate(lib: Library, cid: string, sid: string, name: string, prompt: string) {

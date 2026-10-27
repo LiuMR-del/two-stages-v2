@@ -25,6 +25,18 @@ export const StyleSchema = z.object({
   /** 'default' 或本款式某个模版的 id */
   activeTemplate: z.string().min(1),
   templates: z.array(TemplateSchema),
+  /** 默认模版的贴图方式：auto 按白底图自动判断，local 本地合成，ai AI 贴图 */
+  pasteMode: z.enum(['auto', 'local', 'ai']).default('auto'),
+})
+
+/** 白底图的本地图形检测结果，按图片指纹存；旧库没有这个字段，用到时再算 */
+export const WhiteShapeSchema = z.object({
+  ok: z.boolean(),
+  shape: z.enum(['rect', 'ellipse']).nullable(),
+  bbox: z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() }).nullable(),
+  fill: z.number().nullable(),
+  holes: z.number(),
+  reason: z.string(),
 })
 
 export const CategorySchema = z.object({
@@ -44,6 +56,7 @@ export const LibrarySchema = z.object({
     pastePrompt: z.string(),
   }),
   categories: z.array(CategorySchema),
+  whiteChecks: z.record(z.string(), WhiteShapeSchema).default({}),
 })
 
 export type Style = z.infer<typeof StyleSchema>
@@ -51,17 +64,41 @@ export type Template = z.infer<typeof TemplateSchema>
 export type Category = z.infer<typeof CategorySchema>
 export type Library = z.infer<typeof LibrarySchema>
 
-export const DEFAULT_EXTRACT_PROMPT =
-  '这是一张{品类}商品图。识别商品表面印刷的图案，把它完整提取出来还原成平面设计稿：去掉商品外形、透视、褶皱、光影和背景；图案的构图、文字、颜色保持不变，不重绘、不增删；高清输出，比例 {比例}。'
+export type WhiteShapeRecord = z.infer<typeof WhiteShapeSchema>
+
+export const DEFAULT_EXTRACT_PROMPT = '这是一张{品类}商品图。只要商品印刷面上的图案部分，转成正面的平面设计稿并高清处理，图案四边铺满画布，比例 {比例}。'
 
 export const DEFAULT_PASTE_PROMPT =
-  '请自动识别商品底图中用于承载图案的表面及其边界，将素材图直接贴满该区域，贴合原有透视，不额外留白边，不超出边界。直接使用原素材，不重绘，不修改文字、图案和排版。底图的商品外形、比例、角度、材质、光影、背景、构图及图片尺寸保持不变，只完成贴图，不做其他改动。'
+  '把素材图像一张不透明的贴纸一样覆盖在白底图商品的整个印刷面上，贴合原有透视：印刷面以内只看得到素材图，一直铺到商品轮廓，不留白边、不超出轮廓。商品原来的材质、颜色、纹理在任何地方都不能透出来，素材图里白色或浅色的部分也一样。保留安装孔等实体结构。直接使用原素材，不重绘，不修改文字、图案和排版。商品的形状、位置、取景、背景和阴影与白底图完全一致，只完成贴图，不做其他改动。'
+
+/** 2026-10-27 之前的默认提示词；库里存的和它们一字不差时自动换成新的，改过的不动 */
+export const OLD_DEFAULT_EXTRACT_PROMPTS = [
+  '这是一张{品类}商品图。识别商品表面印刷的图案，把它完整提取出来还原成平面设计稿：去掉商品外形、透视、褶皱、光影和背景；图案的构图、文字、颜色保持不变，不重绘、不增删；高清输出，比例 {比例}。',
+]
+export const OLD_DEFAULT_PASTE_PROMPTS = [
+  '请自动识别商品底图中用于承载图案的表面及其边界，将素材图直接贴满该区域，贴合原有透视，不额外留白边，不超出边界。直接使用原素材，不重绘，不修改文字、图案和排版。底图的商品外形、比例、角度、材质、光影、背景、构图及图片尺寸保持不变，只完成贴图，不做其他改动。',
+]
+
+/** 只换全局默认里一字不差的旧默认；返回换了几处 */
+export function upgradeDefaults(lib: Library): number {
+  let n = 0
+  if (OLD_DEFAULT_EXTRACT_PROMPTS.includes(lib.defaults.extractPrompt)) {
+    lib.defaults.extractPrompt = DEFAULT_EXTRACT_PROMPT
+    n++
+  }
+  if (OLD_DEFAULT_PASTE_PROMPTS.includes(lib.defaults.pastePrompt)) {
+    lib.defaults.pastePrompt = DEFAULT_PASTE_PROMPT
+    n++
+  }
+  return n
+}
 
 export function initialLibrary(): Library {
   return {
     version: LIBRARY_VERSION,
     defaults: { extractPrompt: DEFAULT_EXTRACT_PROMPT, pastePrompt: DEFAULT_PASTE_PROMPT },
     categories: [],
+    whiteChecks: {},
   }
 }
 

@@ -2,7 +2,18 @@
 
 export type Template = { id: string; name: string; prompt: string; image: string | null; canvasRatio: string | null }
 /** 自定义模版属于款式，款式之间互不影响 */
-export type Style = { id: string; name: string; ratio: string; whiteImage: string | null; activeTemplate: string; templates: Template[] }
+export type PasteMode = 'auto' | 'local' | 'ai'
+export type Style = {
+  id: string
+  name: string
+  ratio: string
+  whiteImage: string | null
+  activeTemplate: string
+  templates: Template[]
+  /** 默认模版的贴图方式 */
+  pasteMode: PasteMode
+}
+export type WhiteShape = { ok: boolean; shape: 'rect' | 'ellipse' | null; bbox: { x: number; y: number; w: number; h: number } | null; fill: number | null; holes: number; reason: string }
 export type Category = {
   id: string
   name: string
@@ -14,6 +25,7 @@ export type Library = {
   version: 2
   defaults: { extractPrompt: string; pastePrompt: string }
   categories: Category[]
+  whiteChecks: Record<string, WhiteShape>
 }
 
 export type CheckLevel = 'ok' | 'warn' | 'error'
@@ -30,6 +42,8 @@ export type Recipe = {
   templateId: string
   templateName: string
   warnings: string[]
+  /** 只有默认模版有：auto 是按白底图自动判断的结果，mode 是实际用的 */
+  paste: null | { setting: PasteMode; auto: { mode: 'local' | 'ai'; reason: string } | null; mode: 'local' | 'ai'; note: string | null }
 }
 export type ExtractRecipe = { prefix: string; prompt: string; size: string; scope: string }
 
@@ -47,6 +61,8 @@ export type Settings = {
   routeThreshold: number
   padSquare: boolean
   blankImage: boolean
+  patternQc: boolean
+  patternQcThreshold: number
 }
 
 export type StepState = 'pending' | 'running' | 'done' | 'skipped' | 'failed'
@@ -57,6 +73,8 @@ export type StepSnapshot = {
   model: string
   size?: string
   params?: Record<string, unknown>
+  /** local = 本地合成，没有调用 AI */
+  mode?: 'ai' | 'local'
 }
 export type StepRecord = {
   state: StepState
@@ -67,7 +85,22 @@ export type StepRecord = {
   snapshot?: StepSnapshot
   output?: string
 }
-export type AttentionKind = 'nomatch' | 'nowhite' | 'failed' | 'refused'
+export type AttentionKind = 'nomatch' | 'nowhite' | 'failed' | 'refused' | 'qc'
+export type Qc = {
+  state: 'pending' | 'pass' | 'fail' | 'bypassed'
+  at?: string
+  threshold?: number
+  score: number | null
+  sourceTexts: string[]
+  patternTexts: string[]
+  textOk: boolean | null
+  textDiffs: string[]
+  elementIssues: string[]
+  layout: null | { ok: boolean; issues: string[]; ratioChecked: boolean; note: string | null }
+  reasons: string[]
+  snapshot?: StepSnapshot
+  raw?: string
+}
 export type Job = {
   id: string
   createdAt: string
@@ -88,12 +121,20 @@ export type Job = {
   }
   plan: null | {
     extractPrompt: string
-    main: { templateId: string; templateName: string; prompt: string; image: null | { role: '白底图' | '参考图'; hash: string }; canvasRatio?: string | null }
+    main: {
+      templateId: string
+      templateName: string
+      prompt: string
+      image: null | { role: '白底图' | '参考图'; hash: string }
+      canvasRatio?: string | null
+      pasteMode?: PasteMode
+    }
   }
   steps: StepRecord[]
   info: null | { scene: string; keywords: string[]; customizable: string[]; blankItems: string[]; blankItemsEn: string[] }
   attention: null | { kind: AttentionKind; step: number; message: string; guess?: string; at: string }
   override: null | { step: number; prompt: string }
+  qc: Qc | null
   /** 服务端算好的展示状态，前端不再自己判断 */
   view: JobView
 }

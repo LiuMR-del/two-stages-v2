@@ -7,13 +7,12 @@ import sharp from 'sharp'
 import type { AppContext } from '../context'
 import { HttpError, parseBody } from './util'
 import { upload } from './library'
-import { isFinished, newSteps, withView, type Job } from '../store/jobs'
+import { newSteps, withView, type Job } from '../store/jobs'
 import { localDay, newJobId } from '../util/ids'
 import { EXT_OF, readSize, sniffImageType } from '../image/process'
 import { normalizeLibraryImage, sha256 } from '../library/images'
 import { writeJobImage, JOB_FILES } from '../pipeline/files'
-import { baseNameOf, folderForNewJobs } from '../pipeline/output'
-import { resolveOutputDir } from '../store/settings'
+import { baseNameOf } from '../pipeline/output'
 import { log } from '../util/log'
 import { readClipboardFiles } from '../util/platform'
 
@@ -103,7 +102,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
   async function addSources(sources: { name: string; read: () => Promise<Buffer> }[]) {
     const created: ReturnType<typeof withView>[] = []
     const errors: { name: string; error: string }[] = []
-    const folder = folderForNewJobs(jobs.list(), resolveOutputDir(ctx.settings.get()), isFinished)
+    const folder = ctx.batch.current(jobs.list())
     for (const { name, read } of sources) {
       try {
         const { buffer, ext } = await normalizeSource(await read())
@@ -126,6 +125,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           info: null,
           attention: null,
           override: null,
+          qc: null,
         }
         await jobs.create(job)
         created.push(withView(job))
@@ -145,7 +145,10 @@ export function registerJobs(r: Router, ctx: AppContext): void {
 
   r.post('/jobs/clear-all', async (_req, res) => {
     const removed = await scheduler.clearAll()
-    if (removed) log.info(`清空队列，移除 ${removed} 张图`)
+    if (removed) {
+      ctx.batch.close()
+      log.info(`清空队列，移除 ${removed} 张图；之后加的图放进新的文件夹`)
+    }
     res.json({ removed })
   })
 
@@ -169,6 +172,10 @@ export function registerJobs(r: Router, ctx: AppContext): void {
 
   r.post('/jobs/:id/create-category', async (req, res) => {
     res.json({ job: withView(await scheduler.createCategory(id(req))) })
+  })
+
+  r.post('/jobs/:id/qc-accept', async (req, res) => {
+    res.json({ job: withView(await scheduler.acceptQc(id(req))) })
   })
 
   r.post('/jobs/:id/retry', async (req, res) => {

@@ -19,6 +19,8 @@ export type Behavior =
       retryAfter?: number
       route?: { category_id: string | null; style_id: string | null; confidence: number; guess?: string; reason?: string }
       info?: Record<string, unknown>
+      /** 素材图验收的回复（source_texts / pattern_texts / element_score / element_issues） */
+      qc?: Record<string, unknown>
       format?: 'b64' | 'url' | 'binary'
       /** 先等这么久再响应，用来制造“运行到一半”的状态 */
       delay?: number
@@ -32,7 +34,7 @@ export type MockLogEntry = {
   fields: Record<string, string>
   images: { field: string; width: number; height: number; sha256: string; bytes: number }[]
   prompt?: string
-  kind?: 'route' | 'info' | 'ping' | 'other'
+  kind?: 'route' | 'info' | 'qc' | 'ping' | 'other'
   system?: string
   userText?: string[]
   messageCount?: number
@@ -42,8 +44,8 @@ export type MockLogEntry = {
 export type MockRelay = {
   port: number
   url: string
-  /** route / info 只被对应类型的分析请求消费，优先于 chat */
-  script(s: { image?: Behavior[]; chat?: Behavior[]; route?: Behavior[]; info?: Behavior[] }): void
+  /** route / info / qc 只被对应类型的分析请求消费，优先于 chat */
+  script(s: { image?: Behavior[]; chat?: Behavior[]; route?: Behavior[]; info?: Behavior[]; qc?: Behavior[] }): void
   setDefaultDelay(ms: number): void
   log(): MockLogEntry[]
   reset(): void
@@ -52,15 +54,19 @@ export type MockRelay = {
 
 const sha256 = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 
+/** 不出近白色：素材图验收会把整张近白的图当成空白图 */
 function colorFor(prompt: string): { r: number; g: number; b: number } {
   const h = createHash('sha256').update(prompt).digest()
-  return { r: h[0]!, g: h[1]!, b: h[2]! }
+  return { r: Math.min(h[0]!, 200), g: Math.min(h[1]!, 200), b: Math.min(h[2]!, 200) }
 }
 
 function parseSize(size: string | undefined): [number, number] {
   const m = /^(\d+)x(\d+)$/.exec(size ?? '')
   return m ? [Number(m[1]), Number(m[2])] : [1024, 1024]
 }
+
+/** 默认验收合格 */
+const DEFAULT_QC = { source_texts: ['HAPPY FAMILY'], pattern_texts: ['Happy Family'], element_score: 0.95, element_issues: [] }
 
 const DEFAULT_INFO = {
   scene: '温馨客厅里挂着的定制相框，适合节日送礼',
@@ -78,7 +84,7 @@ function defaultRoute(system: string) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export async function startMockRelay(opts: { port?: number } = {}): Promise<MockRelay> {
-  const queues: { image: Behavior[]; chat: Behavior[]; route: Behavior[]; info: Behavior[] } = { image: [], chat: [], route: [], info: [] }
+  const queues: { image: Behavior[]; chat: Behavior[]; route: Behavior[]; info: Behavior[]; qc: Behavior[] } = { image: [], chat: [], route: [], info: [], qc: [] }
   const entries: MockLogEntry[] = []
   const stored = new Map<string, Buffer>()
   let defaultDelay = 0
@@ -95,8 +101,9 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     if (Array.isArray(body.chat)) queues.chat.push(...body.chat)
     if (Array.isArray(body.route)) queues.route.push(...body.route)
     if (Array.isArray(body.info)) queues.info.push(...body.info)
+    if (Array.isArray(body.qc)) queues.qc.push(...body.qc)
     if (typeof body.defaultDelayMs === 'number') defaultDelay = body.defaultDelayMs
-    res.json({ ok: true, pending: { image: queues.image.length, chat: queues.chat.length, route: queues.route.length, info: queues.info.length } })
+    res.json({ ok: true, pending: { image: queues.image.length, chat: queues.chat.length, route: queues.route.length, info: queues.info.length, qc: queues.qc.length } })
   })
   app.get('/__mock/log', (_req, res) => res.json(entries))
   app.post('/__mock/reset', (_req, res) => {
@@ -202,14 +209,16 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       ? 'route'
       : system.includes('亚马逊电商主图分析助手')
         ? 'info'
-        : body.max_tokens === 1
+        : system.includes('素材图验收助手')
+          ? 'qc'
+          : body.max_tokens === 1
           ? 'ping'
           : 'other'
     if (kind === 'ping') {
       entries.push({ at: Date.now(), endpoint: 'chat/completions', behavior: 'ok', status: 200, fields: { model: String(body.model) }, images, kind, system, userText, messageCount: messages.length, maxTokens: body.max_tokens })
       return void res.json({ model: body.model, choices: [{ message: { role: 'assistant', content: 'h' } }] })
     }
-    const specific = kind === 'route' ? queues.route : kind === 'info' ? queues.info : null
+    const specific = kind === 'route' ? queues.route : kind === 'info' ? queues.info : kind === 'qc' ? queues.qc : null
     const behavior: Behavior = specific?.shift() ?? queues.chat.shift() ?? 'ok'
     const entry: MockLogEntry = {
       at: Date.now(),
@@ -241,8 +250,10 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     if (behavior === 'badJson') content = '抱歉，我无法按格式输出。'
     else if (b.route) content = JSON.stringify({ reason: '模拟判断', guess: '模拟品类', ...b.route })
     else if (b.info) content = '```json\n' + JSON.stringify(b.info) + '\n```'
+    else if (b.qc) content = JSON.stringify({ ...DEFAULT_QC, ...b.qc })
     else if (kind === 'route') content = JSON.stringify(defaultRoute(system))
     else if (kind === 'info') content = '这是分析结果：\n```json\n' + JSON.stringify(DEFAULT_INFO) + '\n```'
+    else if (kind === 'qc') content = JSON.stringify(DEFAULT_QC)
     else content = '{}'
     res.json({ model: body.model, choices: [{ index: 0, message: { role: 'assistant', content } }] })
   })
@@ -260,6 +271,7 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       if (s.chat) queues.chat.push(...s.chat)
       if (s.route) queues.route.push(...s.route)
       if (s.info) queues.info.push(...s.info)
+      if (s.qc) queues.qc.push(...s.qc)
     },
     setDefaultDelay(ms) {
       defaultDelay = ms

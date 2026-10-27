@@ -18967,7 +18967,7 @@ var require_view = __commonJS({
     "use strict";
     var debug = require_src()("express:view");
     var path20 = require("node:path");
-    var fs12 = require("node:fs");
+    var fs13 = require("node:fs");
     var dirname = path20.dirname;
     var basename = path20.basename;
     var extname = path20.extname;
@@ -19013,7 +19013,7 @@ var require_view = __commonJS({
       }
       return path21;
     };
-    View.prototype.render = function render(options, callback) {
+    View.prototype.render = function render2(options, callback) {
       var sync = true;
       debug('render "%s"', this.path);
       this.engine(this.path, options, function onRender() {
@@ -19047,7 +19047,7 @@ var require_view = __commonJS({
     function tryStat(path21) {
       debug('stat "%s"', path21);
       try {
-        return fs12.statSync(path21);
+        return fs13.statSync(path21);
       } catch (e) {
         return void 0;
       }
@@ -21393,7 +21393,7 @@ var require_application = __commonJS({
       }
       return this;
     };
-    app.render = function render(name, options, callback) {
+    app.render = function render2(name, options, callback) {
       var cache = this.cache;
       var done = callback;
       var engines = this.engines;
@@ -22765,7 +22765,7 @@ var require_send = __commonJS({
     var escapeHtml = require_escape_html();
     var etag = require_etag();
     var fresh = require_fresh();
-    var fs12 = require("fs");
+    var fs13 = require("fs");
     var mime = require_mime_types();
     var ms = require_ms();
     var onFinished = require_on_finished();
@@ -23047,7 +23047,7 @@ var require_send = __commonJS({
       var i2 = 0;
       var self = this;
       debug('stat "%s"', path21);
-      fs12.stat(path21, function onstat(err2, stat) {
+      fs13.stat(path21, function onstat(err2, stat) {
         var pathEndsWithSep = path21[path21.length - 1] === sep;
         if (err2 && err2.code === "ENOENT" && !extname(path21) && !pathEndsWithSep) {
           return next(err2);
@@ -23064,7 +23064,7 @@ var require_send = __commonJS({
         }
         var p = path21 + "." + self._extensions[i2++];
         debug('stat "%s"', p);
-        fs12.stat(p, function(err3, stat) {
+        fs13.stat(p, function(err3, stat) {
           if (err3) return next(err3);
           if (stat.isDirectory()) return next();
           self.emit("file", p, stat);
@@ -23082,7 +23082,7 @@ var require_send = __commonJS({
         }
         var p = join(path21, self._index[i2]);
         debug('stat "%s"', p);
-        fs12.stat(p, function(err3, stat) {
+        fs13.stat(p, function(err3, stat) {
           if (err3) return next(err3);
           if (stat.isDirectory()) return next();
           self.emit("file", p, stat);
@@ -23094,7 +23094,7 @@ var require_send = __commonJS({
     SendStream.prototype.stream = function stream(path21, options) {
       var self = this;
       var res = this.res;
-      var stream2 = fs12.createReadStream(path21, options);
+      var stream2 = fs13.createReadStream(path21, options);
       this.emit("stream", stream2);
       stream2.pipe(res);
       function cleanup() {
@@ -23677,7 +23677,7 @@ var require_response = __commonJS({
       vary(this, field);
       return this;
     };
-    res.render = function render(view, options, callback) {
+    res.render = function render2(view, options, callback) {
       var app = this.req.app;
       var done = callback;
       var opts = options || {};
@@ -37152,7 +37152,7 @@ var require_make_middleware = __commonJS({
 // node_modules/multer/storage/disk.js
 var require_disk = __commonJS({
   "node_modules/multer/storage/disk.js"(exports2, module2) {
-    var fs12 = require("fs");
+    var fs13 = require("fs");
     var os3 = require("os");
     var path20 = require("path");
     var crypto = require("crypto");
@@ -37179,7 +37179,7 @@ var require_disk = __commonJS({
       this.getFilename = opts.filename || getFilename;
       this.flush = opts.flush;
       if (typeof opts.destination === "string") {
-        fs12.mkdirSync(opts.destination, { recursive: true });
+        fs13.mkdirSync(opts.destination, { recursive: true });
         this.getDestination = function($0, $1, cb) {
           cb(null, opts.destination);
         };
@@ -37195,7 +37195,7 @@ var require_disk = __commonJS({
           if (err3) return cb(err3);
           var finalPath = path20.join(destination, filename);
           if (file2.stream.destroyed) return cb(new MulterError("STREAM_DESTROYED"));
-          var outStream = fs12.createWriteStream(finalPath);
+          var outStream = fs13.createWriteStream(finalPath);
           file2.path = finalPath;
           openStreams.set(file2, outStream);
           outStream.once("close", function() {
@@ -37217,13 +37217,13 @@ var require_disk = __commonJS({
               });
             };
             if (!that.flush) return done();
-            fs12.open(finalPath, "r+", function(err5, fd2) {
+            fs13.open(finalPath, "r+", function(err5, fd2) {
               if (err5) {
                 endFlush(file2);
                 return done(err5);
               }
-              fs12.fsync(fd2, function(syncErr) {
-                fs12.close(fd2, function(closeErr) {
+              fs13.fsync(fd2, function(syncErr) {
+                fs13.close(fd2, function(closeErr) {
                   endFlush(file2);
                   done(syncErr || closeErr);
                 });
@@ -37240,9 +37240,9 @@ var require_disk = __commonJS({
       delete file2.path;
       function unlink() {
         var flush = flushingFiles.get(file2);
-        if (!flush) return fs12.unlink(path21, cb);
+        if (!flush) return fs13.unlink(path21, cb);
         flush.onClosed = function() {
-          fs12.unlink(path21, cb);
+          fs13.unlink(path21, cb);
         };
       }
       var outStream = openStreams.get(file2);
@@ -37633,7 +37633,7 @@ function readJsonSync(file2) {
 }
 
 // server/src/server.ts
-var import_node_fs11 = __toESM(require("node:fs"), 1);
+var import_node_fs12 = __toESM(require("node:fs"), 1);
 var import_node_path19 = __toESM(require("node:path"), 1);
 var import_node_http = __toESM(require("node:http"), 1);
 var import_express = __toESM(require_express2(), 1);
@@ -57446,7 +57446,11 @@ var SettingsSchema = external_exports.object({
   outputDir: external_exports.string().default(DEFAULT_OUTPUT_DIR),
   routeThreshold: external_exports.number().min(0).max(1).default(0.7),
   padSquare: external_exports.boolean().default(true),
-  blankImage: external_exports.boolean().default(true)
+  blankImage: external_exports.boolean().default(true),
+  /** 素材图提取后和竞品图对比验收；关着时不发验收请求 */
+  patternQc: external_exports.boolean().default(true),
+  /** 图案元素相似分低于这个值不合格 */
+  patternQcThreshold: external_exports.number().min(0).max(1).default(0.8)
 });
 var SettingsPatchSchema = external_exports.object({
   image: external_exports.object(imageFields).partial().optional(),
@@ -57454,7 +57458,9 @@ var SettingsPatchSchema = external_exports.object({
   outputDir: external_exports.string().optional(),
   routeThreshold: external_exports.number().min(0).max(1).optional(),
   padSquare: external_exports.boolean().optional(),
-  blankImage: external_exports.boolean().optional()
+  blankImage: external_exports.boolean().optional(),
+  patternQc: external_exports.boolean().optional(),
+  patternQcThreshold: external_exports.number().min(0).max(1).optional()
 });
 function normalizeBaseUrl(u) {
   return u.trim().replace(/\/+$/, "");
@@ -57509,7 +57515,9 @@ var SettingsStore = class {
           outputDir: patch.outputDir,
           routeThreshold: patch.routeThreshold,
           padSquare: patch.padSquare,
-          blankImage: patch.blankImage
+          blankImage: patch.blankImage,
+          patternQc: patch.patternQc,
+          patternQcThreshold: patch.patternQcThreshold
         }),
         image,
         analysis
@@ -57530,6 +57538,102 @@ function stripMaskedKey(p) {
 }
 function stripUndefined(o) {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== void 0));
+}
+
+// server/src/pipeline/output.ts
+var import_node_fs4 = __toESM(require("node:fs"), 1);
+var import_node_path5 = __toESM(require("node:path"), 1);
+var OUTPUT_FOLDER = { main: "\u4E3B\u56FE", pattern: "\u7D20\u6750\u56FE", blank: "\u7A7A\u767D\u56FE" };
+function safeName(s) {
+  const t = s.replace(/[\\/:*?"<>|]/g, "_").replace(/[\x00-\x1f]/g, "").trim().replace(/[. ]+$/, "");
+  return t || "\u672A\u547D\u540D";
+}
+function baseNameOf(originalName) {
+  const ext = import_node_path5.default.extname(originalName);
+  return safeName(ext ? originalName.slice(0, -ext.length) : originalName);
+}
+function batchDir(outputDir, folder) {
+  return import_node_path5.default.join(outputDir, folder);
+}
+function batchFolderName(day, n) {
+  return n === 0 ? `\u4E3B\u56FE\u751F\u6210-${day}` : `\u4E3B\u56FE\u751F\u6210-${day}-${n}`;
+}
+var MAX_BATCH_INDEX = 999;
+function batchIndex(day, folder) {
+  if (folder === batchFolderName(day, 0)) return 0;
+  const m = new RegExp(`^\u4E3B\u56FE\u751F\u6210-${day}-(\\d+)$`).exec(folder);
+  return m && Number(m[1]) <= MAX_BATCH_INDEX ? Number(m[1]) : null;
+}
+function nextBatchFolder(outputDir, day, after) {
+  const i2 = after === null ? null : batchIndex(day, after);
+  for (let n = i2 === null ? 0 : i2 + 1; ; n++) {
+    const cand = batchFolderName(day, n);
+    if (!import_node_fs4.default.existsSync(import_node_path5.default.join(outputDir, cand))) return cand;
+  }
+}
+var BatchFolders = class {
+  constructor(file2, outputDir) {
+    this.file = file2;
+    this.outputDir = outputDir;
+  }
+  file;
+  outputDir;
+  read() {
+    const s = readJsonSync(this.file);
+    return s && typeof s.day === "string" && typeof s.folder === "string" ? { day: s.day, folder: s.folder, closed: s.closed === true } : null;
+  }
+  save(s) {
+    try {
+      writeFileAtomicSync(this.file, JSON.stringify(s));
+    } catch (e) {
+      log.warn(`\u4FDD\u5B58\u5F53\u524D\u6279\u6B21\u6587\u4EF6\u5939\u5931\u8D25\uFF1A${e.message}`);
+    }
+  }
+  /** 新加的图放进哪个文件夹；jobs 只在第一次用（没有记录）时参考：队列里有今天的图就接着用它们的文件夹 */
+  current(jobs, now = /* @__PURE__ */ new Date()) {
+    const day = localDay(now);
+    let st = this.read();
+    if (!st) {
+      const last = jobs.filter((j) => j.outputDay === day && j.outputFolder).at(-1);
+      if (last) {
+        st = { day, folder: last.outputFolder, closed: false };
+        this.save(st);
+      }
+    }
+    if (st && st.day === day && !st.closed) return st.folder;
+    const folder = nextBatchFolder(this.outputDir(), day, st && st.day === day ? st.folder : null);
+    this.save({ day, folder, closed: false });
+    return folder;
+  }
+  /** 清空队列：之后加的图进下一个文件夹 */
+  close() {
+    const st = this.read();
+    if (st && !st.closed) this.save({ ...st, closed: true });
+  }
+};
+function categoryDir(outputDir, job) {
+  return import_node_path5.default.join(batchDir(outputDir, job.outputFolder), safeName(job.route?.categoryName ?? "\u672A\u5206\u7C7B"));
+}
+function outputRel(kind, base) {
+  return import_node_path5.default.join(OUTPUT_FOLDER[kind], base + ".png");
+}
+function assignOutputBase(job, others, outputDir, categoryName) {
+  const dir = import_node_path5.default.join(batchDir(outputDir, job.outputFolder), safeName(categoryName));
+  const base = baseNameOf(job.source.originalName);
+  const taken = new Set(
+    others.filter((o) => o.id !== job.id && o.outputFolder === job.outputFolder && o.route && safeName(o.route.categoryName) === safeName(categoryName)).map((o) => o.outputBase)
+  );
+  for (let n = 1; ; n++) {
+    const cand = n === 1 ? base : `${base}_${n}`;
+    if (taken.has(cand)) continue;
+    if (import_node_fs4.default.existsSync(import_node_path5.default.join(dir, outputRel("pattern", cand))) || import_node_fs4.default.existsSync(import_node_path5.default.join(dir, outputRel("main", cand)))) continue;
+    return cand;
+  }
+}
+async function writeOutput(outputDir, job, kind, buf) {
+  const file2 = import_node_path5.default.join(categoryDir(outputDir, job), outputRel(kind, job.outputBase));
+  await writeFileAtomic(file2, buf);
+  return file2;
 }
 
 // server/src/ai/errors.ts
@@ -57862,8 +57966,8 @@ async function complete(api, messages, signal, extra = {}) {
 }
 async function chatJson(api, req, schema) {
   const userContent = [{ type: "text", text: req.user }];
-  if (req.imageJpeg) {
-    userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${req.imageJpeg.toString("base64")}` } });
+  for (const img of req.images ?? (req.imageJpeg ? [req.imageJpeg] : [])) {
+    userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${img.toString("base64")}` } });
   }
   const messages = [
     { role: "system", content: req.system },
@@ -58000,69 +58104,15 @@ async function readClipboardFiles() {
   return null;
 }
 
-// server/src/pipeline/output.ts
-var import_node_fs4 = __toESM(require("node:fs"), 1);
-var import_node_path5 = __toESM(require("node:path"), 1);
-var OUTPUT_FOLDER = { main: "\u4E3B\u56FE", pattern: "\u7D20\u6750\u56FE", blank: "\u7A7A\u767D\u56FE" };
-function safeName(s) {
-  const t = s.replace(/[\\/:*?"<>|]/g, "_").replace(/[\x00-\x1f]/g, "").trim().replace(/[. ]+$/, "");
-  return t || "\u672A\u547D\u540D";
-}
-function baseNameOf(originalName) {
-  const ext = import_node_path5.default.extname(originalName);
-  return safeName(ext ? originalName.slice(0, -ext.length) : originalName);
-}
-function batchDir(outputDir, folder) {
-  return import_node_path5.default.join(outputDir, folder);
-}
-var recentFolders = /* @__PURE__ */ new Set();
-function newBatchFolder(outputDir, now = /* @__PURE__ */ new Date()) {
-  const hm = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
-  const base = `\u4E3B\u56FE\u751F\u6210-${localDay(now)}-${hm}`;
-  for (let n = 1; ; n++) {
-    const cand = n === 1 ? base : `${base}-${n}`;
-    if (recentFolders.has(cand) || import_node_fs4.default.existsSync(import_node_path5.default.join(outputDir, cand))) continue;
-    recentFolders.add(cand);
-    return cand;
-  }
-}
-function folderForNewJobs(jobs, outputDir, isFinished2, now = /* @__PURE__ */ new Date()) {
-  const open2 = jobs.filter((j) => !isFinished2(j) && j.outputDay === localDay(now) && j.outputFolder).at(-1);
-  return open2 ? open2.outputFolder : newBatchFolder(outputDir, now);
-}
-function categoryDir(outputDir, job) {
-  return import_node_path5.default.join(batchDir(outputDir, job.outputFolder), safeName(job.route?.categoryName ?? "\u672A\u5206\u7C7B"));
-}
-function outputRel(kind, base) {
-  return import_node_path5.default.join(OUTPUT_FOLDER[kind], base + ".png");
-}
-function assignOutputBase(job, others, outputDir, categoryName) {
-  const dir = import_node_path5.default.join(batchDir(outputDir, job.outputFolder), safeName(categoryName));
-  const base = baseNameOf(job.source.originalName);
-  const taken = new Set(
-    others.filter((o) => o.id !== job.id && o.outputFolder === job.outputFolder && o.route && safeName(o.route.categoryName) === safeName(categoryName)).map((o) => o.outputBase)
-  );
-  for (let n = 1; ; n++) {
-    const cand = n === 1 ? base : `${base}_${n}`;
-    if (taken.has(cand)) continue;
-    if (import_node_fs4.default.existsSync(import_node_path5.default.join(dir, outputRel("pattern", cand))) || import_node_fs4.default.existsSync(import_node_path5.default.join(dir, outputRel("main", cand)))) continue;
-    return cand;
-  }
-}
-async function writeOutput(outputDir, job, kind, buf) {
-  const file2 = import_node_path5.default.join(categoryDir(outputDir, job), outputRel(kind, job.outputBase));
-  await writeFileAtomic(file2, buf);
-  return file2;
-}
-
 // server/src/pipeline/csv.ts
 var import_node_path6 = __toESM(require("node:path"), 1);
 var HEADER = ["\u539F\u6587\u4EF6\u540D", "\u54C1\u7C7B", "\u6B3E\u5F0F", "\u573A\u666F", "\u5173\u952E\u8BCD", "\u53EF\u5B9A\u5236\u9879", "\u4E3B\u56FE\u6587\u4EF6"];
 function cell(v) {
   return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
-function csvOf(jobs) {
-  const rows = jobs.filter((j) => j.steps[3].state === "done" && j.info && j.route).map((j) => [
+var hasInfo = (j) => j.steps[3].state === "done" && !!j.info && !!j.route;
+function rowOf(j) {
+  return [
     j.source.originalName,
     j.route.categoryName,
     j.route.styleName,
@@ -58070,13 +58120,27 @@ function csvOf(jobs) {
     j.info.keywords.join("; "),
     j.info.customizable.join("\u3001"),
     import_node_path6.default.join(safeName(j.route.categoryName), outputRel("main", j.outputBase))
-  ]);
+  ];
+}
+function render(rows) {
   return "\uFEFF" + [HEADER, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
+}
+function csvOf(jobs) {
+  return render(jobs.filter(hasInfo).map(rowOf));
 }
 var csvForDay = (jobs, day) => csvOf(jobs.filter((j) => j.outputDay === day));
 var CSV_NAME = "\u8BC6\u522B\u4FE1\u606F.csv";
-async function writeBatchCsv(outputDir, jobs, folder) {
-  await writeFileAtomic(import_node_path6.default.join(batchDir(outputDir, folder), CSV_NAME), csvOf(jobs.filter((j) => j.outputFolder === folder)));
+async function writeBatchCsv(outputDir, jobs, folder, rowsFile) {
+  const inFolder = jobs.filter((j) => j.outputFolder === folder);
+  const saved = /* @__PURE__ */ new Map();
+  for (const r of (rowsFile ? readJsonSync(rowsFile) : null) ?? []) saved.set(r.id, r);
+  for (const j of inFolder) {
+    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j) });
+    else saved.delete(j.id);
+  }
+  const rows = [...saved.values()].sort((a, b) => a.createdAt === b.createdAt ? a.id < b.id ? -1 : 1 : a.createdAt < b.createdAt ? -1 : 1);
+  if (rowsFile) await writeFileAtomic(rowsFile, JSON.stringify(rows));
+  await writeFileAtomic(import_node_path6.default.join(batchDir(outputDir, folder), CSV_NAME), render(rows.map((r) => r.row)));
 }
 
 // server/src/api/misc.ts
@@ -58315,7 +58379,17 @@ var StyleSchema = external_exports.object({
   whiteImage: Hash.nullable(),
   /** 'default' 或本款式某个模版的 id */
   activeTemplate: external_exports.string().min(1),
-  templates: external_exports.array(TemplateSchema)
+  templates: external_exports.array(TemplateSchema),
+  /** 默认模版的贴图方式：auto 按白底图自动判断，local 本地合成，ai AI 贴图 */
+  pasteMode: external_exports.enum(["auto", "local", "ai"]).default("auto")
+});
+var WhiteShapeSchema = external_exports.object({
+  ok: external_exports.boolean(),
+  shape: external_exports.enum(["rect", "ellipse"]).nullable(),
+  bbox: external_exports.object({ x: external_exports.number(), y: external_exports.number(), w: external_exports.number(), h: external_exports.number() }).nullable(),
+  fill: external_exports.number().nullable(),
+  holes: external_exports.number(),
+  reason: external_exports.string()
 });
 var CategorySchema = external_exports.object({
   id: external_exports.string().min(1),
@@ -58331,15 +58405,35 @@ var LibrarySchema = external_exports.object({
     extractPrompt: external_exports.string(),
     pastePrompt: external_exports.string()
   }),
-  categories: external_exports.array(CategorySchema)
+  categories: external_exports.array(CategorySchema),
+  whiteChecks: external_exports.record(external_exports.string(), WhiteShapeSchema).default({})
 });
-var DEFAULT_EXTRACT_PROMPT = "\u8FD9\u662F\u4E00\u5F20{\u54C1\u7C7B}\u5546\u54C1\u56FE\u3002\u8BC6\u522B\u5546\u54C1\u8868\u9762\u5370\u5237\u7684\u56FE\u6848\uFF0C\u628A\u5B83\u5B8C\u6574\u63D0\u53D6\u51FA\u6765\u8FD8\u539F\u6210\u5E73\u9762\u8BBE\u8BA1\u7A3F\uFF1A\u53BB\u6389\u5546\u54C1\u5916\u5F62\u3001\u900F\u89C6\u3001\u8936\u76B1\u3001\u5149\u5F71\u548C\u80CC\u666F\uFF1B\u56FE\u6848\u7684\u6784\u56FE\u3001\u6587\u5B57\u3001\u989C\u8272\u4FDD\u6301\u4E0D\u53D8\uFF0C\u4E0D\u91CD\u7ED8\u3001\u4E0D\u589E\u5220\uFF1B\u9AD8\u6E05\u8F93\u51FA\uFF0C\u6BD4\u4F8B {\u6BD4\u4F8B}\u3002";
-var DEFAULT_PASTE_PROMPT = "\u8BF7\u81EA\u52A8\u8BC6\u522B\u5546\u54C1\u5E95\u56FE\u4E2D\u7528\u4E8E\u627F\u8F7D\u56FE\u6848\u7684\u8868\u9762\u53CA\u5176\u8FB9\u754C\uFF0C\u5C06\u7D20\u6750\u56FE\u76F4\u63A5\u8D34\u6EE1\u8BE5\u533A\u57DF\uFF0C\u8D34\u5408\u539F\u6709\u900F\u89C6\uFF0C\u4E0D\u989D\u5916\u7559\u767D\u8FB9\uFF0C\u4E0D\u8D85\u51FA\u8FB9\u754C\u3002\u76F4\u63A5\u4F7F\u7528\u539F\u7D20\u6750\uFF0C\u4E0D\u91CD\u7ED8\uFF0C\u4E0D\u4FEE\u6539\u6587\u5B57\u3001\u56FE\u6848\u548C\u6392\u7248\u3002\u5E95\u56FE\u7684\u5546\u54C1\u5916\u5F62\u3001\u6BD4\u4F8B\u3001\u89D2\u5EA6\u3001\u6750\u8D28\u3001\u5149\u5F71\u3001\u80CC\u666F\u3001\u6784\u56FE\u53CA\u56FE\u7247\u5C3A\u5BF8\u4FDD\u6301\u4E0D\u53D8\uFF0C\u53EA\u5B8C\u6210\u8D34\u56FE\uFF0C\u4E0D\u505A\u5176\u4ED6\u6539\u52A8\u3002";
+var DEFAULT_EXTRACT_PROMPT = "\u8FD9\u662F\u4E00\u5F20{\u54C1\u7C7B}\u5546\u54C1\u56FE\u3002\u53EA\u8981\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u56FE\u6848\u90E8\u5206\uFF0C\u8F6C\u6210\u6B63\u9762\u7684\u5E73\u9762\u8BBE\u8BA1\u7A3F\u5E76\u9AD8\u6E05\u5904\u7406\uFF0C\u56FE\u6848\u56DB\u8FB9\u94FA\u6EE1\u753B\u5E03\uFF0C\u6BD4\u4F8B {\u6BD4\u4F8B}\u3002";
+var DEFAULT_PASTE_PROMPT = "\u628A\u7D20\u6750\u56FE\u50CF\u4E00\u5F20\u4E0D\u900F\u660E\u7684\u8D34\u7EB8\u4E00\u6837\u8986\u76D6\u5728\u767D\u5E95\u56FE\u5546\u54C1\u7684\u6574\u4E2A\u5370\u5237\u9762\u4E0A\uFF0C\u8D34\u5408\u539F\u6709\u900F\u89C6\uFF1A\u5370\u5237\u9762\u4EE5\u5185\u53EA\u770B\u5F97\u5230\u7D20\u6750\u56FE\uFF0C\u4E00\u76F4\u94FA\u5230\u5546\u54C1\u8F6E\u5ED3\uFF0C\u4E0D\u7559\u767D\u8FB9\u3001\u4E0D\u8D85\u51FA\u8F6E\u5ED3\u3002\u5546\u54C1\u539F\u6765\u7684\u6750\u8D28\u3001\u989C\u8272\u3001\u7EB9\u7406\u5728\u4EFB\u4F55\u5730\u65B9\u90FD\u4E0D\u80FD\u900F\u51FA\u6765\uFF0C\u7D20\u6750\u56FE\u91CC\u767D\u8272\u6216\u6D45\u8272\u7684\u90E8\u5206\u4E5F\u4E00\u6837\u3002\u4FDD\u7559\u5B89\u88C5\u5B54\u7B49\u5B9E\u4F53\u7ED3\u6784\u3002\u76F4\u63A5\u4F7F\u7528\u539F\u7D20\u6750\uFF0C\u4E0D\u91CD\u7ED8\uFF0C\u4E0D\u4FEE\u6539\u6587\u5B57\u3001\u56FE\u6848\u548C\u6392\u7248\u3002\u5546\u54C1\u7684\u5F62\u72B6\u3001\u4F4D\u7F6E\u3001\u53D6\u666F\u3001\u80CC\u666F\u548C\u9634\u5F71\u4E0E\u767D\u5E95\u56FE\u5B8C\u5168\u4E00\u81F4\uFF0C\u53EA\u5B8C\u6210\u8D34\u56FE\uFF0C\u4E0D\u505A\u5176\u4ED6\u6539\u52A8\u3002";
+var OLD_DEFAULT_EXTRACT_PROMPTS = [
+  "\u8FD9\u662F\u4E00\u5F20{\u54C1\u7C7B}\u5546\u54C1\u56FE\u3002\u8BC6\u522B\u5546\u54C1\u8868\u9762\u5370\u5237\u7684\u56FE\u6848\uFF0C\u628A\u5B83\u5B8C\u6574\u63D0\u53D6\u51FA\u6765\u8FD8\u539F\u6210\u5E73\u9762\u8BBE\u8BA1\u7A3F\uFF1A\u53BB\u6389\u5546\u54C1\u5916\u5F62\u3001\u900F\u89C6\u3001\u8936\u76B1\u3001\u5149\u5F71\u548C\u80CC\u666F\uFF1B\u56FE\u6848\u7684\u6784\u56FE\u3001\u6587\u5B57\u3001\u989C\u8272\u4FDD\u6301\u4E0D\u53D8\uFF0C\u4E0D\u91CD\u7ED8\u3001\u4E0D\u589E\u5220\uFF1B\u9AD8\u6E05\u8F93\u51FA\uFF0C\u6BD4\u4F8B {\u6BD4\u4F8B}\u3002"
+];
+var OLD_DEFAULT_PASTE_PROMPTS = [
+  "\u8BF7\u81EA\u52A8\u8BC6\u522B\u5546\u54C1\u5E95\u56FE\u4E2D\u7528\u4E8E\u627F\u8F7D\u56FE\u6848\u7684\u8868\u9762\u53CA\u5176\u8FB9\u754C\uFF0C\u5C06\u7D20\u6750\u56FE\u76F4\u63A5\u8D34\u6EE1\u8BE5\u533A\u57DF\uFF0C\u8D34\u5408\u539F\u6709\u900F\u89C6\uFF0C\u4E0D\u989D\u5916\u7559\u767D\u8FB9\uFF0C\u4E0D\u8D85\u51FA\u8FB9\u754C\u3002\u76F4\u63A5\u4F7F\u7528\u539F\u7D20\u6750\uFF0C\u4E0D\u91CD\u7ED8\uFF0C\u4E0D\u4FEE\u6539\u6587\u5B57\u3001\u56FE\u6848\u548C\u6392\u7248\u3002\u5E95\u56FE\u7684\u5546\u54C1\u5916\u5F62\u3001\u6BD4\u4F8B\u3001\u89D2\u5EA6\u3001\u6750\u8D28\u3001\u5149\u5F71\u3001\u80CC\u666F\u3001\u6784\u56FE\u53CA\u56FE\u7247\u5C3A\u5BF8\u4FDD\u6301\u4E0D\u53D8\uFF0C\u53EA\u5B8C\u6210\u8D34\u56FE\uFF0C\u4E0D\u505A\u5176\u4ED6\u6539\u52A8\u3002"
+];
+function upgradeDefaults(lib) {
+  let n = 0;
+  if (OLD_DEFAULT_EXTRACT_PROMPTS.includes(lib.defaults.extractPrompt)) {
+    lib.defaults.extractPrompt = DEFAULT_EXTRACT_PROMPT;
+    n++;
+  }
+  if (OLD_DEFAULT_PASTE_PROMPTS.includes(lib.defaults.pastePrompt)) {
+    lib.defaults.pastePrompt = DEFAULT_PASTE_PROMPT;
+    n++;
+  }
+  return n;
+}
 function initialLibrary() {
   return {
     version: LIBRARY_VERSION,
     defaults: { extractPrompt: DEFAULT_EXTRACT_PROMPT, pastePrompt: DEFAULT_PASTE_PROMPT },
-    categories: []
+    categories: [],
+    whiteChecks: {}
   };
 }
 function referencedHashes(lib) {
@@ -58499,6 +58593,222 @@ var ImageStore = class {
   }
 };
 
+// server/src/image/whiteShape.ts
+var import_sharp3 = __toESM(require("sharp"), 1);
+var BG_MIN = 246;
+var HOLE_MIN = 236;
+var GRAY_SPREAD = 14;
+var WORK_EDGE = 2e3;
+var RECT_FILL_MIN = 0.97;
+var ELLIPSE_IOU_MIN = 0.97;
+var COVER_TOLERANCE = 0.03;
+var STRETCH_TOLERANCE = 0.07;
+var HOLE_MIN_FRAC = 1e-4;
+var HOLE_MAX_FRAC = 0.01;
+var STRAY_MAX_FRAC = 0.01;
+async function loadWork(buf) {
+  const meta3 = await (0, import_sharp3.default)(buf).rotate().metadata();
+  const oriented = meta3.orientation && meta3.orientation >= 5;
+  const fullW = oriented ? meta3.height : meta3.width;
+  const fullH = oriented ? meta3.width : meta3.height;
+  const scale = Math.min(1, WORK_EDGE / Math.max(fullW, fullH));
+  const w = Math.max(1, Math.round(fullW * scale));
+  const h = Math.max(1, Math.round(fullH * scale));
+  const data = await (0, import_sharp3.default)(buf).rotate().flatten({ background: "#ffffff" }).resize(w, h, { fit: "fill" }).removeAlpha().raw().toBuffer();
+  return { data, w, h, scale: w / fullW, fullW, fullH };
+}
+var isLight = (d, i2, min) => {
+  const r = d[i2];
+  const g = d[i2 + 1];
+  const b = d[i2 + 2];
+  const lo = Math.min(r, g, b);
+  return lo >= min && Math.max(r, g, b) - lo <= GRAY_SPREAD;
+};
+function components(mask, w, h) {
+  const label = new Int32Array(w * h).fill(-1);
+  const queue = new Int32Array(w * h);
+  const comps = [];
+  for (let s = 0; s < w * h; s++) {
+    if (!mask[s] || label[s] !== -1) continue;
+    const id = comps.length;
+    const c = { size: 0, x0: w, y0: h, x1: -1, y1: -1, touchesEdge: false };
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = s;
+    label[s] = id;
+    while (head < tail) {
+      const p = queue[head++];
+      const x2 = p % w;
+      const y = (p - x2) / w;
+      c.size++;
+      if (x2 < c.x0) c.x0 = x2;
+      if (x2 > c.x1) c.x1 = x2;
+      if (y < c.y0) c.y0 = y;
+      if (y > c.y1) c.y1 = y;
+      if (x2 === 0 || y === 0 || x2 === w - 1 || y === h - 1) c.touchesEdge = true;
+      const nb = [x2 > 0 ? p - 1 : -1, x2 < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1];
+      for (const q of nb) {
+        if (q >= 0 && mask[q] && label[q] === -1) {
+          label[q] = id;
+          queue[tail++] = q;
+        }
+      }
+    }
+    comps.push(c);
+  }
+  return { label, comps };
+}
+function dilate(mask, w, h, r) {
+  if (r <= 0) return mask;
+  const out = new Uint8Array(mask);
+  const r2 = r * r;
+  for (let y = 0; y < h; y++) {
+    for (let x2 = 0; x2 < w; x2++) {
+      if (!mask[y * w + x2]) continue;
+      for (let dy = -r; dy <= r; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= h) continue;
+        for (let dx = -r; dx <= r; dx++) {
+          const xx = x2 + dx;
+          if (xx < 0 || xx >= w || dx * dx + dy * dy > r2) continue;
+          out[yy * w + xx] = 1;
+        }
+      }
+    }
+  }
+  return out;
+}
+async function analyze(buf) {
+  const { data, w, h, scale, fullW, fullH } = await loadWork(buf);
+  const n = w * h;
+  const fail = (reason) => ({ shape: { ok: false, shape: null, bbox: null, fill: null, holes: 0, reason }, mask: null, fullW, fullH });
+  const light = new Uint8Array(n);
+  for (let p = 0; p < n; p++) light[p] = isLight(data, p * 3, BG_MIN) ? 1 : 0;
+  const { label: lightLabel, comps: lightComps } = components(light, w, h);
+  const bg = new Uint8Array(n);
+  for (let p = 0; p < n; p++) {
+    const l = lightLabel[p];
+    if (l >= 0 && lightComps[l].touchesEdge) bg[p] = 1;
+  }
+  const product = new Uint8Array(n);
+  for (let p = 0; p < n; p++) product[p] = bg[p] ? 0 : 1;
+  const { label, comps } = components(product, w, h);
+  if (!comps.length) return fail("\u56FE\u91CC\u6CA1\u6709\u627E\u5230\u4EA7\u54C1\uFF08\u6574\u5F20\u90FD\u662F\u767D\u5E95\uFF09");
+  let main2 = 0;
+  for (let i2 = 1; i2 < comps.length; i2++) if (comps[i2].size > comps[main2].size) main2 = i2;
+  const m = comps[main2];
+  const stray = comps.reduce((s, c, i2) => i2 === main2 ? s : s + c.size, 0);
+  if (stray > m.size * STRAY_MAX_FRAC) return fail("\u767D\u5E95\u56FE\u91CC\u4E0D\u6B62\u4E00\u4E2A\u7269\u4F53\uFF08\u6216\u6709\u6587\u5B57\u3001\u9634\u5F71\uFF09");
+  if (m.touchesEdge) return fail("\u4EA7\u54C1\u8D34\u5230\u4E86\u56FE\u7247\u8FB9\u7F18\uFF0C\u56DB\u5468\u6CA1\u6709\u767D\u5E95");
+  for (let p = 0; p < n; p++) if (label[p] !== main2) product[p] = 0;
+  const inner = new Uint8Array(n);
+  for (let p = 0; p < n; p++) inner[p] = product[p] && isLight(data, p * 3, HOLE_MIN) ? 1 : 0;
+  const { label: hl, comps: hc } = components(inner, w, h);
+  const holes = new Uint8Array(n);
+  let holeCount = 0;
+  const keep = hc.map((c) => {
+    const bw2 = c.x1 - c.x0 + 1;
+    const bh2 = c.y1 - c.y0 + 1;
+    const frac = c.size / m.size;
+    const ok = frac >= HOLE_MIN_FRAC && frac <= HOLE_MAX_FRAC && bw2 / bh2 >= 0.5 && bw2 / bh2 <= 2 && c.size / (bw2 * bh2) >= 0.5;
+    if (ok) holeCount++;
+    return ok;
+  });
+  for (let p = 0; p < n; p++) if (hl[p] >= 0 && keep[hl[p]]) holes[p] = 1;
+  const holeRadius = Math.sqrt(m.size * HOLE_MAX_FRAC / Math.PI);
+  const ring = Math.max(2, Math.round(Math.min(holeRadius, Math.sqrt(hc.filter((_, i2) => keep[i2]).reduce((a, c) => Math.max(a, c.size), 0) / Math.PI)) * 0.4));
+  const holesWide = holeCount ? dilate(holes, w, h, ring) : holes;
+  for (let p = 0; p < n; p++) if (!product[p]) holesWide[p] = 0;
+  const bw = m.x1 - m.x0 + 1;
+  const bh = m.y1 - m.y0 + 1;
+  const fill = m.size / (bw * bh);
+  const cx = m.x0 + bw / 2;
+  const cy = m.y0 + bh / 2;
+  let inter = 0;
+  let ell = 0;
+  for (let y = m.y0; y <= m.y1; y++) {
+    for (let x2 = m.x0; x2 <= m.x1; x2++) {
+      const dx = (x2 + 0.5 - cx) / (bw / 2);
+      const dy = (y + 0.5 - cy) / (bh / 2);
+      const inE = dx * dx + dy * dy <= 1;
+      if (inE) ell++;
+      if (inE && product[y * w + x2]) inter++;
+    }
+  }
+  const iou = inter / (ell + m.size - inter);
+  const bbox = { x: Math.round(m.x0 / scale), y: Math.round(m.y0 / scale), w: Math.round(bw / scale), h: Math.round(bh / scale) };
+  const mask = { w, h, scale, product, holes: holesWide };
+  const round2 = (v) => Math.round(v * 1e3) / 1e3;
+  if (fill >= RECT_FILL_MIN) {
+    return { shape: { ok: true, shape: "rect", bbox, fill: round2(fill), holes: holeCount, reason: `\u6B63\u5BF9\u955C\u5934\u7684\u77E9\u5F62\uFF0C\u8F6E\u5ED3\u5360\u5916\u63A5\u77E9\u5F62 ${(fill * 100).toFixed(1)}%` }, mask, fullW, fullH };
+  }
+  if (iou >= ELLIPSE_IOU_MIN) {
+    return { shape: { ok: true, shape: "ellipse", bbox, fill: round2(fill), holes: holeCount, reason: `\u5706\u5F62\uFF0C\u548C\u5916\u63A5\u692D\u5706\u91CD\u5408 ${(iou * 100).toFixed(1)}%` }, mask, fullW, fullH };
+  }
+  return {
+    shape: { ok: false, shape: null, bbox, fill: round2(fill), holes: holeCount, reason: `\u4E0D\u662F\u6B63\u5BF9\u955C\u5934\u7684\u77E9\u5F62\u6216\u5706\u5F62\uFF08\u8F6E\u5ED3\u5360\u5916\u63A5\u77E9\u5F62 ${(fill * 100).toFixed(1)}%\uFF09` },
+    mask,
+    fullW,
+    fullH
+  };
+}
+async function detectWhiteShape(buf) {
+  return (await analyze(buf)).shape;
+}
+function ratioDiff(a, b) {
+  return Math.abs(a - b) / b;
+}
+function ratioValue(ratio) {
+  const [w, h] = ratioToWH(ratio);
+  return w / h;
+}
+var API_RATIO = { "1536x1024": 1.5, "1024x1536": 1024 / 1536, "1024x1024": 1 };
+function patternCanvasRatio(styleRatio) {
+  return API_RATIO[pickApiSize(ratioValue(styleRatio), 1)];
+}
+function canvasMismatch(shape, styleRatio) {
+  if (!shape.bbox) return null;
+  const r = shape.bbox.w / shape.bbox.h;
+  const c = patternCanvasRatio(styleRatio);
+  const d = ratioDiff(c, r);
+  return d > STRETCH_TOLERANCE ? `\u7D20\u6750\u56FE\u753B\u5E03\u6BD4\u4F8B ${c.toFixed(2)}\uFF08\u63A5\u53E3\u753B\u5E03\u4E0D\u652F\u6301 ${styleRatio}\uFF09\u548C\u4EA7\u54C1\u5916\u5F62 ${r.toFixed(2)} \u5DEE ${(d * 100).toFixed(1)}%\uFF0C\u8D85\u8FC7 7%` : null;
+}
+function decidePaste(shape, styleRatio) {
+  if (!shape.ok || !shape.bbox) return { mode: "ai", reason: shape.reason };
+  const r = shape.bbox.w / shape.bbox.h;
+  const mismatch = canvasMismatch(shape, styleRatio);
+  if (mismatch) return { mode: "ai", reason: mismatch };
+  const d = ratioDiff(r, ratioValue(styleRatio));
+  if (d > STRETCH_TOLERANCE) {
+    return { mode: "ai", reason: `\u4EA7\u54C1\u5916\u5F62\u6BD4\u4F8B ${r.toFixed(2)} \u548C\u6B3E\u5F0F\u6BD4\u4F8B ${styleRatio} \u5DEE ${(d * 100).toFixed(1)}%\uFF0C\u8D85\u8FC7 7%` };
+  }
+  return { mode: "local", reason: d > COVER_TOLERANCE ? `${shape.reason}\uFF1B\u5916\u5F62\u6BD4\u4F8B ${r.toFixed(2)} \u548C\u6B3E\u5F0F ${styleRatio} \u5DEE ${(d * 100).toFixed(1)}%\uFF0C\u7D20\u6750\u56FE\u4F1A\u8F7B\u5FAE\u62C9\u4F38` : shape.reason };
+}
+var LocalPasteError = class extends Error {
+};
+async function compositeLocal(white2, pattern) {
+  const { shape, mask, fullW, fullH } = await analyze(white2);
+  if (!shape.ok || !shape.bbox || !mask) throw new LocalPasteError(`\u767D\u5E95\u56FE\u4E0D\u9002\u5408\u672C\u5730\u5408\u6210\uFF1A${shape.reason}`);
+  const pm = await (0, import_sharp3.default)(pattern).metadata();
+  const pr = pm.width / pm.height;
+  const br = shape.bbox.w / shape.bbox.h;
+  const diff = ratioDiff(pr, br);
+  if (diff > STRETCH_TOLERANCE) {
+    throw new LocalPasteError(`\u7D20\u6750\u56FE\u6BD4\u4F8B ${pr.toFixed(2)} \u548C\u4EA7\u54C1\u5916\u5F62\u6BD4\u4F8B ${br.toFixed(2)} \u5DEE\u8D85\u8FC7 7%`);
+  }
+  const alphaWork = Buffer.alloc(mask.w * mask.h);
+  for (let p = 0; p < alphaWork.length; p++) alphaWork[p] = mask.product[p] && !mask.holes[p] ? 255 : 0;
+  const alpha = await (0, import_sharp3.default)(alphaWork, { raw: { width: mask.w, height: mask.h, channels: 1 } }).blur(0.6).resize(fullW, fullH, { fit: "fill", kernel: "cubic" }).extractChannel(0).raw().toBuffer();
+  const full = await (0, import_sharp3.default)(alphaWork, { raw: { width: mask.w, height: mask.h, channels: 1 } }).erode(1).resize(fullW, fullH, { fit: "fill", kernel: "nearest" }).extractChannel(0).raw().toBuffer();
+  for (let p = 0; p < alpha.length; p++) if (full[p] === 255) alpha[p] = 255;
+  const { x: x2, y, w, h } = shape.bbox;
+  const placed = await (0, import_sharp3.default)(pattern).rotate().flatten({ background: "#ffffff" }).resize(w, h, { fit: diff > COVER_TOLERANCE ? "fill" : "cover", position: "centre" }).removeAlpha().raw().toBuffer();
+  const layer = await (0, import_sharp3.default)({ create: { width: fullW, height: fullH, channels: 3, background: "#ffffff" } }).composite([{ input: placed, raw: { width: w, height: h, channels: 3 }, left: x2, top: y }]).removeAlpha().raw().toBuffer();
+  const rgba = await (0, import_sharp3.default)(layer, { raw: { width: fullW, height: fullH, channels: 3 } }).joinChannel(alpha, { raw: { width: fullW, height: fullH, channels: 1 } }).png().toBuffer();
+  const out = await (0, import_sharp3.default)(white2).rotate().flatten({ background: "#ffffff" }).composite([{ input: rgba }]).png().toBuffer();
+  return { buffer: out, shape, fit: diff > COVER_TOLERANCE ? "stretch" : "cover" };
+}
+
 // server/src/library/store.ts
 var MAX_BACKUPS = 10;
 var LibraryStore = class {
@@ -58527,6 +58837,11 @@ var LibraryStore = class {
           writeFileAtomicSync(p.file, JSON.stringify(this.value, null, 2));
           log.info(`\u6A21\u7248\u5E93\u5DF2\u5347\u7EA7\uFF1A\u81EA\u5B9A\u4E49\u6A21\u7248\u6539\u4E3A\u6BCF\u4E2A\u6B3E\u5F0F\u5404\u4E00\u5957\uFF08\u65E7\u6587\u4EF6\u53E6\u5B58\u4E3A ${old}\uFF09`);
         }
+        if (upgradeDefaults(this.value)) {
+          this.backupCurrent();
+          writeFileAtomicSync(p.file, JSON.stringify(this.value, null, 2));
+          log.info("\u5168\u5C40\u9ED8\u8BA4\u7684\u63D0\u53D6 / \u8D34\u56FE\u63D0\u793A\u8BCD\u8FD8\u662F\u65E7\u7248\u9ED8\u8BA4\uFF0C\u5DF2\u6362\u6210\u65B0\u7248\u9ED8\u8BA4\uFF08\u6539\u8FC7\u7684\u4E0D\u52A8\uFF1B\u65E7\u6587\u4EF6\u5728 backups \u91CC\uFF09");
+        }
       }
     }
   }
@@ -58535,6 +58850,7 @@ var LibraryStore = class {
   mutex = new Mutex();
   images;
   listeners = [];
+  shapeCache = /* @__PURE__ */ new Map();
   get() {
     return this.value;
   }
@@ -58544,6 +58860,23 @@ var LibraryStore = class {
   /** 只在启动时和导入完成后调用；和写操作串行，避免删掉刚上传、还没写进库的图 */
   cleanOrphans() {
     return this.mutex.run(() => this.images.cleanOrphans(referencedHashes(this.value)));
+  }
+  /**
+   * 白底图的图形检测结果：库里有就直接用，没有就现算；图片还在库里引用着才存进库。
+   * buffer 给了就不再读库里的图（任务目录里复制的那份）。
+   */
+  async whiteShape(hash2, buffer) {
+    const cached2 = this.value.whiteChecks[hash2] ?? this.shapeCache.get(hash2);
+    if (cached2) return cached2;
+    const buf = buffer ?? (await this.images.read(hash2)).buffer;
+    const shape = await detectWhiteShape(buf);
+    this.shapeCache.set(hash2, shape);
+    if (referencedHashes(this.value).has(hash2)) {
+      await this.mutate((d) => {
+        d.whiteChecks[hash2] = shape;
+      }).catch((e) => log.warn(`\u4FDD\u5B58\u767D\u5E95\u56FE\u68C0\u6D4B\u7ED3\u679C\u5931\u8D25\uFF1A${e.message}`));
+    }
+    return shape;
   }
   category(cid) {
     const c = this.value.categories.find((x2) => x2.id === cid);
@@ -58615,7 +58948,7 @@ var ops = {
       name: checkCategoryName(lib, name),
       hint: "",
       extractPrompt: null,
-      styles: [{ id: newStyleId(), name: "", ratio: "1:1", whiteImage: null, activeTemplate: "default", templates: [] }]
+      styles: [{ id: newStyleId(), name: "", ratio: "1:1", whiteImage: null, activeTemplate: "default", templates: [], pasteMode: "auto" }]
     };
     lib.categories.push(c);
     return c;
@@ -58645,7 +58978,7 @@ var ops = {
     if (n.length > 20) throw new HttpError(400, "\u6B3E\u5F0F\u540D\u79F0\u4E0D\u80FD\u8D85\u8FC7 20 \u4E2A\u5B57");
     if (c.styles.some((s) => s.name === n)) throw new HttpError(400, `\u300C${c.name}\u300D\u5DF2\u7ECF\u6709\u53EB\u300C${n}\u300D\u7684\u6B3E\u5F0F\u4E86`);
     for (const s of c.styles) if (!s.name) s.name = n === "\u9ED8\u8BA4" ? "\u539F\u6B3E\u5F0F" : "\u9ED8\u8BA4";
-    const st = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: "default", templates: [] };
+    const st = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: "default", templates: [], pasteMode: "auto" };
     c.styles.push(st);
     return st;
   },
@@ -58665,6 +58998,7 @@ var ops = {
       if (p.activeTemplate !== "default" && !s.templates.some((t) => t.id === p.activeTemplate)) throw new HttpError(400, "\u8981\u4F7F\u7528\u7684\u6A21\u7248\u4E0D\u5B58\u5728");
       s.activeTemplate = p.activeTemplate;
     }
+    if (p.pasteMode !== void 0) s.pasteMode = p.pasteMode;
     return s;
   },
   deleteStyle(lib, cid, sid) {
@@ -58673,11 +59007,12 @@ var ops = {
     if (c.styles.length <= 1) throw new HttpError(400, "\u6BCF\u4E2A\u54C1\u7C7B\u81F3\u5C11\u8981\u4FDD\u7559\u4E00\u4E2A\u6B3E\u5F0F");
     c.styles = c.styles.filter((s) => s.id !== sid);
   },
-  setWhite(lib, cid, sid, hash2) {
+  setWhite(lib, cid, sid, hash2, shape) {
     const c = findCat(lib, cid);
     const s = c.styles.find((x2) => x2.id === sid);
     if (!s) throw new HttpError(404, "\u6B3E\u5F0F\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
     s.whiteImage = hash2;
+    if (hash2 && shape) lib.whiteChecks[hash2] = shape;
   },
   addTemplate(lib, cid, sid, name, prompt) {
     const s = findStyle(lib, cid, sid);
@@ -58735,7 +59070,8 @@ function mainPlanFor(lib, cat, style, templateId = style.activeTemplate) {
         templateId: "default",
         templateName: DEFAULT_TEMPLATE_NAME,
         prompt: fillPlaceholders(lib.defaults.pastePrompt, values),
-        image: style.whiteImage ? { role: "\u767D\u5E95\u56FE", hash: style.whiteImage } : null
+        image: style.whiteImage ? { role: "\u767D\u5E95\u56FE", hash: style.whiteImage } : null,
+        pasteMode: style.pasteMode
       },
       missingWhite: !style.whiteImage,
       scope: "\u5168\u5C40\u5171\u7528 \xB7 \u6240\u6709\u54C1\u7C7B"
@@ -58753,6 +59089,7 @@ function mainPlanFor(lib, cat, style, templateId = style.activeTemplate) {
     scope: `\u53EA\u7ED9\u300C${labelOf(cat.name, style.name)}\u300D\u7528`
   };
 }
+var PASTE_CONSTRAINT = "Cover the product's printable face in the first image with the second image, like an opaque sticker laid over the whole face: inside the printable area only the second image is visible, edge to edge up to the product's outline. None of the product's original material, color or texture shows through anywhere, including the white or light areas of the design. Keep physical features such as mounting holes. Keep the product's shape, position, framing, background and shadows exactly as in the first image.";
 function roleSentence(roles) {
   return roles.map((r, i2) => `\u7B2C${CN_NUM[i2]}\u5F20\u56FE\u7247\u662F${r}`).join("\uFF0C") + "\u3002";
 }
@@ -58782,7 +59119,7 @@ async function buildMainRequest(main2, ratio, dimsOf) {
   return {
     slots,
     sent,
-    prefix: canvas.prefix + roleSentence(sent.map((s) => s.role)) + "\n",
+    prefix: canvas.prefix + roleSentence(sent.map((s) => s.role)) + "\n" + (main2.templateId === "default" && main2.image ? PASTE_CONSTRAINT + "\n" : ""),
     prompt: main2.prompt,
     size: canvas.size
   };
@@ -58834,9 +59171,26 @@ function computeChecks(lib) {
   return out;
 }
 
+// server/src/pipeline/paste.ts
+function decidePasteMode(setting, shape, styleRatio) {
+  const auto = shape ? decidePaste(shape, styleRatio) : null;
+  if (setting === "ai") return { setting, auto, mode: "ai", note: null };
+  if (setting === "local") {
+    if (shape?.ok) {
+      const mismatch = canvasMismatch(shape, styleRatio);
+      if (mismatch) return { setting, auto, mode: "ai", note: `\u6CA1\u6CD5\u672C\u5730\u5408\u6210\uFF1A${mismatch}\uFF0C\u4ECD\u7528 AI \u8D34\u56FE` };
+      return { setting, auto, mode: "local", note: null };
+    }
+    return { setting, auto, mode: "ai", note: `\u767D\u5E95\u56FE\u6CA1\u6CD5\u672C\u5730\u5408\u6210\uFF08${shape?.reason ?? "\u6CA1\u6709\u767D\u5E95\u56FE"}\uFF09\uFF0C\u4ECD\u7528 AI \u8D34\u56FE` };
+  }
+  return { setting, auto, mode: auto?.mode ?? "ai", note: null };
+}
+
 // server/src/library/recipe.ts
 var MISSING_WHITE_WARNING = "\u6CA1\u6709\u767D\u5E95\u56FE\u65F6\uFF0C\u8FD9\u4E2A\u6B3E\u5F0F\u7684\u56FE\u4F1A\u8FDB\u5165\u300C\u9700\u5904\u7406\u300D\uFF0C\u4E0D\u4F1A\u5728\u7F3A\u56FE\u7684\u60C5\u51B5\u4E0B\u751F\u6210\u3002";
-async function recipeFor(lib, images, cid, sid, tid) {
+async function recipeFor(store, cid, sid, tid) {
+  const lib = store.get();
+  const images = store.images;
   const cat = lib.categories.find((c) => c.id === cid);
   if (!cat) throw new HttpError(404, "\u54C1\u7C7B\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
   const style = cat.styles.find((s) => s.id === sid);
@@ -58850,7 +59204,14 @@ async function recipeFor(lib, images, cid, sid, tid) {
   if (!main2.prompt.trim()) warnings.push("\u63D0\u793A\u8BCD\u4E3A\u7A7A\uFF0C\u8FD9\u4E2A\u7EC4\u5408\u751F\u6210\u4E0D\u4E86\u4E3B\u56FE");
   const w = refWarning(main2.prompt, req.sent.length);
   if (w) warnings.push(w + "\u3002\u8BF7\u4E0A\u4F20\u53C2\u8003\u56FE\uFF0C\u6216\u6539\u5199\u63D0\u793A\u8BCD\u3002");
+  let paste = null;
+  if (main2.templateId === "default") {
+    const shape = style.whiteImage && images.has(style.whiteImage) ? await store.whiteShape(style.whiteImage) : null;
+    paste = decidePasteMode(style.pasteMode, shape, style.ratio);
+    if (paste.note) warnings.push(paste.note);
+  }
   return {
+    paste,
     images: req.slots.map((s) => ({ no: s.no, role: s.role, hash: s.hash, auto: s.auto, required: s.required })),
     prefix: req.prefix,
     prompt: req.prompt,
@@ -59881,6 +60242,7 @@ async function parseZip(buf) {
     const i2 = r.error.issues[0];
     throw new HttpError(400, `library.json \u683C\u5F0F\u4E0D\u5BF9\uFF1A${i2.path.join(".")} ${i2.message}`);
   }
+  upgradeDefaults(r.data);
   const integrity = validateIntegrity(r.data);
   if (integrity) throw new HttpError(400, `library.json \u5185\u5BB9\u6709\u95EE\u9898\uFF1A${integrity}`);
   const images = /* @__PURE__ */ new Map();
@@ -59939,6 +60301,7 @@ async function importZip(store, buf, mode) {
   const parsed = await parseZip(buf);
   await store.mutate(async (draft) => {
     for (const [h, img] of parsed.images) await store.images.addExact(h, img.ext, img.buffer);
+    draft.whiteChecks = { ...draft.whiteChecks, ...parsed.lib.whiteChecks };
     if (mode === "replace") {
       store.backupCurrent();
       draft.defaults = parsed.lib.defaults;
@@ -59956,10 +60319,11 @@ function extractPromptFor(lib, cat, style) {
   const raw = cat.extractPrompt?.trim() ? cat.extractPrompt : lib.defaults.extractPrompt;
   return fillPlaceholders(raw, { category: cat.name, style: style.name, ratio: style.ratio });
 }
+var EXTRACT_CONSTRAINT = "Extract only the artwork printed on the product's face and output it as a flat, front-facing print file. The artwork fills the whole canvas edge to edge: its outer edges are the canvas edges. Do not include the product's frame, rounded corners, metal edge, thickness, mounting holes, perspective, reflections, shadows or background. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. If the artwork's proportions differ slightly from the canvas, extend its own background to fill; never crop, squeeze or drop any text.";
 function buildExtractRequest(prompt, ratio) {
   const [w, h] = ratioToWH(ratio);
   const c = canvasFor(w, h);
-  return { prefix: c.prefix + roleSentence(["\u7ADE\u54C1\u5546\u54C1\u56FE"]) + "\n", prompt, size: c.size };
+  return { prefix: c.prefix + roleSentence(["\u7ADE\u54C1\u5546\u54C1\u56FE"]) + "\n" + EXTRACT_CONSTRAINT + "\n", prompt, size: c.size };
 }
 
 // server/src/prompts/ratio.ts
@@ -60052,7 +60416,10 @@ function registerLibrary(r, ctx) {
     res.json({ style: s, ...libraryPayload(ctx) });
   });
   r.patch("/library/categories/:cid/styles/:sid", async (req, res) => {
-    const b = parseBody(external_exports.object({ name: external_exports.string().optional(), ratio: external_exports.string().optional(), activeTemplate: external_exports.string().optional() }), req.body);
+    const b = parseBody(
+      external_exports.object({ name: external_exports.string().optional(), ratio: external_exports.string().optional(), activeTemplate: external_exports.string().optional(), pasteMode: external_exports.enum(["auto", "local", "ai"]).optional() }),
+      req.body
+    );
     await store.mutate((d) => ops.patchStyle(d, p(req, "cid"), p(req, "sid"), b));
     res.json(libraryPayload(ctx));
   });
@@ -60062,7 +60429,9 @@ function registerLibrary(r, ctx) {
   });
   r.put("/library/categories/:cid/styles/:sid/white", upload.single("file"), async (req, res) => {
     const buf = fileOf(req);
-    await store.mutate(async (d) => ops.setWhite(d, p(req, "cid"), p(req, "sid"), await addImage(buf)));
+    const hash2 = await addImage(buf);
+    const shape = await detectWhiteShape((await store.images.read(hash2)).buffer);
+    await store.mutate((d) => ops.setWhite(d, p(req, "cid"), p(req, "sid"), hash2, shape));
     res.json(libraryPayload(ctx));
   });
   r.delete("/library/categories/:cid/styles/:sid/white", async (req, res) => {
@@ -60129,7 +60498,7 @@ function registerLibrary(r, ctx) {
   });
   r.get("/library/recipe", async (req, res) => {
     const q = parseBody(external_exports.object({ cid: external_exports.string(), sid: external_exports.string(), tid: external_exports.string().optional() }), req.query);
-    res.json(await recipeFor(store.get(), store.images, q.cid, q.sid, q.tid));
+    res.json(await recipeFor(store, q.cid, q.sid, q.tid));
   });
   r.get("/library/extract-recipe", (req, res) => {
     const q = parseBody(external_exports.object({ cid: external_exports.string(), sid: external_exports.string() }), req.query);
@@ -60176,7 +60545,9 @@ var SnapshotSchema = external_exports.object({
   prompt: external_exports.string(),
   model: external_exports.string(),
   size: external_exports.string().optional(),
-  params: external_exports.record(external_exports.string(), external_exports.unknown()).optional()
+  params: external_exports.record(external_exports.string(), external_exports.unknown()).optional(),
+  /** local = 本地合成，没有调用 AI */
+  mode: external_exports.enum(["ai", "local"]).optional()
 });
 var StepRecordSchema = external_exports.object({
   state: StepStateSchema,
@@ -60192,7 +60563,27 @@ var PlanMainSchema = external_exports.object({
   templateName: external_exports.string(),
   prompt: external_exports.string(),
   image: external_exports.object({ role: external_exports.enum(["\u767D\u5E95\u56FE", "\u53C2\u8003\u56FE"]), hash: external_exports.string() }).nullable(),
-  canvasRatio: external_exports.string().nullable().optional()
+  canvasRatio: external_exports.string().nullable().optional(),
+  /** 默认模版的贴图方式（款式上的设置）；旧任务没有，按 AI 贴图 */
+  pasteMode: external_exports.enum(["auto", "local", "ai"]).optional()
+});
+var QcSchema = external_exports.object({
+  /** pending = 素材图已提取、等验收 */
+  state: external_exports.enum(["pending", "pass", "fail", "bypassed"]),
+  at: external_exports.string().optional(),
+  threshold: external_exports.number().optional(),
+  score: external_exports.number().nullable().default(null),
+  sourceTexts: external_exports.array(external_exports.string()).default([]),
+  patternTexts: external_exports.array(external_exports.string()).default([]),
+  textOk: external_exports.boolean().nullable().default(null),
+  textDiffs: external_exports.array(external_exports.string()).default([]),
+  elementIssues: external_exports.array(external_exports.string()).default([]),
+  layout: external_exports.object({ ok: external_exports.boolean(), issues: external_exports.array(external_exports.string()), ratioChecked: external_exports.boolean(), note: external_exports.string().nullable() }).nullable().default(null),
+  /** 不合格的原因，按 文字 → 元素 → 版面 */
+  reasons: external_exports.array(external_exports.string()).default([]),
+  snapshot: SnapshotSchema.optional(),
+  /** 模型原始回复 */
+  raw: external_exports.string().optional()
 });
 var JobSchema = external_exports.object({
   id: external_exports.string(),
@@ -60223,13 +60614,14 @@ var JobSchema = external_exports.object({
     blankItemsEn: external_exports.array(external_exports.string())
   }).nullable(),
   attention: external_exports.object({
-    kind: external_exports.enum(["nomatch", "nowhite", "failed", "refused"]),
+    kind: external_exports.enum(["nomatch", "nowhite", "failed", "refused", "qc"]),
     step: external_exports.number().int().min(0).max(4),
     message: external_exports.string(),
     guess: external_exports.string().optional(),
     at: external_exports.string()
   }).nullable(),
-  override: external_exports.object({ step: external_exports.number().int(), prompt: external_exports.string() }).nullable()
+  override: external_exports.object({ step: external_exports.number().int(), prompt: external_exports.string() }).nullable(),
+  qc: QcSchema.nullable().default(null)
 });
 var ALLOWED = {
   pending: ["running"],
@@ -60277,6 +60669,7 @@ function markSkipped(job, i2) {
 }
 function resetFrom(job, n) {
   if (job.steps.some((s, i2) => i2 >= n && s.state === "running")) throw new TransitionError("\u6709\u6B65\u9AA4\u6B63\u5728\u8FD0\u884C\uFF0C\u8981\u5148\u4E2D\u6B62\u624D\u80FD\u91CD\u7F6E");
+  if (n <= 1) job.qc = null;
   for (let i2 = n; i2 < STEP_COUNT; i2++) {
     const s = job.steps[i2];
     if (s.state !== "pending") transition(job, i2, "pending");
@@ -60303,7 +60696,7 @@ function runningStep(job) {
 function viewOf(job) {
   const r = runningStep(job);
   if (job.attention) return { phase: "attention", runningStep: r >= 0 ? r : null, label: "\u9700\u5904\u7406" };
-  if (r >= 0) return { phase: "running", runningStep: r, label: r === 4 ? "\u751F\u6210\u7A7A\u767D\u56FE\u4E2D" : `${STEP_NAMES[r]}\u4E2D` };
+  if (r >= 0) return { phase: "running", runningStep: r, label: r === 4 ? "\u751F\u6210\u7A7A\u767D\u56FE\u4E2D" : r === 1 && job.qc?.state === "pending" ? "\u9A8C\u6536\u7D20\u6750\u4E2D" : `${STEP_NAMES[r]}\u4E2D` };
   if (currentStep(job) === -1) return { phase: "done", runningStep: null, label: "\u5B8C\u6210" };
   return { phase: "queued", runningStep: null, label: "\u6392\u961F\u4E2D" };
 }
@@ -60479,6 +60872,8 @@ var step0Route = async (ctx) => {
 };
 
 // server/src/pipeline/step1Extract.ts
+var import_node_fs10 = __toESM(require("node:fs"), 1);
+var import_promises7 = __toESM(require("node:fs/promises"), 1);
 var import_node_path13 = __toESM(require("node:path"), 1);
 
 // server/src/pipeline/plan.ts
@@ -60521,7 +60916,7 @@ async function resolvePlan(job, lib, images, jobDir, scope = "all") {
 }
 
 // server/src/ai/imageClient.ts
-var import_sharp3 = __toESM(require("sharp"), 1);
+var import_sharp4 = __toESM(require("sharp"), 1);
 
 // server/src/ai/multipart.ts
 var import_node_crypto4 = require("node:crypto");
@@ -60589,7 +60984,7 @@ async function editImage(api, req, onDowngrade) {
   }
   let meta3;
   try {
-    meta3 = await (0, import_sharp3.default)(buf).metadata();
+    meta3 = await (0, import_sharp4.default)(buf).metadata();
     if (!meta3.width || !meta3.height) throw new Error("no size");
   } catch {
     throw new AiError("badImage", "\u8FD4\u56DE\u7684\u56FE\u7247\u65E0\u6CD5\u89E3\u7801");
@@ -60625,6 +61020,202 @@ async function parseImageResponse(body, contentType, signal) {
   throw new AiError("badImage", "\u8FD4\u56DE\u5185\u5BB9\u91CC\u53D6\u4E0D\u5230\u56FE\u7247");
 }
 
+// server/src/image/patternLayout.ts
+var import_sharp5 = __toESM(require("sharp"), 1);
+var WORK_EDGE2 = 1e3;
+var WHITE_MIN = 236;
+var WHITE_SPREAD = 18;
+var BLANK_LINE = 0.98;
+var MARGIN_ALL = 0.02;
+var MARGIN_PAIR = 0.05;
+var CORNER = 0.04;
+var RATIO_TOLERANCE = 0.01;
+var API_RATIO2 = { "1536x1024": 1.5, "1024x1536": 1024 / 1536, "1024x1024": 1 };
+var white = (im, x2, y) => {
+  const i2 = (y * im.w + x2) * 3;
+  const r = im.d[i2];
+  const g = im.d[i2 + 1];
+  const b = im.d[i2 + 2];
+  const lo = Math.min(r, g, b);
+  return lo >= WHITE_MIN && Math.max(r, g, b) - lo <= WHITE_SPREAD;
+};
+function blankRow(im, y) {
+  let n = 0;
+  for (let x2 = 0; x2 < im.w; x2++) if (white(im, x2, y)) n++;
+  return n / im.w >= BLANK_LINE;
+}
+function blankCol(im, x2) {
+  let n = 0;
+  for (let y = 0; y < im.h; y++) if (white(im, x2, y)) n++;
+  return n / im.h >= BLANK_LINE;
+}
+function margins(im) {
+  let top = 0;
+  while (top < im.h && blankRow(im, top)) top++;
+  let bottom = 0;
+  while (bottom < im.h - top && blankRow(im, im.h - 1 - bottom)) bottom++;
+  let left = 0;
+  while (left < im.w && blankCol(im, left)) left++;
+  let right = 0;
+  while (right < im.w - left && blankCol(im, im.w - 1 - right)) right++;
+  return { top: top / im.h, bottom: bottom / im.h, left: left / im.w, right: right / im.w, empty: top >= im.h };
+}
+function roundCorners(im) {
+  const k = Math.max(4, Math.round(Math.min(im.w, im.h) * CORNER));
+  const corners = [
+    [0, 0, 1, 1],
+    [im.w - 1, 0, -1, 1],
+    [0, im.h - 1, 1, -1],
+    [im.w - 1, im.h - 1, -1, -1]
+  ];
+  let n = 0;
+  for (const [cx, cy, sx, sy] of corners) {
+    let tri = 0;
+    let triWhite = 0;
+    for (let a = 0; a < k; a++) {
+      for (let b = 0; a + b < k * 0.3; b++) {
+        tri++;
+        if (white(im, cx + sx * a, cy + sy * b)) triWhite++;
+      }
+    }
+    let edge = 0;
+    let edgeWhite = 0;
+    for (let t = k; t < k * 2.5; t++) {
+      for (const [x2, y] of [
+        [cx + sx * t, cy],
+        [cx, cy + sy * t]
+      ]) {
+        if (x2 < 0 || y < 0 || x2 >= im.w || y >= im.h) continue;
+        edge++;
+        if (white(im, x2, y)) edgeWhite++;
+      }
+    }
+    if (tri && edge && triWhite / tri >= 0.9 && edgeWhite / edge <= 0.4) n++;
+  }
+  return n;
+}
+function stripStat(im, side, from, width) {
+  const sum = [0, 0, 0];
+  const sq = [0, 0, 0];
+  let n = 0;
+  const add = (x2, y) => {
+    const i2 = (y * im.w + x2) * 3;
+    for (let c = 0; c < 3; c++) {
+      const v = im.d[i2 + c];
+      sum[c] += v;
+      sq[c] += v * v;
+    }
+    n++;
+  };
+  for (let t = from; t < from + width; t++) {
+    if (side === "top" || side === "bottom") {
+      const y = side === "top" ? t : im.h - 1 - t;
+      for (let x2 = 0; x2 < im.w; x2++) add(x2, y);
+    } else {
+      const x2 = side === "left" ? t : im.w - 1 - t;
+      for (let y = 0; y < im.h; y++) add(x2, y);
+    }
+  }
+  const mean = sum.map((s) => s / n);
+  const std = Math.max(...sq.map((s, c) => Math.sqrt(Math.max(0, s / n - mean[c] * mean[c]))));
+  return { mean, std };
+}
+var dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+function hasBorder(im) {
+  const sides = ["top", "bottom", "left", "right"];
+  for (const frac of [0.01, 0.025]) {
+    const t = Math.max(2, Math.round(Math.min(im.w, im.h) * frac));
+    const outer = sides.map((s) => stripStat(im, s, 0, t));
+    const inner = sides.map((s) => stripStat(im, s, t, t));
+    if (outer.some((o) => o.std > 14)) continue;
+    if (outer.every((o) => Math.min(...o.mean) >= WHITE_MIN)) continue;
+    let spread = 0;
+    for (const a of outer) for (const b of outer) spread = Math.max(spread, dist(a.mean, b.mean));
+    if (spread > 24) continue;
+    const differs = outer.filter((o, i2) => dist(o.mean, inner[i2].mean) > 40).length;
+    if (differs >= 3) return true;
+  }
+  return false;
+}
+var pct = (v) => `${Math.round(v * 100)}%`;
+async function checkPatternLayout(buf, productRatio) {
+  const meta3 = await (0, import_sharp5.default)(buf).metadata();
+  const W = meta3.width;
+  const H = meta3.height;
+  const s = Math.min(1, WORK_EDGE2 / Math.max(W, H));
+  const w = Math.max(8, Math.round(W * s));
+  const h = Math.max(8, Math.round(H * s));
+  const d = await (0, import_sharp5.default)(buf).rotate().flatten({ background: "#ffffff" }).resize(w, h, { fit: "fill" }).removeAlpha().raw().toBuffer();
+  const im = { d, w, h };
+  const issues = [];
+  const m = margins(im);
+  if (m.empty) {
+    issues.push("\u7D20\u6750\u56FE\u662F\u4E00\u5F20\u767D\u56FE");
+  } else {
+    const all = [m.top, m.bottom, m.left, m.right];
+    if (all.every((v) => v >= MARGIN_ALL)) {
+      issues.push(`\u56DB\u8FB9\u6709\u767D\u8FB9\uFF08\u4E0A ${pct(m.top)}\u3001\u4E0B ${pct(m.bottom)}\u3001\u5DE6 ${pct(m.left)}\u3001\u53F3 ${pct(m.right)}\uFF09`);
+    } else if (m.left >= MARGIN_PAIR && m.right >= MARGIN_PAIR) {
+      issues.push(`\u5DE6\u53F3\u4E24\u8FB9\u6709\u767D\u8FB9\uFF08\u5DE6 ${pct(m.left)}\u3001\u53F3 ${pct(m.right)}\uFF09`);
+    } else if (m.top >= MARGIN_PAIR && m.bottom >= MARGIN_PAIR) {
+      issues.push(`\u4E0A\u4E0B\u4E24\u8FB9\u6709\u767D\u8FB9\uFF08\u4E0A ${pct(m.top)}\u3001\u4E0B ${pct(m.bottom)}\uFF09`);
+    }
+    const rc = roundCorners(im);
+    if (rc >= 3) issues.push(`\u5E26\u7740\u4EA7\u54C1\u7684\u5706\u89D2\uFF08${rc} \u4E2A\u89D2\uFF09`);
+    if (hasBorder(im)) issues.push("\u56DB\u5468\u6709\u4E00\u5708\u8FB9\u6846");
+  }
+  const target = ratioValue(productRatio);
+  const canvas = API_RATIO2[pickApiSize(target, 1)];
+  let ratioChecked = false;
+  let note = null;
+  if (ratioDiff(canvas, target) <= RATIO_TOLERANCE) {
+    ratioChecked = true;
+    const r = W / H;
+    if (ratioDiff(r, target) > RATIO_TOLERANCE) issues.push(`\u5BBD\u9AD8\u6BD4 ${r.toFixed(3)} \u548C\u4EA7\u54C1\u6BD4\u4F8B ${productRatio} \u4E0D\u4E00\u81F4`);
+  } else {
+    note = `\u63A5\u53E3\u753B\u5E03\u4E0D\u652F\u6301 ${productRatio}\uFF0C\u672A\u68C0\u67E5\u6BD4\u4F8B`;
+  }
+  return { ok: issues.length === 0, issues, ratioChecked, note };
+}
+
+// server/src/prompts/qc.ts
+var QC_SYSTEM = `\u4F60\u662F\u7D20\u6750\u56FE\u9A8C\u6536\u52A9\u624B\u3002\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u56FE\u7247\u662F\u4ECE\u5B83\u63D0\u53D6\u51FA\u6765\u7684\u5E73\u9762\u7D20\u6750\u56FE\uFF08\u53EA\u4FDD\u7559\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u56FE\u6848\uFF09\u3002\u8BF7\u5B8C\u6210\u4E24\u4EF6\u4E8B\uFF0C\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
+1. \u9010\u5B57\u6284\u5199\u6587\u5B57\uFF1A\u5206\u522B\u628A\u7B2C\u4E00\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u6240\u6709\u6587\u5B57\u3001\u7B2C\u4E8C\u5F20\u56FE\u91CC\u7684\u6240\u6709\u6587\u5B57\u9010\u5B57\u6284\u4E0B\u6765\u3002\u7167\u539F\u6837\u6284\uFF0C\u4E0D\u7FFB\u8BD1\u3001\u4E0D\u7EA0\u9519\u3001\u4E0D\u8865\u5168\u3001\u4E0D\u6539\u5927\u5C0F\u5199\uFF1B\u6309\u4ECE\u4E0A\u5230\u4E0B\u3001\u4ECE\u5DE6\u5230\u53F3\u7684\u987A\u5E8F\uFF0C\u6BCF\u4E00\u884C\uFF08\u6216\u8FDE\u5728\u4E00\u8D77\u7684\u4E00\u5C0F\u6BB5\uFF09\u4F5C\u4E3A\u6570\u7EC4\u91CC\u7684\u4E00\u9879\u3002\u5546\u54C1\u5370\u5237\u9762\u4EE5\u5916\u7684\u6587\u5B57\uFF08\u80CC\u666F\u3001\u6C34\u5370\u3001\u5305\u88C5\u3001\u4EF7\u683C\u6807\u7B7E\uFF09\u4E0D\u8981\u6284\u3002\u6CA1\u6709\u6587\u5B57\u7ED9\u7A7A\u6570\u7EC4\u3002
+2. \u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF1A\u6BD4\u5BF9\u4E24\u5F20\u56FE\u5370\u5237\u9762\u4E0A\u7684\u4E3B\u8981\u5143\u7D20\uFF08\u4EBA\u7269\u3001\u52A8\u7269\u3001\u5EFA\u7B51\u3001\u7269\u54C1\u3001\u88C5\u9970\uFF0C\u5982\u661F\u661F\u3001\u96EA\u82B1\u7403\uFF09\uFF0C\u770B\u7D20\u6750\u56FE\u6709\u6CA1\u6709\u7F3A\u5931\u3001\u591A\u51FA\u6216\u660E\u663E\u53D8\u6837\u7684\u5143\u7D20\u3002\u7ED9 0\uFF5E1 \u7684\u76F8\u4F3C\u5206\uFF081 \u8868\u793A\u5B8C\u5168\u4E00\u81F4\uFF09\uFF0C\u5E76\u7528\u4E2D\u6587\u77ED\u53E5\u5217\u51FA\u53D1\u73B0\u7684\u95EE\u9898\uFF0C\u6CA1\u6709\u95EE\u9898\u7ED9\u7A7A\u6570\u7EC4\u3002\u7D20\u6750\u56FE\u53BB\u6389\u4E86\u5546\u54C1\u5916\u5F62\u3001\u8FB9\u6846\u3001\u900F\u89C6\u3001\u5149\u5F71\u548C\u80CC\u666F\u662F\u6B63\u5E38\u7684\uFF0C\u4E0D\u8981\u56E0\u6B64\u6263\u5206\uFF1B\u6587\u5B57\u5DEE\u5F02\u4E0D\u7528\u5199\u8FDB\u5143\u7D20\u95EE\u9898\u3002
+\u8F93\u51FA\u683C\u5F0F\uFF1A
+{"source_texts": ["\u7B2C\u4E00\u5F20\u56FE\u7684\u6587\u5B57"], "pattern_texts": ["\u7B2C\u4E8C\u5F20\u56FE\u7684\u6587\u5B57"], "element_score": 0.95, "element_issues": []}`;
+var QC_USER = "\u7B2C\u4E00\u5F20\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u662F\u63D0\u53D6\u51FA\u6765\u7684\u7D20\u6750\u56FE\u3002\u8BF7\u6309\u8981\u6C42\u6284\u5199\u6587\u5B57\u3001\u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF0C\u53EA\u8F93\u51FA JSON\u3002";
+var strList = external_exports.array(external_exports.unknown()).nullish().transform((a) => (a ?? []).map((x2) => String(x2 ?? "").trim()).filter(Boolean));
+var QcAnswerSchema = external_exports.object({
+  source_texts: strList,
+  pattern_texts: strList,
+  element_score: external_exports.coerce.number().min(0).max(1),
+  element_issues: strList
+});
+function normalizeText(s) {
+  return s.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}]/gu, " ").replace(/\s+/g, " ").trim();
+}
+function compareTexts(source, pattern) {
+  const a = source.map((t) => ({ raw: t, n: normalizeText(t) })).filter((t) => t.n);
+  const b = pattern.map((t) => ({ raw: t, n: normalizeText(t) })).filter((t) => t.n);
+  const words = (xs) => xs.map((x2) => x2.n).join(" ");
+  if (words(a) === words(b)) return { ok: true, diffs: [] };
+  const rest = [...b];
+  const srcOnly = [];
+  for (const t of a) {
+    const i2 = rest.findIndex((x2) => x2.n === t.n);
+    if (i2 >= 0) rest.splice(i2, 1);
+    else srcOnly.push(t);
+  }
+  const diffs = [];
+  const n = Math.min(srcOnly.length, rest.length);
+  for (let i2 = 0; i2 < n; i2++) diffs.push(`\u6587\u5B57\u53D8\u4E86\uFF1A\u539F\u56FE ${srcOnly[i2].raw} \u2192 \u7D20\u6750\u56FE ${rest[i2].raw}`);
+  for (const t of srcOnly.slice(n)) diffs.push(`\u7D20\u6750\u56FE\u7F3A\u5C11\u6587\u5B57\uFF1A${t.raw}`);
+  for (const t of rest.slice(n)) diffs.push(`\u7D20\u6750\u56FE\u591A\u51FA\u6587\u5B57\uFF1A${t.raw}`);
+  if (!diffs.length) diffs.push(`\u6587\u5B57\u987A\u5E8F\u53D8\u4E86\uFF1A\u539F\u56FE ${a.map((x2) => x2.raw).join(" / ")} \u2192 \u7D20\u6750\u56FE ${b.map((x2) => x2.raw).join(" / ")}`);
+  return { ok: false, diffs };
+}
+
 // server/src/pipeline/files.ts
 var import_promises6 = __toESM(require("node:fs/promises"), 1);
 var import_node_path12 = __toESM(require("node:path"), 1);
@@ -60653,9 +61244,23 @@ function fidelityParams(settings, size) {
 }
 
 // server/src/pipeline/step1Extract.ts
+function newQc() {
+  return { state: "pending", score: null, sourceTexts: [], patternTexts: [], textOk: null, textDiffs: [], elementIssues: [], layout: null, reasons: [] };
+}
 var step1Extract = async (ctx) => {
   if (!ctx.job.route) {
     return { kind: "attention", state: "pending", attention: { kind: "nomatch", step: 1, message: "\u8FD8\u6CA1\u6709\u786E\u5B9A\u54C1\u7C7B" } };
+  }
+  const patternFile = import_node_path13.default.join(ctx.dir, JOB_FILES.pattern);
+  if (ctx.job.qc?.state === "pending" && !import_node_fs10.default.existsSync(patternFile)) {
+    return { kind: "requeue", patch: (job) => job.qc = null };
+  }
+  if (ctx.job.qc?.state === "pending") {
+    if (!ctx.env.settings().patternQc) {
+      await writeOutput(ctx.env.outputDir(), ctx.job, "pattern", await import_promises7.default.readFile(patternFile));
+      return { kind: "done", output: JOB_FILES.pattern, patch: (job) => job.qc = null };
+    }
+    return runQc(ctx, patternFile);
   }
   let plan = ctx.job.plan;
   let ratio = ctx.job.route.ratio;
@@ -60687,21 +61292,93 @@ var step1Extract = async (ctx) => {
   );
   const png = await flattenWhite(res.buffer);
   await writeJobImage(ctx.dir, "pattern", JOB_FILES.pattern, png);
-  await writeOutput(ctx.env.outputDir(), ctx.job, "pattern", png);
-  return {
-    kind: "done",
-    output: JOB_FILES.pattern,
-    patch: (job) => {
-      const s = job.steps[1].snapshot;
-      if (s) s.params = res.params;
-      if (useOverride) job.override = null;
-    }
+  const qcOn = ctx.env.settings().patternQc;
+  if (!qcOn) await writeOutput(ctx.env.outputDir(), ctx.job, "pattern", png);
+  const patch = (job) => {
+    const s = job.steps[1].snapshot;
+    if (s) s.params = res.params;
+    if (useOverride) job.override = null;
   };
+  if (qcOn) {
+    return {
+      kind: "requeue",
+      patch: (job) => {
+        patch(job);
+        job.qc = newQc();
+        job.steps[1].attempts = 0;
+      }
+    };
+  }
+  return { kind: "done", output: JOB_FILES.pattern, patch: (job) => (job.qc = null, patch(job)) };
 };
+async function runQc(ctx, patternFile) {
+  const settings = ctx.env.settings();
+  const threshold = settings.patternQcThreshold;
+  const srcBuf = await import_promises7.default.readFile(import_node_path13.default.join(ctx.dir, ctx.job.source.file));
+  const patBuf = await import_promises7.default.readFile(patternFile);
+  const layout = await checkPatternLayout(patBuf, ctx.job.route.ratio);
+  const images = [await shrinkForAnalysis(srcBuf), await shrinkForAnalysis(patBuf)];
+  const snapshot = {
+    images: [
+      { no: 1, role: "\u7ADE\u54C1\u56FE", sha256: ctx.job.source.sha256 },
+      { no: 2, role: "\u7D20\u6750\u56FE", sha256: sha256(patBuf) }
+    ],
+    prefix: "",
+    prompt: QC_SYSTEM,
+    model: settings.analysis.model,
+    params: { user: QC_USER }
+  };
+  ctx.commit((job) => {
+    if (job.qc) job.qc.snapshot = snapshot;
+  });
+  const { data, raw } = await ctx.retry(() => chatJson(settings.analysis, { system: QC_SYSTEM, user: QC_USER, images, signal: ctx.signal }, QcAnswerSchema));
+  const text = compareTexts(data.source_texts, data.pattern_texts);
+  const reasons = [...text.diffs];
+  if (data.element_score < threshold) {
+    const issues = data.element_issues.length ? `\uFF1A${data.element_issues.join("\uFF1B")}` : "";
+    reasons.push(`\u56FE\u6848\u5143\u7D20\u76F8\u4F3C\u5206 ${data.element_score.toFixed(2)}\uFF0C\u4F4E\u4E8E ${threshold.toFixed(2)}${issues}`);
+  }
+  reasons.push(...layout.issues);
+  const qc = {
+    state: reasons.length ? "fail" : "pass",
+    at: (/* @__PURE__ */ new Date()).toISOString(),
+    threshold,
+    score: data.element_score,
+    sourceTexts: data.source_texts,
+    patternTexts: data.pattern_texts,
+    textOk: text.ok,
+    textDiffs: text.diffs,
+    elementIssues: data.element_issues,
+    layout,
+    reasons,
+    snapshot,
+    raw
+  };
+  if (reasons.length) {
+    log.warn(`\u300C${ctx.job.source.originalName}\u300D\u7D20\u6750\u56FE\u6CA1\u8FC7\u9A8C\u6536\uFF1A${reasons.join("\uFF1B")}`);
+    return {
+      kind: "attention",
+      state: "failed",
+      attention: { kind: "qc", step: 1, message: `\u7D20\u6750\u56FE\u6CA1\u8FC7\u9A8C\u6536\uFF1A${reasons.join("\uFF1B")}` },
+      patch: (job) => job.qc = qc
+    };
+  }
+  await writeOutput(ctx.env.outputDir(), ctx.job, "pattern", patBuf);
+  return { kind: "done", output: JOB_FILES.pattern, patch: (job) => job.qc = qc };
+}
 
 // server/src/pipeline/step2Main.ts
-var import_promises7 = __toESM(require("node:fs/promises"), 1);
+var import_promises8 = __toESM(require("node:fs/promises"), 1);
 var import_node_path14 = __toESM(require("node:path"), 1);
+var LOCAL_PROMPT = "\u672C\u5730\u5408\u6210\uFF0C\u672A\u8C03\u7528 AI";
+async function finish(ctx, buf) {
+  let out = await capEdge(await flattenWhite(buf), 2e3);
+  if (ctx.env.settings().padSquare) out = await padSquare(out);
+  const capped = await capBytes(out);
+  if (capped.shrunk) log.warn(`\u4E3B\u56FE\u8D85\u8FC7 9.5MB\uFF0C\u5DF2\u7B49\u6BD4\u7F29\u5C0F\uFF1A${ctx.job.source.originalName}`);
+  await writeJobImage(ctx.dir, "main", JOB_FILES.main, capped.buffer);
+  await writeOutput(ctx.env.outputDir(), ctx.job, "main", capped.buffer);
+}
 var step2Main = async (ctx) => {
   const plan = ctx.job.plan;
   const route = ctx.job.route;
@@ -60716,10 +61393,19 @@ var step2Main = async (ctx) => {
       return { kind: "attention", state: "failed", attention: { kind: "failed", step: 2, message: `${main2.image.role}\u6587\u4EF6\u4E22\u5931\u4E86\uFF0C\u8BF7\u4ECE\u8FD9\u4E00\u6B65\u91CD\u505A` } };
     }
   }
-  const req = await buildMainRequest(main2, route.ratio, async () => readSize(await import_promises7.default.readFile(planFile)));
+  const patternInput = await readInput(import_node_path14.default.join(ctx.dir, JOB_FILES.pattern), "pattern");
+  if (main2.templateId === "default" && main2.image && planFile) {
+    const whiteBuf = await import_promises8.default.readFile(planFile);
+    const shape = await ctx.env.library.whiteShape(main2.image.hash, whiteBuf);
+    const d = decidePasteMode(main2.pasteMode ?? "ai", shape, route.ratio);
+    if (d.mode === "local") {
+      const local = await pasteLocal(ctx, whiteBuf, main2.image.hash, patternInput.buffer, d.setting === "auto" ? `\u81EA\u52A8\u5224\u65AD\uFF1A${d.auto?.reason ?? ""}` : "\u6B3E\u5F0F\u8BBE\u7F6E\u4E3A\u672C\u5730\u5408\u6210");
+      if (local) return local;
+    }
+  }
+  const req = await buildMainRequest(main2, route.ratio, async () => readSize(await import_promises8.default.readFile(planFile)));
   const useOverride = ctx.job.override?.step === 2;
   const prompt = useOverride ? ctx.job.override.prompt : req.prompt;
-  const patternInput = await readInput(import_node_path14.default.join(ctx.dir, JOB_FILES.pattern), "pattern");
   const inputs = [];
   const shown = [];
   for (const slot of req.sent) {
@@ -60733,16 +61419,11 @@ var step2Main = async (ctx) => {
     }
   }
   const settings = ctx.env.settings();
-  ctx.setSnapshot({ images: shown, prefix: req.prefix, prompt, model: settings.image.model, size: req.size, params: fidelityParams(settings, req.size) });
+  ctx.setSnapshot({ images: shown, prefix: req.prefix, prompt, model: settings.image.model, size: req.size, params: fidelityParams(settings, req.size), mode: "ai" });
   const res = await ctx.retry(
     () => editImage(ctx.env.settings().image, { images: inputs, prefix: req.prefix, prompt, size: req.size, signal: ctx.signal }, ctx.env.onFidelityDowngrade)
   );
-  let out = await capEdge(await flattenWhite(res.buffer), 2e3);
-  if (ctx.env.settings().padSquare) out = await padSquare(out);
-  const capped = await capBytes(out);
-  if (capped.shrunk) log.warn(`\u4E3B\u56FE\u8D85\u8FC7 9.5MB\uFF0C\u5DF2\u7B49\u6BD4\u7F29\u5C0F\uFF1A${ctx.job.source.originalName}`);
-  await writeJobImage(ctx.dir, "main", JOB_FILES.main, capped.buffer);
-  await writeOutput(ctx.env.outputDir(), ctx.job, "main", capped.buffer);
+  await finish(ctx, res.buffer);
   return {
     kind: "done",
     output: JOB_FILES.main,
@@ -60753,9 +61434,38 @@ var step2Main = async (ctx) => {
     }
   };
 };
+async function pasteLocal(ctx, whiteBuf, whiteHash, patternBuf, why) {
+  let r;
+  try {
+    r = await compositeLocal(whiteBuf, patternBuf);
+  } catch (e) {
+    if (!(e instanceof LocalPasteError)) throw e;
+    log.warn(`\u300C${ctx.job.source.originalName}\u300D\u6CA1\u6CD5\u672C\u5730\u5408\u6210\uFF08${e.message}\uFF09\uFF0C\u6539\u7528 AI \u8D34\u56FE`);
+    return null;
+  }
+  ctx.setSnapshot({
+    images: [
+      { no: 1, role: "\u767D\u5E95\u56FE", sha256: whiteHash },
+      { no: 2, role: "\u7D20\u6750\u56FE", sha256: sha256(patternBuf) }
+    ],
+    prefix: "",
+    prompt: LOCAL_PROMPT,
+    model: "\u672C\u5730\u5408\u6210",
+    mode: "local",
+    params: { why, shape: r.shape.reason, fit: r.fit === "stretch" ? "\u7D20\u6750\u56FE\u8F7B\u5FAE\u62C9\u4F38\u5230\u4EA7\u54C1\u5916\u5F62" : "\u7D20\u6750\u56FE\u7B49\u6BD4\u94FA\u6EE1\u4EA7\u54C1\u5916\u5F62", bbox: r.shape.bbox }
+  });
+  await finish(ctx, r.buffer);
+  return {
+    kind: "done",
+    output: JOB_FILES.main,
+    patch: (job) => {
+      if (job.override?.step === 2) job.override = null;
+    }
+  };
+}
 
 // server/src/pipeline/step3Info.ts
-var import_promises8 = __toESM(require("node:fs/promises"), 1);
+var import_promises9 = __toESM(require("node:fs/promises"), 1);
 var import_node_path15 = __toESM(require("node:path"), 1);
 
 // server/src/prompts/info.ts
@@ -60772,12 +61482,12 @@ customizable \u6570\u7EC4\u7684\u6BCF\u4E00\u9879\u5FC5\u987B\u662F\u7B80\u77ED\
 blank_items \u5224\u65AD\u89C4\u5219\uFF1A\u53EA\u6311\u51FA"\u4E70\u5BB6\u4E0B\u5355\u65F6\u8981\u586B\u81EA\u5DF1\u4E2A\u4EBA\u4FE1\u606F"\u7684\u5360\u4F4D\u5185\u5BB9\uFF0C\u5373\u7167\u7247/\u5934\u50CF/\u5408\u7167/\u5BA0\u7269\u5F62\u8C61\u3001\u540D\u5B57/\u59D3\u540D\u3001\u65E5\u671F/\u5E74\u4EFD/\u7EAA\u5FF5\u65E5\u3001\u5BB6\u5EAD\u59D3\u540D\u8FD9\u51E0\u7C7B\uFF1B\u56FE\u4E0A\u5370\u6B7B\u7684\u56FA\u5B9A\u5185\u5BB9\u4E00\u5F8B\u4E0D\u8981\u6311\uFF08\u8BD7\u6B4C\u3001\u53E5\u5B50\u6587\u6848\u3001\u795D\u798F\u8BED\u3001\u5B57\u4F53\u3001\u989C\u8272\u3001\u56FE\u6848\u98CE\u683C\u90FD\u4E0D\u7B97\uFF09\u3002\u7528\u8BCD\u5FC5\u987B\u4E0E customizable \u4E2D\u7684\u5BF9\u5E94\u9879\u5B8C\u5168\u4E00\u81F4\u3002\u56FE\u4E2D\u6CA1\u6709\u8FD9\u7C7B\u4E2A\u4EBA\u4FE1\u606F\u5360\u4F4D\u5C31\u8FD4\u56DE\u7A7A\u6570\u7EC4 []\u3002`;
 var INFO_USER = "\u8BF7\u5206\u6790\u8FD9\u5F20\u4EA7\u54C1\u4E3B\u56FE\uFF0C\u5148\u5224\u65AD\u4EA7\u54C1\u54C1\u7C7B\uFF0C\u518D\u6309\u8981\u6C42\u8F93\u51FA JSON\u3002";
 var MAX_KEYWORDS = 5;
-var strList = external_exports.array(external_exports.unknown()).optional().default([]).transform((a) => a.map((x2) => String(x2 ?? "").trim()).filter(Boolean));
+var strList2 = external_exports.array(external_exports.unknown()).optional().default([]).transform((a) => a.map((x2) => String(x2 ?? "").trim()).filter(Boolean));
 var InfoAnswerSchema = external_exports.object({
   scene: external_exports.string().transform((s) => s.trim()),
-  keywords: strList,
-  customizable: strList,
-  blank_items: strList
+  keywords: strList2,
+  customizable: strList2,
+  blank_items: strList2
 }).transform((v) => {
   const seen = /* @__PURE__ */ new Set();
   const keywords = v.keywords.filter((k) => {
@@ -60819,7 +61529,7 @@ function decideBlankItems(customizable, blankItems) {
 
 // server/src/pipeline/step3Info.ts
 var step3Info = async (ctx) => {
-  const mainBuf = await import_promises8.default.readFile(import_node_path15.default.join(ctx.dir, JOB_FILES.main)).catch(() => null);
+  const mainBuf = await import_promises9.default.readFile(import_node_path15.default.join(ctx.dir, JOB_FILES.main)).catch(() => null);
   if (!mainBuf) {
     return { kind: "attention", state: "failed", attention: { kind: "failed", step: 3, message: "\u4E3B\u56FE\u6587\u4EF6\u4E0D\u5B58\u5728\uFF0C\u8BF7\u4ECE\u300C\u751F\u6210\u4E3B\u56FE\u300D\u91CD\u505A" } };
   }
@@ -60896,13 +61606,15 @@ var step4Blank = async (ctx) => {
 };
 
 // server/src/scheduler/scheduler.ts
-var kindOf = (step) => step === 0 || step === 3 ? "analysis" : "image";
+var import_promises10 = __toESM(require("node:fs/promises"), 1);
+var kindOf = (step, job) => step === 0 || step === 3 || step === 1 && job?.qc?.state === "pending" ? "analysis" : "image";
 var DEFAULT_HANDLERS = [step0Route, step1Extract, step2Main, step3Info, step4Blank];
 var AUTH_MESSAGE = { image: "\u751F\u56FE\u63A5\u53E3 Key \u65E0\u6548\u6216\u65E0\u6743\u9650", analysis: "\u5206\u6790\u63A5\u53E3 Key \u65E0\u6548\u6216\u65E0\u6743\u9650" };
 var Scheduler = class {
   constructor(d) {
     this.d = d;
     this.handlers = d.handlers ?? DEFAULT_HANDLERS;
+    if (d.stateFile) this.userPaused = readJsonSync(d.stateFile)?.paused === true;
     this.env = {
       settings: () => d.settings.get(),
       library: d.library,
@@ -60957,12 +61669,22 @@ var Scheduler = class {
   emitQueue() {
     this.d.bus.emit("queue", this.queueState());
   }
+  savePaused() {
+    if (!this.d.stateFile) return;
+    try {
+      writeFileAtomicSync(this.d.stateFile, JSON.stringify({ paused: this.userPaused }));
+    } catch (e) {
+      log.warn(`\u4FDD\u5B58\u6682\u505C\u72B6\u6001\u5931\u8D25\uFF1A${e.message}`);
+    }
+  }
   pause() {
     this.userPaused = true;
+    this.savePaused();
     this.emitQueue();
   }
   resume() {
     this.userPaused = false;
+    this.savePaused();
     this.authPaused = {};
     this.emitQueue();
     this.tick();
@@ -60997,7 +61719,7 @@ var Scheduler = class {
     if (job.attention || this.holds.has(job.id)) return -1;
     const i2 = currentStep(job);
     if (i2 < 0 || job.steps[i2].state !== "pending") return -1;
-    if (this.authPaused[kindOf(i2)]) return -1;
+    if (this.authPaused[kindOf(i2, job)]) return -1;
     return i2;
   }
   doTick() {
@@ -61005,26 +61727,26 @@ var Scheduler = class {
     for (const job of this.d.jobs.list()) {
       const i2 = this.dispatchableStep(job);
       if (i2 < 0) continue;
-      const k = kindOf(i2);
+      const k = kindOf(i2, job);
       if (this.d.limiter.inCooldown(k)) continue;
       if (this.busy[k] >= this.d.limiter.limit(k)) continue;
       this.start(job, i2);
     }
   }
   start(job, i2) {
-    const k = kindOf(i2);
+    const k = kindOf(i2, job);
     this.d.jobs.update(job.id, (j) => {
       transition(j, i2, "running");
       delete j.steps[i2].error;
     });
     this.busy[k]++;
     const ctrl = new AbortController();
-    const entry = { step: i2, ctrl, done: Promise.resolve() };
+    const entry = { step: i2, kind: k, ctrl, done: Promise.resolve() };
     this.running.set(job.id, entry);
     this.emitQueue();
-    entry.done = this.run(job.id, i2, ctrl);
+    entry.done = this.run(job.id, i2, k, ctrl);
   }
-  async run(jobId, i2, ctrl) {
+  async run(jobId, i2, k, ctrl) {
     const job = this.d.jobs.get(jobId);
     const dir = this.d.jobs.dirOf(jobId);
     const update = (fn) => {
@@ -61057,11 +61779,11 @@ var Scheduler = class {
       error62 = e;
     }
     this.running.delete(jobId);
-    this.busy[kindOf(i2)]--;
+    this.busy[k]--;
     try {
       if (this.d.jobs.get(jobId) && this.d.jobs.get(jobId).steps[i2].state === "running") {
         if (result) this.applyResult(jobId, i2, result);
-        else this.applyError(jobId, i2, error62);
+        else this.applyError(jobId, i2, k, error62);
       }
     } catch (e) {
       log.error(`\u5904\u7406\u7B2C ${i2 + 1} \u6B65\u7ED3\u679C\u65F6\u51FA\u9519\uFF1A${e.stack ?? e}`);
@@ -61090,6 +61812,9 @@ var Scheduler = class {
       } else if (r.kind === "skipped") {
         transition(j, i2, "skipped");
         delete s.error;
+      } else if (r.kind === "requeue") {
+        transition(j, i2, "pending");
+        delete s.error;
       } else {
         transition(j, i2, r.state);
         if (r.state === "failed") s.error = r.attention.message;
@@ -61101,9 +61826,9 @@ var Scheduler = class {
   }
   /** 同一批的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
   rewriteCsv(folder) {
-    return this.csvLock.run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder)).catch((e) => log.error(`\u5199\u8BC6\u522B\u4FE1\u606F CSV \u5931\u8D25\uFF1A${e.message}`));
+    return this.csvLock.run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, this.d.csvRowsDir && import_node_path17.default.join(this.d.csvRowsDir, `${folder}.json`))).catch((e) => log.error(`\u5199\u8BC6\u522B\u4FE1\u606F CSV \u5931\u8D25\uFF1A${e.message}`));
   }
-  applyError(jobId, i2, e) {
+  applyError(jobId, i2, k, e) {
     const name = STEP_NAMES[i2];
     const job = this.d.jobs.get(jobId);
     if (e instanceof CancelledError) {
@@ -61111,7 +61836,6 @@ var Scheduler = class {
       return;
     }
     if (e instanceof AiError && e.type === "rateLimit") {
-      const k = kindOf(i2);
       const wait = this.d.limiter.on429(k, e.retryAfterSec);
       log.warn(`${k === "image" ? "\u751F\u56FE" : "\u5206\u6790"}\u63A5\u53E3\u9650\u6D41\uFF0C${Math.round(wait / 1e3)} \u79D2\u540E\u7EE7\u7EED\uFF0C\u5E76\u53D1\u4E34\u65F6\u964D\u4F4E`);
       this.d.jobs.update(jobId, (j) => {
@@ -61121,7 +61845,6 @@ var Scheduler = class {
       return;
     }
     if (e instanceof AiError && e.type === "auth") {
-      const k = kindOf(i2);
       this.authPaused[k] = AUTH_MESSAGE[k];
       log.error(`${AUTH_MESSAGE[k]}\uFF0C\u6682\u505C\u8FD9\u4E00\u7C7B\u6B65\u9AA4\uFF1A${e.message}`);
       this.d.bus.toast("error", `${AUTH_MESSAGE[k]}\uFF0C\u76F8\u5173\u6B65\u9AA4\u5DF2\u6682\u505C\uFF0C\u8BF7\u5230\u8BBE\u7F6E\u91CC\u68C0\u67E5`);
@@ -61137,7 +61860,7 @@ var Scheduler = class {
     } else if (e instanceof AiError) {
       const attempts = job.steps[i2].attempts;
       const tail = RETRYABLE.has(e.type) && attempts >= MAX_ATTEMPTS ? `\u91CD\u8BD5 ${MAX_ATTEMPTS - 1} \u6B21\u4ECD\u5931\u8D25\uFF08${e.message}\uFF09` : `${ERROR_LABEL[e.type]}\uFF1A${e.message}`;
-      attention = { kind: "failed", step: i2, message: `${name}\u5931\u8D25\uFF1A${tail}` };
+      attention = { kind: "failed", step: i2, message: `${i2 === 1 && job.qc?.state === "pending" ? "\u7D20\u6750\u56FE\u9A8C\u6536" : name}\u5931\u8D25\uFF1A${tail}` };
     } else {
       attention = { kind: "failed", step: i2, message: `${name}\u5931\u8D25\uFF1A${e?.message ?? String(e)}` };
       log.error(`\u300C${job.source.originalName}\u300D${name}\u51FA\u9519\uFF1A${e?.stack ?? e}`);
@@ -61295,6 +62018,24 @@ var Scheduler = class {
       return this.d.jobs.get(jobId);
     });
   }
+  /** 素材图没过验收，用户选「仍然使用」：跳过这次验收，后面的步骤接着跑 */
+  async acceptQc(jobId) {
+    return this.hold(jobId, async (job) => {
+      if (job.attention?.kind !== "qc") throw new HttpError(400, "\u8FD9\u5F20\u56FE\u7684\u7D20\u6750\u56FE\u4E0D\u9700\u8981\u5904\u7406");
+      const buf = await import_promises10.default.readFile(this.d.jobs.fileOf(jobId, JOB_FILES.pattern)).catch(() => null);
+      if (!buf) throw new HttpError(400, "\u7D20\u6750\u56FE\u6587\u4EF6\u4E0D\u5728\u4E86\uFF0C\u8BF7\u91CD\u65B0\u63D0\u53D6");
+      await writeOutput(this.env.outputDir(), job, "pattern", buf);
+      this.d.jobs.update(jobId, (j) => {
+        markDone(j, 1);
+        j.steps[1].output = JOB_FILES.pattern;
+        delete j.steps[1].error;
+        if (j.qc) j.qc.state = "bypassed";
+        j.attention = null;
+      });
+      log.info(`\u300C${job.source.originalName}\u300D\u7D20\u6750\u56FE\u6CA1\u8FC7\u9A8C\u6536\uFF08${job.qc?.reasons.join("\uFF1B") ?? ""}\uFF09\uFF0C\u6309\u4F60\u7684\u9009\u62E9\u4ECD\u7136\u4F7F\u7528`);
+      return this.d.jobs.get(jobId);
+    });
+  }
   async remove(jobId) {
     await this.hold(jobId, async () => {
       await this.abortRunning(jobId);
@@ -61319,10 +62060,10 @@ var Scheduler = class {
 };
 
 // server/src/api/jobs.ts
-var import_node_fs10 = __toESM(require("node:fs"), 1);
-var import_promises9 = __toESM(require("node:fs/promises"), 1);
+var import_node_fs11 = __toESM(require("node:fs"), 1);
+var import_promises11 = __toESM(require("node:fs/promises"), 1);
 var import_node_path18 = __toESM(require("node:path"), 1);
-var import_sharp4 = __toESM(require("sharp"), 1);
+var import_sharp6 = __toESM(require("sharp"), 1);
 var MAX_FILES = 500;
 var MAX_BYTES = 50 * 1024 * 1024;
 var IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|tiff?|heic|heif|avif)$/i;
@@ -61330,10 +62071,10 @@ async function expandPaths(paths) {
   const out = [];
   const walk = async (p) => {
     if (import_node_path18.default.basename(p).startsWith(".")) return;
-    const st = await import_promises9.default.stat(p).catch(() => null);
+    const st = await import_promises11.default.stat(p).catch(() => null);
     if (!st) return;
     if (st.isDirectory()) {
-      for (const c of (await import_promises9.default.readdir(p)).sort()) await walk(import_node_path18.default.join(p, c));
+      for (const c of (await import_promises11.default.readdir(p)).sort()) await walk(import_node_path18.default.join(p, c));
     } else if (st.isFile()) out.push(p);
   };
   for (const p of paths) await walk(p);
@@ -61354,7 +62095,7 @@ async function normalizeSource(buf) {
     return { buffer: n.buffer, ext: n.ext };
   }
   try {
-    const png = await (0, import_sharp4.default)(buf).rotate().png().toBuffer();
+    const png = await (0, import_sharp6.default)(buf).rotate().png().toBuffer();
     return { buffer: png, ext: EXT_OF.png };
   } catch {
     throw new Error("\u65E0\u6CD5\u8BC6\u522B\u7684\u56FE\u7247\u683C\u5F0F\uFF0C\u6216\u6587\u4EF6\u5DF2\u635F\u574F");
@@ -61386,8 +62127,8 @@ function registerJobs(r, ctx) {
       images.map((p) => ({
         name: import_node_path18.default.basename(p),
         read: async () => {
-          if ((await import_promises9.default.stat(p)).size > MAX_BYTES) throw new Error("\u6587\u4EF6\u8D85\u8FC7 50 MB");
-          return import_promises9.default.readFile(p);
+          if ((await import_promises11.default.stat(p)).size > MAX_BYTES) throw new Error("\u6587\u4EF6\u8D85\u8FC7 50 MB");
+          return import_promises11.default.readFile(p);
         }
       }))
     ) : { jobs: [], errors: [] };
@@ -61396,7 +62137,7 @@ function registerJobs(r, ctx) {
   async function addSources(sources) {
     const created = [];
     const errors = [];
-    const folder = folderForNewJobs(jobs.list(), resolveOutputDir(ctx.settings.get()), isFinished);
+    const folder = ctx.batch.current(jobs.list());
     for (const { name, read } of sources) {
       try {
         const { buffer, ext } = await normalizeSource(await read());
@@ -61418,7 +62159,8 @@ function registerJobs(r, ctx) {
           steps: newSteps(),
           info: null,
           attention: null,
-          override: null
+          override: null,
+          qc: null
         };
         await jobs.create(job);
         created.push(withView(job));
@@ -61436,7 +62178,10 @@ function registerJobs(r, ctx) {
   });
   r.post("/jobs/clear-all", async (_req, res) => {
     const removed = await scheduler.clearAll();
-    if (removed) log.info(`\u6E05\u7A7A\u961F\u5217\uFF0C\u79FB\u9664 ${removed} \u5F20\u56FE`);
+    if (removed) {
+      ctx.batch.close();
+      log.info(`\u6E05\u7A7A\u961F\u5217\uFF0C\u79FB\u9664 ${removed} \u5F20\u56FE\uFF1B\u4E4B\u540E\u52A0\u7684\u56FE\u653E\u8FDB\u65B0\u7684\u6587\u4EF6\u5939`);
+    }
     res.json({ removed });
   });
   r.delete("/jobs/:id", async (req, res) => {
@@ -61457,6 +62202,9 @@ function registerJobs(r, ctx) {
   r.post("/jobs/:id/create-category", async (req, res) => {
     res.json({ job: withView(await scheduler.createCategory(id(req))) });
   });
+  r.post("/jobs/:id/qc-accept", async (req, res) => {
+    res.json({ job: withView(await scheduler.acceptQc(id(req))) });
+  });
   r.post("/jobs/:id/retry", async (req, res) => {
     res.json({ job: withView(await scheduler.retry(id(req))) });
   });
@@ -61467,7 +62215,7 @@ function registerJobs(r, ctx) {
     if (!["source", "pattern", "main", "blank"].includes(kind)) throw new HttpError(400, "\u6587\u4EF6\u7C7B\u578B\u53EA\u80FD\u662F source\u3001pattern\u3001main\u3001blank");
     const dir = jobs.dirOf(job.id);
     const file2 = req.query.size === "thumb" ? import_node_path18.default.join(dir, "thumbs", `${kind}.webp`) : import_node_path18.default.join(dir, kind === "source" ? job.source.file : JOB_FILES[kind]);
-    if (!import_node_fs10.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");
+    if (!import_node_fs11.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(file2);
   });
@@ -61487,7 +62235,7 @@ function registerJobs(r, ctx) {
 // server/src/server.ts
 function readVersion(toolDir) {
   try {
-    return JSON.parse(import_node_fs11.default.readFileSync(import_node_path19.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
+    return JSON.parse(import_node_fs12.default.readFileSync(import_node_path19.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
   } catch {
     return "0.0.0";
   }
@@ -61506,7 +62254,7 @@ async function createContext(paths) {
   const jobs = new JobStore(paths.jobsDir, (job) => bus.emit("job", { job: withView(job) }));
   let scheduler = null;
   const limiter = new Limiter(() => scheduler?.tick());
-  scheduler = new Scheduler({ jobs, library, settings, limiter, bus });
+  scheduler = new Scheduler({ jobs, library, settings, limiter, bus, stateFile: import_node_path19.default.join(paths.dataDir, "queue.json"), csvRowsDir: import_node_path19.default.join(paths.dataDir, "batches") });
   const sched = scheduler;
   library.onChange(() => sched.onLibraryChanged());
   const ctx = {
@@ -61518,6 +62266,7 @@ async function createContext(paths) {
     library,
     jobs,
     scheduler: sched,
+    batch: new BatchFolders(import_node_path19.default.join(paths.dataDir, "batch.json"), () => resolveOutputDir(settings.get())),
     sse: { clients: 0 },
     onSettingsSaved: () => {
     },
@@ -61564,7 +62313,7 @@ function createApp(ctx) {
   });
   app.use("/api", api);
   const webDir = ctx.paths.webDir;
-  if (import_node_fs11.default.existsSync(import_node_path19.default.join(webDir, "index.html"))) {
+  if (import_node_fs12.default.existsSync(import_node_path19.default.join(webDir, "index.html"))) {
     app.use(import_express.default.static(webDir, { index: "index.html" }));
     app.get("/{*rest}", (_req, res) => res.sendFile(import_node_path19.default.join(webDir, "index.html")));
   } else {

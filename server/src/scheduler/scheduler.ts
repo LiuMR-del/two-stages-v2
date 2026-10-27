@@ -24,7 +24,9 @@ import { step2Main } from '../pipeline/step2Main'
 import { step3Info } from '../pipeline/step3Info'
 import { step4Blank } from '../pipeline/step4Blank'
 import { resolvePlan } from '../pipeline/plan'
-import { assignOutputBase } from '../pipeline/output'
+import { assignOutputBase, writeOutput } from '../pipeline/output'
+import { JOB_FILES } from '../pipeline/files'
+import fsp from 'node:fs/promises'
 import { writeBatchCsv } from '../pipeline/csv'
 import { removeJobImage } from '../pipeline/files'
 import { withRetry, MAX_ATTEMPTS } from '../ai/retry'
@@ -35,7 +37,9 @@ import { ops } from '../library/store'
 import { KeyedMutex } from '../util/mutex'
 import { readJsonSync, writeFileAtomicSync } from '../store/atomic'
 
-export const kindOf = (step: number): ApiKind => (step === 0 || step === 3 ? 'analysis' : 'image')
+/** 第②步提取完、等验收时，这一步占的是分析并发 */
+export const kindOf = (step: number, job?: Pick<Job, 'qc'>): ApiKind =>
+  step === 0 || step === 3 || (step === 1 && job?.qc?.state === 'pending') ? 'analysis' : 'image'
 
 const DEFAULT_HANDLERS: StepHandler[] = [step0Route, step1Extract, step2Main, step3Info, step4Blank]
 
@@ -46,7 +50,7 @@ export type QueueState = {
   slots: Record<ApiKind, { busy: number; limit: number }>
 }
 
-type Running = { step: number; ctrl: AbortController; done: Promise<void> }
+type Running = { step: number; kind: ApiKind; ctrl: AbortController; done: Promise<void> }
 
 export type SchedulerDeps = {
   jobs: JobStore
@@ -57,6 +61,8 @@ export type SchedulerDeps = {
   handlers?: StepHandler[]
   /** 记住「暂停队列」，重启后仍然暂停；不给就只记在内存里 */
   stateFile?: string
+  /** 每批识别信息 CSV 的行记在这里，移出队列的图的行不丢 */
+  csvRowsDir?: string
 }
 
 export class Scheduler {
@@ -181,7 +187,7 @@ export class Scheduler {
     if (job.attention || this.holds.has(job.id)) return -1
     const i = currentStep(job)
     if (i < 0 || job.steps[i]!.state !== 'pending') return -1
-    if (this.authPaused[kindOf(i)]) return -1
+    if (this.authPaused[kindOf(i, job)]) return -1
     return i
   }
 
@@ -190,7 +196,7 @@ export class Scheduler {
     for (const job of this.d.jobs.list()) {
       const i = this.dispatchableStep(job)
       if (i < 0) continue
-      const k = kindOf(i)
+      const k = kindOf(i, job)
       if (this.d.limiter.inCooldown(k)) continue
       if (this.busy[k] >= this.d.limiter.limit(k)) continue
       this.start(job, i)
@@ -198,20 +204,20 @@ export class Scheduler {
   }
 
   private start(job: Job, i: number): void {
-    const k = kindOf(i)
+    const k = kindOf(i, job)
     this.d.jobs.update(job.id, (j) => {
       transition(j, i, 'running')
       delete j.steps[i]!.error
     })
     this.busy[k]++
     const ctrl = new AbortController()
-    const entry: Running = { step: i, ctrl, done: Promise.resolve() }
+    const entry: Running = { step: i, kind: k, ctrl, done: Promise.resolve() }
     this.running.set(job.id, entry)
     this.emitQueue()
-    entry.done = this.run(job.id, i, ctrl)
+    entry.done = this.run(job.id, i, k, ctrl)
   }
 
-  private async run(jobId: string, i: number, ctrl: AbortController): Promise<void> {
+  private async run(jobId: string, i: number, k: ApiKind, ctrl: AbortController): Promise<void> {
     const job = this.d.jobs.get(jobId)!
     const dir = this.d.jobs.dirOf(jobId)
     const update = (fn: (j: Job) => void) => {
@@ -248,11 +254,11 @@ export class Scheduler {
     }
 
     this.running.delete(jobId)
-    this.busy[kindOf(i)]--
+    this.busy[k]--
     try {
       if (this.d.jobs.get(jobId) && this.d.jobs.get(jobId)!.steps[i]!.state === 'running') {
         if (result) this.applyResult(jobId, i, result)
-        else this.applyError(jobId, i, error)
+        else this.applyError(jobId, i, k, error)
       }
     } catch (e) {
       log.error(`处理第 ${i + 1} 步结果时出错：${(e as Error).stack ?? e}`)
@@ -283,6 +289,9 @@ export class Scheduler {
       } else if (r.kind === 'skipped') {
         transition(j, i, 'skipped')
         delete s.error
+      } else if (r.kind === 'requeue') {
+        transition(j, i, 'pending')
+        delete s.error
       } else {
         transition(j, i, r.state)
         if (r.state === 'failed') s.error = r.attention.message
@@ -296,11 +305,11 @@ export class Scheduler {
   /** 同一批的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
   rewriteCsv(folder: string): Promise<void> {
     return this.csvLock
-      .run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder))
+      .run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, this.d.csvRowsDir && path.join(this.d.csvRowsDir, `${folder}.json`)))
       .catch((e) => log.error(`写识别信息 CSV 失败：${(e as Error).message}`))
   }
 
-  private applyError(jobId: string, i: number, e: unknown): void {
+  private applyError(jobId: string, i: number, k: ApiKind, e: unknown): void {
     const name = STEP_NAMES[i]
     const job = this.d.jobs.get(jobId)!
     if (e instanceof CancelledError) {
@@ -308,7 +317,6 @@ export class Scheduler {
       return
     }
     if (e instanceof AiError && e.type === 'rateLimit') {
-      const k = kindOf(i)
       const wait = this.d.limiter.on429(k, e.retryAfterSec)
       log.warn(`${k === 'image' ? '生图' : '分析'}接口限流，${Math.round(wait / 1000)} 秒后继续，并发临时降低`)
       this.d.jobs.update(jobId, (j) => {
@@ -318,7 +326,6 @@ export class Scheduler {
       return
     }
     if (e instanceof AiError && e.type === 'auth') {
-      const k = kindOf(i)
       this.authPaused[k] = AUTH_MESSAGE[k]
       log.error(`${AUTH_MESSAGE[k]}，暂停这一类步骤：${e.message}`)
       this.d.bus.toast('error', `${AUTH_MESSAGE[k]}，相关步骤已暂停，请到设置里检查`)
@@ -334,7 +341,7 @@ export class Scheduler {
     } else if (e instanceof AiError) {
       const attempts = job.steps[i]!.attempts
       const tail = RETRYABLE.has(e.type) && attempts >= MAX_ATTEMPTS ? `重试 ${MAX_ATTEMPTS - 1} 次仍失败（${e.message}）` : `${ERROR_LABEL[e.type]}：${e.message}`
-      attention = { kind: 'failed', step: i, message: `${name}失败：${tail}` }
+      attention = { kind: 'failed', step: i, message: `${i === 1 && job.qc?.state === 'pending' ? '素材图验收' : name}失败：${tail}` }
     } else {
       attention = { kind: 'failed', step: i, message: `${name}失败：${(e as Error)?.message ?? String(e)}` }
       log.error(`「${job.source.originalName}」${name}出错：${(e as Error)?.stack ?? e}`)
@@ -501,6 +508,25 @@ export class Scheduler {
         j.attention = null
         this.d.jobs.moveToEnd(j)
       })
+      return this.d.jobs.get(jobId)!
+    })
+  }
+
+  /** 素材图没过验收，用户选「仍然使用」：跳过这次验收，后面的步骤接着跑 */
+  async acceptQc(jobId: string): Promise<Job> {
+    return this.hold(jobId, async (job) => {
+      if (job.attention?.kind !== 'qc') throw new HttpError(400, '这张图的素材图不需要处理')
+      const buf = await fsp.readFile(this.d.jobs.fileOf(jobId, JOB_FILES.pattern)).catch(() => null)
+      if (!buf) throw new HttpError(400, '素材图文件不在了，请重新提取')
+      await writeOutput(this.env.outputDir(), job, 'pattern', buf)
+      this.d.jobs.update(jobId, (j) => {
+        markDone(j, 1)
+        j.steps[1]!.output = JOB_FILES.pattern
+        delete j.steps[1]!.error
+        if (j.qc) j.qc.state = 'bypassed'
+        j.attention = null
+      })
+      log.info(`「${job.source.originalName}」素材图没过验收（${job.qc?.reasons.join('；') ?? ''}），按你的选择仍然使用`)
       return this.d.jobs.get(jobId)!
     })
   }

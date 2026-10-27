@@ -53,6 +53,10 @@ export const SettingsSchema = z.object({
   routeThreshold: z.number().min(0).max(1).default(0.7),
   padSquare: z.boolean().default(true),
   blankImage: z.boolean().default(true),
+  /** 素材图提取后和竞品图对比验收；关着时不发验收请求 */
+  patternQc: z.boolean().default(true),
+  /** 图案元素相似分低于这个值不合格 */
+  patternQcThreshold: z.number().min(0).max(1).default(0.8),
 })
 
 export type Settings = z.infer<typeof SettingsSchema>
@@ -66,6 +70,8 @@ export const SettingsPatchSchema = z.object({
   routeThreshold: z.number().min(0).max(1).optional(),
   padSquare: z.boolean().optional(),
   blankImage: z.boolean().optional(),
+  patternQc: z.boolean().optional(),
+  patternQcThreshold: z.number().min(0).max(1).optional(),
 })
 export type SettingsPatch = z.infer<typeof SettingsPatchSchema>
 
@@ -129,6 +135,8 @@ export class SettingsStore {
           routeThreshold: patch.routeThreshold,
           padSquare: patch.padSquare,
           blankImage: patch.blankImage,
+          patternQc: patch.patternQc,
+          patternQcThreshold: patch.patternQcThreshold,
         }),
         image,
         analysis,

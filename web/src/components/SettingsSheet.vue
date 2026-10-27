@@ -118,7 +118,7 @@ function authDot(kind: 'image' | 'analysis') {
           <div class="fld">
             <label>保存到</label>
             <AutoText :value="st.settings.outputDir" :save="saver((v) => ({ outputDir: v.trim() }))" label="保存位置" />
-            <div class="muted tiny">每批图一个「主图生成-日期-时间」文件夹放在这里</div>
+            <div class="muted tiny">每批图一个「主图生成-日期」文件夹放在这里；点「清空队列」后，下一批依次放进「-1」「-2」…，换一天从新日期开始</div>
           </div>
           <div class="fld">
             <label>品类识别把握低于多少时交给你处理（0～1）</label>
@@ -126,6 +126,12 @@ function authDot(kind: 'image' | 'analysis') {
           </div>
           <label class="sw"><input type="checkbox" :checked="st.settings.padSquare" @change="toggle({ padSquare: ($event.target as HTMLInputElement).checked })" />主图补成方图（只加白边）</label>
           <label class="sw"><input type="checkbox" :checked="st.settings.blankImage" @change="toggle({ blankImage: ($event.target as HTMLInputElement).checked })" />有定制项时生成空白图</label>
+          <label class="sw"><input type="checkbox" :checked="st.settings.patternQc" @change="toggle({ patternQc: ($event.target as HTMLInputElement).checked })" />素材图验收（和竞品图对比文字、图案、版面，不合格进「需处理」）</label>
+          <div v-if="st.settings.patternQc" class="fld">
+            <label>图案相似分低于多少算不合格（0～1）</label>
+            <AutoText :value="st.settings.patternQcThreshold.toFixed(2)" :save="saver((v) => ({ patternQcThreshold: num(v, '验收阈值') }))" label="素材图验收阈值" />
+            <div class="muted tiny">每张素材图多发一次分析请求；文字有任何缺、多、改都不合格</div>
+          </div>
           <div><button type="button" class="btn sm" @click="ui.act(() => jobs.openFolder())">打开输出文件夹</button></div>
         </div>
       </div>

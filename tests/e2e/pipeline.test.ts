@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import { startWorld, makeCategory, uploadJobs, waitJob, isDone, imageRequests, getJobs, type World, onlyBatch } from './harness'
 import { DEFAULT_EXTRACT_PROMPT, DEFAULT_PASTE_PROMPT } from '../../server/src/library/schema'
+import { EXTRACT_CONSTRAINT } from '../../server/src/prompts/extract'
+import { PASTE_CONSTRAINT } from '../../server/src/prompts/main'
 import { localDay } from '../../server/src/util/ids'
 import { waitFor } from '../helpers'
 
@@ -61,7 +63,7 @@ describe('e2e 1：混合品类走完全程', () => {
     }
     // ② 只发竞品图一张，画布和 size 按款式比例
     const e1 = find('[Canvas: 3:2 landscape format] 第一张图片是竞品商品图。\n')
-    expect(e1.prompt).toBe('[Canvas: 3:2 landscape format] 第一张图片是竞品商品图。\n' + extract('相框', '3:2'))
+    expect(e1.prompt).toBe('[Canvas: 3:2 landscape format] 第一张图片是竞品商品图。\n' + EXTRACT_CONSTRAINT + '\n' + extract('相框', '3:2'))
     expect(e1.images.map((i) => [i.field, i.width, i.height])).toEqual([['image', 800, 600]])
     expect(e1.fields).toMatchObject({ size: '1536x1024', quality: 'high', input_fidelity: 'high', n: '1' })
     expect(find('[Canvas: 2:3 portrait format] 第一张图片是竞品商品图。\n').fields.size).toBe('1024x1536')
@@ -70,7 +72,7 @@ describe('e2e 1：混合品类走完全程', () => {
 
     // ③ 默认模版：白底图 + 素材图
     const m1 = find('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n')
-    expect(m1.prompt).toBe('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n' + DEFAULT_PASTE_PROMPT)
+    expect(m1.prompt).toBe('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n' + PASTE_CONSTRAINT + '\n' + DEFAULT_PASTE_PROMPT)
     expect(m1.images.map((i) => [i.field, i.width, i.height])).toEqual([
       ['image[]', 1500, 1000],
       ['image[]', 1536, 1024],

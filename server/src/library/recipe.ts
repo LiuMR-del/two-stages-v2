@@ -1,6 +1,6 @@
-import type { Library } from './schema'
-import type { ImageStore } from './images'
+import type { LibraryStore } from './store'
 import { buildMainRequest, mainPlanFor } from '../prompts/main'
+import { decidePasteMode, type PasteDecision } from '../pipeline/paste'
 import { refWarning } from '../prompts/refcheck'
 import { HttpError } from '../util/errors'
 
@@ -13,11 +13,15 @@ export type Recipe = {
   templateId: string
   templateName: string
   warnings: string[]
+  /** 只有默认模版有 */
+  paste: PasteDecision | null
 }
 
 export const MISSING_WHITE_WARNING = '没有白底图时，这个款式的图会进入「需处理」，不会在缺图的情况下生成。'
 
-export async function recipeFor(lib: Library, images: ImageStore, cid: string, sid: string, tid?: string): Promise<Recipe> {
+export async function recipeFor(store: LibraryStore, cid: string, sid: string, tid?: string): Promise<Recipe> {
+  const lib = store.get()
+  const images = store.images
   const cat = lib.categories.find((c) => c.id === cid)
   if (!cat) throw new HttpError(404, '品类不存在，可能已被删除')
   const style = cat.styles.find((s) => s.id === sid)
@@ -32,7 +36,14 @@ export async function recipeFor(lib: Library, images: ImageStore, cid: string, s
   if (!main.prompt.trim()) warnings.push('提示词为空，这个组合生成不了主图')
   const w = refWarning(main.prompt, req.sent.length)
   if (w) warnings.push(w + '。请上传参考图，或改写提示词。')
+  let paste: PasteDecision | null = null
+  if (main.templateId === 'default') {
+    const shape = style.whiteImage && images.has(style.whiteImage) ? await store.whiteShape(style.whiteImage) : null
+    paste = decidePasteMode(style.pasteMode, shape, style.ratio)
+    if (paste.note) warnings.push(paste.note)
+  }
   return {
+    paste,
     images: req.slots.map((s) => ({ no: s.no, role: s.role, hash: s.hash, auto: s.auto, required: s.required })),
     prefix: req.prefix,
     prompt: req.prompt,

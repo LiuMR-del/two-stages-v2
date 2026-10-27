@@ -5,6 +5,7 @@ import { startInProcess, type Api } from '../inprocess'
 import { png, jpeg } from '../helpers'
 import type { AppContext } from '../../server/src/context'
 import { MISSING_WHITE_WARNING } from '../../server/src/library/recipe'
+import { PASTE_CONSTRAINT } from '../../server/src/prompts/main'
 
 let api: Api
 let ctx: AppContext
@@ -87,7 +88,7 @@ describe('模版库接口', () => {
       { no: 1, role: '白底图', hash: expect.any(String), auto: false, required: true },
       { no: 2, role: '素材图', hash: null, auto: true, required: true },
     ])
-    expect(r.body.prefix).toBe('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n')
+    expect(r.body.prefix).toBe('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n' + PASTE_CONSTRAINT + '\n')
     expect(r.body.scope).toBe('全局共用 · 所有品类')
     expect(r.body.warnings).toEqual([])
   })

@@ -8,7 +8,8 @@ export type ViewerItem = { src: string; label: string; step?: number }
 
 export const useUi = defineStore('ui', () => {
   const workTab = ref<WorkTab>('queue')
-  const sheet = ref<null | { jobId: string; step: number }>(null)
+  /** redo 为 true 时打开详情就展开「重做这一步」 */
+  const sheet = ref<null | { jobId: string; step: number; redo?: boolean }>(null)
   const settingsOpen = ref(false)
   /** 模版库当前选中：'__global' 表示全局提示词 */
   const libSel = ref<string>('__global')

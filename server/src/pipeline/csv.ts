@@ -1,6 +1,6 @@
 import path from 'node:path'
 import type { Job } from '../store/jobs'
-import { writeFileAtomic } from '../store/atomic'
+import { readJsonSync, writeFileAtomic } from '../store/atomic'
 import { batchDir, outputRel, safeName } from './output'
 
 const HEADER = ['原文件名', '品类', '款式', '场景', '关键词', '可定制项', '主图文件']
@@ -9,27 +9,48 @@ function cell(v: string): string {
   return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
 }
 
-function csvOf(jobs: Job[]): string {
-  const rows = jobs
-    .filter((j) => j.steps[3]!.state === 'done' && j.info && j.route)
-    .map((j) => [
-      j.source.originalName,
-      j.route!.categoryName,
-      j.route!.styleName,
-      j.info!.scene,
-      j.info!.keywords.join('; '),
-      j.info!.customizable.join('、'),
-      path.join(safeName(j.route!.categoryName), outputRel('main', j.outputBase)),
-    ])
+const hasInfo = (j: Job) => j.steps[3]!.state === 'done' && !!j.info && !!j.route
+
+function rowOf(j: Job): string[] {
+  return [
+    j.source.originalName,
+    j.route!.categoryName,
+    j.route!.styleName,
+    j.info!.scene,
+    j.info!.keywords.join('; '),
+    j.info!.customizable.join('、'),
+    path.join(safeName(j.route!.categoryName), outputRel('main', j.outputBase)),
+  ]
+}
+
+function render(rows: string[][]): string {
   return '\uFEFF' + [HEADER, ...rows].map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n'
+}
+
+function csvOf(jobs: Job[]): string {
+  return render(jobs.filter(hasInfo).map(rowOf))
 }
 
 /** 界面上按天导出 */
 export const csvForDay = (jobs: Job[], day: string) => csvOf(jobs.filter((j) => j.outputDay === day))
 
+type SavedRow = { id: string; createdAt: string; row: string[] }
+
 export const CSV_NAME = '识别信息.csv'
 
-/** 每批文件夹里放一份，只含这一批的图；主图文件路径相对这个文件夹 */
-export async function writeBatchCsv(outputDir: string, jobs: Job[], folder: string): Promise<void> {
-  await writeFileAtomic(path.join(batchDir(outputDir, folder), CSV_NAME), csvOf(jobs.filter((j) => j.outputFolder === folder)))
+/**
+ * 每批文件夹里放一份，只含这一批的图；主图文件路径相对这个文件夹。
+ * 「清除已完成」后新图还进同一个文件夹，所以已经移出队列的图的行记在 rowsFile 里，重写时保留。
+ */
+export async function writeBatchCsv(outputDir: string, jobs: Job[], folder: string, rowsFile?: string): Promise<void> {
+  const inFolder = jobs.filter((j) => j.outputFolder === folder)
+  const saved = new Map<string, SavedRow>()
+  for (const r of (rowsFile ? readJsonSync<SavedRow[]>(rowsFile) : null) ?? []) saved.set(r.id, r)
+  for (const j of inFolder) {
+    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j) })
+    else saved.delete(j.id)
+  }
+  const rows = [...saved.values()].sort((a, b) => (a.createdAt === b.createdAt ? (a.id < b.id ? -1 : 1) : a.createdAt < b.createdAt ? -1 : 1))
+  if (rowsFile) await writeFileAtomic(rowsFile, JSON.stringify(rows))
+  await writeFileAtomic(path.join(batchDir(outputDir, folder), CSV_NAME), render(rows.map((r) => r.row)))
 }

@@ -54,12 +54,36 @@ const recipe = computed(() => {
   }))
   const kind = OUT_KIND[step.value]!
   let out: { label: string; state: SlotState; img?: string | null; text?: string; white?: boolean; full?: string }
-  if (r.state === 'done') out = { label: '', state: 'image', img: jobs.fileUrl(j, kind), full: jobs.fileUrl(j, kind, false), white: true }
+  // 素材图没过验收、或提取完正在验收：素材图已经有了
+  const hasPattern = step.value === 1 && (j.attention?.kind === 'qc' || j.qc?.state === 'pending')
+  if (r.state === 'done' || hasPattern) out = { label: '', state: 'image', img: jobs.fileUrl(j, kind), full: jobs.fileUrl(j, kind, false), white: true }
   else if (r.state === 'running') out = { label: '生成中', state: 'run' }
   else if (r.state === 'failed') out = { label: '失败', state: 'err', text: '失败' }
   else out = { label: '等待', state: 'empty' }
   out.label = { 1: '素材图', 2: '主图', 4: '空白图' }[step.value] ?? out.label
-  return { slots, prefix: r.snapshot.prefix, prompt: r.snapshot.prompt, out }
+  if (r.snapshot.mode === 'local') {
+    const p = r.snapshot.params ?? {}
+    return { slots, prefix: `${r.snapshot.prompt}（${String(p.why ?? '')}）`, prompt: `${String(p.fit ?? '')}；${String(p.shape ?? '')}`, out, local: true }
+  }
+  return { slots, prefix: r.snapshot.prefix, prompt: r.snapshot.prompt, out, local: false }
+})
+
+const QC_STATE: Record<string, string> = { pending: '等待验收', pass: '验收合格', fail: '没过验收', bypassed: '没过验收，已选择仍然使用' }
+const qc = computed(() => (step.value === 1 ? (job.value?.qc ?? null) : null))
+const qcSlots = computed<RecipeSlot[]>(() => {
+  const j = job.value
+  const s = qc.value?.snapshot
+  if (!j || !s) return []
+  return s.images.map((im) => ({
+    key: 'qc' + im.no,
+    no: im.no,
+    role: im.role,
+    sub: '缩小后的 JPEG',
+    state: 'image' as const,
+    img: imgFor(j, im.role, im.sha256),
+    full: imgFor(j, im.role, im.sha256, false),
+    white: im.role !== '竞品图',
+  }))
 })
 
 // ---- 重做 ----
@@ -82,6 +106,17 @@ watch([() => ui.sheet?.jobId, step], () => {
   redoOpen.value = false
 })
 
+// 从「需处理」点「重新提取」进来时直接展开重做
+watch(
+  () => ui.sheet?.redo,
+  (r) => {
+    if (!r || !ui.sheet) return
+    ui.sheet.redo = false
+    if (job.value && canRedo.value) openRedo()
+  },
+  { flush: 'post' },
+)
+
 function openRedo() {
   redoText.value = prefill()
   redoPick.value = ''
@@ -100,6 +135,8 @@ async function confirmRedo() {
       body.categoryId = cid
       body.styleId = sid
     }
+  } else if (recipe.value?.local) {
+    // 本地合成没有提示词
   } else if (redoText.value.trim() && redoText.value !== prefill()) {
     body.prompt = redoText.value
   } else if (step.value === 4 && !redoText.value.trim() && !j.info?.blankItemsEn.length) {
@@ -188,12 +225,44 @@ async function openFolder() {
         <template v-else>
           <template v-if="recipe">
             <div class="muted small">以下就是这张图实际发出的内容，开始{{ STEP_NAMES[step] }}时已记录，之后修改模版库不会影响它。</div>
-            <RecipeCard :slots="recipe.slots" :prefix="recipe.prefix" :prompt="recipe.prompt" scope="这一张实际发送的内容" :out="recipe.out" prefix-label="前置句（系统自动加）：" />
+            <RecipeCard
+              :slots="recipe.slots"
+              :prefix="recipe.prefix"
+              :prompt="recipe.prompt"
+              :scope="recipe.local ? '本地合成，没有发送任何请求' : '这一张实际发送的内容'"
+              :out="recipe.out"
+              :prefix-label="recipe.local ? '贴图方式：' : '前置句（系统自动加）：'"
+            />
             <div v-if="rec!.attempts > 1" class="muted tiny">共尝试 {{ rec!.attempts }} 次</div>
           </template>
           <div v-else-if="rec!.state === 'skipped'" class="none">这张图没有需要留空的个人信息，不需要空白图</div>
           <div v-else-if="rec!.state === 'running'" class="none">处理中…</div>
           <div v-else class="none">等待前面的步骤完成</div>
+          <div v-if="qc" class="qcbox">
+            <div class="row">
+              <b style="font-weight: 500">素材图验收</b>
+              <span class="pill" :class="{ ac: qc.state === 'pass', rd: qc.state === 'fail', am: qc.state === 'bypassed' }">{{ QC_STATE[qc.state] }}</span>
+              <span v-if="qc.score !== null" class="muted small">图案相似分 {{ qc.score.toFixed(2) }}（阈值 {{ (qc.threshold ?? 0.8).toFixed(2) }}）</span>
+            </div>
+            <ul v-if="qc.reasons.length" class="small reasons">
+              <li v-for="r in qc.reasons" :key="r">{{ r }}</li>
+            </ul>
+            <dl v-if="qc.state !== 'pending'" class="kv">
+              <dt>竞品图文字</dt>
+              <dd>{{ qc.sourceTexts.join(' / ') || '（没有文字）' }}</dd>
+              <dt>素材图文字</dt>
+              <dd>{{ qc.patternTexts.join(' / ') || '（没有文字）' }}</dd>
+              <dt>元素问题</dt>
+              <dd>{{ qc.elementIssues.join('；') || '无' }}</dd>
+              <dt>版面</dt>
+              <dd>{{ qc.layout ? (qc.layout.issues.join('；') || '四边铺满，没有圆角、边框') + (qc.layout.note ? `（${qc.layout.note}）` : qc.layout.ratioChecked ? '，比例一致' : '') : '—' }}</dd>
+            </dl>
+            <details v-if="qc.snapshot">
+              <summary class="small">实际发送的验收请求和模型原始回复</summary>
+              <RecipeCard :slots="qcSlots" prefix="" :prompt="qc.snapshot.prompt" :scope="`分析模型 ${qc.snapshot.model}`" prefix-label="一次分析请求，两张图都缩小后发送" />
+              <pre v-if="qc.raw" class="raw">{{ qc.raw }}</pre>
+            </details>
+          </div>
         </template>
 
         <div v-if="canRedo" class="redo">
@@ -212,11 +281,12 @@ async function openFolder() {
                 </template>
               </select>
             </div>
+            <div v-else-if="recipe?.local" class="muted small">本地合成没有提示词可改，重做就是重新合成；想要 AI 版本，请在模版库的配方卡把贴图方式改成「AI 贴图」。</div>
             <textarea v-else v-model="redoText" rows="6" aria-label="本次使用的提示词" placeholder="留空则按原来的提示词重做"></textarea>
             <div class="row">
               <span class="muted small fill">只改这一张，不会改模版库{{ step < 4 ? '；之后的 ' + downstream + ' 会自动重跑' : '' }}</span>
               <button type="button" class="btn sm" @click="redoOpen = false">取消</button>
-              <button type="button" class="btn sm pri" :disabled="busy" @click="confirmRedo">确认重做</button>
+              <button type="button" class="btn sm pri" :disabled="busy" @click="confirmRedo">{{ recipe?.local ? '重新合成' : step === 1 ? '重新提取' : '确认重做' }}</button>
             </div>
           </template>
         </div>
@@ -228,3 +298,10 @@ async function openFolder() {
     </aside>
   </template>
 </template>
+
+<style scoped>
+.qcbox { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--hair); border-radius: 8px; }
+.qcbox .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.qcbox .reasons { margin: 6px 0; padding-left: 18px; color: var(--rd); }
+.qcbox .raw { white-space: pre-wrap; word-break: break-all; font-size: 12px; background: var(--sf); padding: 8px; border-radius: 6px; max-height: 240px; overflow: auto; }
+</style>

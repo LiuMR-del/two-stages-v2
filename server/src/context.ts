@@ -5,6 +5,7 @@ import type { Limiter } from './ai/limiter'
 import type { LibraryStore } from './library/store'
 import type { JobStore } from './store/jobs'
 import type { Scheduler } from './scheduler/scheduler'
+import type { BatchFolders } from './pipeline/output'
 
 export type AppContext = {
   version: string
@@ -15,6 +16,8 @@ export type AppContext = {
   library: LibraryStore
   jobs: JobStore
   scheduler: Scheduler
+  /** 当前批次的输出文件夹 */
+  batch: BatchFolders
   sse: { clients: number }
   onSettingsSaved: () => void
   /** 监听成功后调用：加载模版库、复位任务、开始调度 */

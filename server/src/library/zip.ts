@@ -1,5 +1,5 @@
 import { strToU8, strFromU8, unzipSync, zipSync, type Zippable } from 'fflate'
-import { LibrarySchema, migrateLibrary, referencedHashes, validateIntegrity, type Category, type Library } from './schema'
+import { LibrarySchema, migrateLibrary, referencedHashes, upgradeDefaults, validateIntegrity, type Category, type Library } from './schema'
 import { sha256, normalizeLibraryImage, type ImageStore } from './images'
 import type { LibraryStore } from './store'
 import { HttpError } from '../util/errors'
@@ -41,6 +41,7 @@ export async function parseZip(buf: Buffer): Promise<Parsed> {
     const i = r.error.issues[0]!
     throw new HttpError(400, `library.json 格式不对：${i.path.join('.')} ${i.message}`)
   }
+  upgradeDefaults(r.data)
   const integrity = validateIntegrity(r.data)
   if (integrity) throw new HttpError(400, `library.json 内容有问题：${integrity}`)
 
@@ -108,6 +109,7 @@ export async function importZip(store: LibraryStore, buf: Buffer, mode: 'merge' 
   const parsed = await parseZip(buf)
   await store.mutate(async (draft) => {
     for (const [h, img] of parsed.images) await store.images.addExact(h, img.ext, img.buffer)
+    draft.whiteChecks = { ...draft.whiteChecks, ...parsed.lib.whiteChecks }
     if (mode === 'replace') {
       store.backupCurrent()
       draft.defaults = parsed.lib.defaults

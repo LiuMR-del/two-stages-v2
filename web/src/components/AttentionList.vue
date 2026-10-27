@@ -24,6 +24,7 @@ function title(j: Job) {
   if (a.kind === 'nomatch') return '没找到对应品类'
   if (a.kind === 'nowhite') return '缺白底图'
   if (a.kind === 'refused') return '内容被拒'
+  if (a.kind === 'qc') return '素材图没过验收'
   return `${STEP_NAMES[a.step]}失败`
 }
 
@@ -43,6 +44,34 @@ async function createCategory(j: Job) {
 async function rerecognize(j: Job) {
   const r = await ui.act(() => jobs.redo(j.id, { step: 0 }))
   if (r) ui.toast('已重新识别')
+}
+
+async function changeCategory(j: Job) {
+  const v = picks[j.id]
+  if (!v) return ui.toast('先选一个品类', 'warn')
+  const [cid, sid] = v.split('|') as [string, string]
+  const r = await ui.act(() => jobs.redo(j.id, { step: 0, categoryId: cid, styleId: sid }))
+  if (r) ui.toast('已换品类，从提取素材重新开始')
+}
+
+async function acceptQc(j: Job) {
+  const r = await ui.act(() => jobs.acceptQc(j.id))
+  if (r) ui.toast('已跳过这次验收，接着生成主图')
+}
+
+function reExtract(j: Job) {
+  ui.sheet = { jobId: j.id, step: 1, redo: true }
+}
+
+function viewQc(j: Job, index: number) {
+  ui.view(
+    [
+      { src: jobs.fileUrl(j, 'source', false), label: '竞品图', step: 0 },
+      { src: jobs.fileUrl(j, 'pattern', false), label: '素材图', step: 1 },
+    ],
+    index,
+    { title: j.source.originalName, jobId: j.id },
+  )
 }
 
 async function retry(j: Job) {
@@ -72,7 +101,23 @@ function goUpload(j: Job) {
       </button>
       <div class="why">
         <b>{{ title(j) }}</b> <span class="muted small">{{ j.source.originalName }}</span>
-        <div class="muted small">{{ j.attention!.message }}</div>
+        <div v-if="j.attention!.kind !== 'qc' || !j.qc?.reasons.length" class="muted small">{{ j.attention!.message }}</div>
+        <div v-else class="qc">
+          <div class="cmp">
+            <button type="button" class="tile" aria-label="查看竞品图大图" @click="viewQc(j, 0)">
+              <ImageSlot state="image" :img="jobs.fileUrl(j, 'source')" :size="72" />
+              <span class="tiny muted">竞品图</span>
+            </button>
+            <button type="button" class="tile" aria-label="查看素材图大图" @click="viewQc(j, 1)">
+              <ImageSlot state="image" :img="jobs.fileUrl(j, 'pattern')" :size="72" white />
+              <span class="tiny muted">素材图</span>
+            </button>
+          </div>
+          <ul class="small">
+            <li v-for="r in j.qc!.reasons" :key="r">{{ r }}</li>
+          </ul>
+          <div v-if="j.qc!.score !== null" class="muted tiny">图案相似分 {{ j.qc!.score.toFixed(2) }}（低于 {{ (j.qc!.threshold ?? 0.8).toFixed(2) }} 不合格）</div>
+        </div>
       </div>
       <div class="fix">
         <template v-if="j.attention!.kind === 'nomatch'">
@@ -87,6 +132,17 @@ function goUpload(j: Job) {
           <button v-if="j.steps[0]!.state !== 'pending'" type="button" class="btn sm" @click="rerecognize(j)">重新识别</button>
         </template>
         <button v-else-if="j.attention!.kind === 'nowhite'" type="button" class="btn sm pri" @click="goUpload(j)">去上传白底图</button>
+        <template v-else-if="j.attention!.kind === 'qc'">
+          <button type="button" class="btn sm pri" @click="reExtract(j)">重新提取</button>
+          <button type="button" class="btn sm" @click="acceptQc(j)">仍然使用</button>
+          <select :value="picks[j.id] ?? ''" aria-label="换品类" @change="picks[j.id] = ($event.target as HTMLSelectElement).value">
+            <option value="">换品类…</option>
+            <template v-for="c in lib.categories" :key="c.id">
+              <option v-for="s in c.styles" :key="s.id" :value="`${c.id}|${s.id}`">{{ c.name }}{{ s.name ? ' · ' + s.name : '' }}</option>
+            </template>
+          </select>
+          <button type="button" class="btn sm" :disabled="!picks[j.id]" @click="changeCategory(j)">换品类</button>
+        </template>
         <template v-else>
           <button type="button" class="btn sm pri" @click="retry(j)">重试</button>
           <button type="button" class="btn sm" @click="ui.sheet = { jobId: j.id, step: j.attention!.step }">查看详情</button>
@@ -96,3 +152,11 @@ function goUpload(j: Job) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.qc { margin-top: 6px; }
+.qc .cmp { display: flex; gap: 10px; }
+.qc .cmp .tile { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.qc ul { margin: 6px 0 2px; padding-left: 18px; color: var(--rd); }
+.qc li { word-break: break-word; }
+</style>

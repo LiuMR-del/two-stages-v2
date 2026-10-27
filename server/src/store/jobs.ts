@@ -18,6 +18,8 @@ const SnapshotSchema = z.object({
   model: z.string(),
   size: z.string().optional(),
   params: z.record(z.string(), z.unknown()).optional(),
+  /** local = 本地合成，没有调用 AI */
+  mode: z.enum(['ai', 'local']).optional(),
 })
 export type StepSnapshot = z.infer<typeof SnapshotSchema>
 
@@ -38,7 +40,30 @@ const PlanMainSchema = z.object({
   prompt: z.string(),
   image: z.object({ role: z.enum(['白底图', '参考图']), hash: z.string() }).nullable(),
   canvasRatio: z.string().nullable().optional(),
+  /** 默认模版的贴图方式（款式上的设置）；旧任务没有，按 AI 贴图 */
+  pasteMode: z.enum(['auto', 'local', 'ai']).optional(),
 })
+
+/** 第②步里的素材图验收结果 */
+const QcSchema = z.object({
+  /** pending = 素材图已提取、等验收 */
+  state: z.enum(['pending', 'pass', 'fail', 'bypassed']),
+  at: z.string().optional(),
+  threshold: z.number().optional(),
+  score: z.number().nullable().default(null),
+  sourceTexts: z.array(z.string()).default([]),
+  patternTexts: z.array(z.string()).default([]),
+  textOk: z.boolean().nullable().default(null),
+  textDiffs: z.array(z.string()).default([]),
+  elementIssues: z.array(z.string()).default([]),
+  layout: z.object({ ok: z.boolean(), issues: z.array(z.string()), ratioChecked: z.boolean(), note: z.string().nullable() }).nullable().default(null),
+  /** 不合格的原因，按 文字 → 元素 → 版面 */
+  reasons: z.array(z.string()).default([]),
+  snapshot: SnapshotSchema.optional(),
+  /** 模型原始回复 */
+  raw: z.string().optional(),
+})
+export type Qc = z.infer<typeof QcSchema>
 
 export const JobSchema = z.object({
   id: z.string(),
@@ -74,7 +99,7 @@ export const JobSchema = z.object({
     .nullable(),
   attention: z
     .object({
-      kind: z.enum(['nomatch', 'nowhite', 'failed', 'refused']),
+      kind: z.enum(['nomatch', 'nowhite', 'failed', 'refused', 'qc']),
       step: z.number().int().min(0).max(4),
       message: z.string(),
       guess: z.string().optional(),
@@ -82,6 +107,7 @@ export const JobSchema = z.object({
     })
     .nullable(),
   override: z.object({ step: z.number().int(), prompt: z.string() }).nullable(),
+  qc: QcSchema.nullable().default(null),
 })
 export type Job = z.infer<typeof JobSchema>
 export type Route = NonNullable<Job['route']>
@@ -143,6 +169,7 @@ export function markSkipped(job: Job, i: number): void {
 /** 第 n 步及之后全部回到 pending 并清空产出；调用前必须先中止正在运行的步骤 */
 export function resetFrom(job: Job, n: number): void {
   if (job.steps.some((s, i) => i >= n && s.state === 'running')) throw new TransitionError('有步骤正在运行，要先中止才能重置')
+  if (n <= 1) job.qc = null
   for (let i = n; i < STEP_COUNT; i++) {
     const s = job.steps[i]!
     if (s.state !== 'pending') transition(job, i, 'pending')
@@ -179,7 +206,7 @@ export type JobView = { phase: 'queued' | 'running' | 'attention' | 'done'; runn
 export function viewOf(job: Job): JobView {
   const r = runningStep(job)
   if (job.attention) return { phase: 'attention', runningStep: r >= 0 ? r : null, label: '需处理' }
-  if (r >= 0) return { phase: 'running', runningStep: r, label: r === 4 ? '生成空白图中' : `${STEP_NAMES[r]}中` }
+  if (r >= 0) return { phase: 'running', runningStep: r, label: r === 4 ? '生成空白图中' : r === 1 && job.qc?.state === 'pending' ? '验收素材中' : `${STEP_NAMES[r]}中` }
   if (currentStep(job) === -1) return { phase: 'done', runningStep: null, label: '完成' }
   return { phase: 'queued', runningStep: null, label: '排队中' }
 }

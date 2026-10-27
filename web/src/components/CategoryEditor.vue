@@ -6,7 +6,7 @@ import { activeTemplateName, useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import AutoText from './AutoText.vue'
 import RecipeCard, { type RecipeSlot } from './RecipeCard.vue'
-import type { Category, ExtractRecipe, Recipe, Style } from '../types'
+import type { Category, ExtractRecipe, PasteMode, Recipe, Style } from '../types'
 
 const lib = useLibrary()
 const ui = useUi()
@@ -68,6 +68,11 @@ const saveStyleRatio = (sid: string) => saver((v) => api.patch(`${base.value}/st
 const saveTplName = (tid: string) => saver((v) => api.patch(tplPath(tid), { name: v }))
 const saveTplCanvas = (tid: string) => saver((v) => api.patch(tplPath(tid), { canvasRatio: v.trim() || null }))
 const saveExtract = saver((v) => api.patch(base.value, { extractPrompt: v }))
+
+const PASTE_LABEL = { local: '本地合成', ai: 'AI 贴图' } as const
+async function savePaste(mode: PasteMode) {
+  await ui.act(() => lib.mutate(() => api.patch(sbase.value, { pasteMode: mode })))
+}
 
 async function deleteCategory() {
   if (!confirmDelete.value) {
@@ -351,6 +356,20 @@ function coverageOf(s: Style): { dot: string; text: string } {
           @upload="upload"
           @remove="remove"
         />
+        <div v-if="tplId === 'default' && recipe?.paste" class="paste">
+          <span class="muted small">贴图方式</span>
+          <select :value="style.pasteMode" aria-label="贴图方式" @change="savePaste(($event.target as HTMLSelectElement).value as PasteMode)">
+            <option value="auto">自动判断{{ recipe.paste.auto ? `（${PASTE_LABEL[recipe.paste.auto.mode]}）` : '' }}</option>
+            <option value="local">本地合成（不调用 AI）</option>
+            <option value="ai">AI 贴图</option>
+          </select>
+          <span class="pill" :class="{ ac: recipe.paste.mode === 'local' }">现在用：{{ PASTE_LABEL[recipe.paste.mode] }}</span>
+          <span class="muted tiny" style="flex-basis: 100%">
+            自动判断：{{ recipe.paste.auto ? `${PASTE_LABEL[recipe.paste.auto.mode]}，${recipe.paste.auto.reason}` : '上传白底图后判断' }}。{{
+              recipe.paste.mode === 'local' ? '本地合成直接把素材图覆盖到白底图的产品上，不发送上面的提示词，也不花额度。' : ''
+            }}
+          </span>
+        </div>
         <div class="cov">
           <span class="muted small">各款式检查：</span>
           <button v-for="s in cat.styles" :key="s.id" type="button" :aria-pressed="style.id === s.id" @click="ui.libStyle = s.id">
@@ -386,5 +405,6 @@ function coverageOf(s: Style): { dot: string; text: string } {
 </template>
 
 <style scoped>
+.paste { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
 .est { background: var(--ac-soft); border-radius: 8px; padding: 8px 10px; color: var(--tx); }
 </style>

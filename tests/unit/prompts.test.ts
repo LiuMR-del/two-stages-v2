@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { fillPlaceholders } from '../../server/src/prompts/placeholders'
 import { maxImageRef, refWarning } from '../../server/src/prompts/refcheck'
-import { buildMainRequest, mainPlanFor, type PlanMain } from '../../server/src/prompts/main'
-import { buildExtractRequest, extractPromptFor } from '../../server/src/prompts/extract'
+import { buildMainRequest, mainPlanFor, PASTE_CONSTRAINT, type PlanMain } from '../../server/src/prompts/main'
+import { buildExtractRequest, EXTRACT_CONSTRAINT, extractPromptFor } from '../../server/src/prompts/extract'
 import { initialLibrary, type Library } from '../../server/src/library/schema'
 import { computeChecks } from '../../server/src/library/checks'
 
@@ -45,14 +45,14 @@ function sampleLib(): Library {
     {
       id: 'c_frame', name: '相框', hint: '', extractPrompt: null,
       styles: [
-        { id: 's_h', name: '横版', ratio: '3:2', whiteImage: H1, activeTemplate: 'default', templates: [room(H2)] },
-        { id: 's_v', name: '竖版', ratio: '2:3', whiteImage: null, activeTemplate: 'default', templates: [room(null)] },
+        { id: 's_h', name: '横版', ratio: '3:2', whiteImage: H1, activeTemplate: 'default', templates: [room(H2)], pasteMode: 'auto' },
+        { id: 's_v', name: '竖版', ratio: '2:3', whiteImage: null, activeTemplate: 'default', templates: [room(null)], pasteMode: 'auto' },
       ],
     },
     {
       id: 'c_mug', name: '杯子', hint: '', extractPrompt: '只提取{品类}杯身图案，比例 {比例}',
       styles: [
-        { id: 's_m', name: '', ratio: '1:1', whiteImage: null, activeTemplate: 't_x', templates: [{ id: 't_x', name: '无图模版', prompt: '把第二张图片印到杯子上', image: null, canvasRatio: null }] },
+        { id: 's_m', name: '', ratio: '1:1', whiteImage: null, activeTemplate: 't_x', templates: [{ id: 't_x', name: '无图模版', prompt: '把第二张图片印到杯子上', image: null, canvasRatio: null }], pasteMode: 'auto' },
       ],
     },
   )
@@ -72,7 +72,7 @@ describe('buildMainRequest', () => {
       [1, '白底图', H1],
       [2, '素材图', null],
     ])
-    expect(r.prefix).toBe('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n')
+    expect(r.prefix).toBe('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n' + PASTE_CONSTRAINT + '\n')
     expect(r.size).toBe('1536x1024')
     expect(r.prompt).toBe(lib.defaults.pastePrompt)
   })
@@ -122,11 +122,13 @@ describe('buildMainRequest', () => {
     expect(mainPlanFor(lib, cat, cat.styles[1]!).missingWhite).toBe(true)
   })
 
-  it('前置句里没有铺满画布的措辞', async () => {
+  it('贴图约束只加在默认模版上（2026-10-27）；自定义模版的前置句和提示词不动', async () => {
     const lib = sampleLib()
     const cat = lib.categories[0]!
-    const r = await buildMainRequest(mainPlanFor(lib, cat, cat.styles[0]!).main, '3:2', dims)
-    expect(r.prefix + r.prompt).not.toMatch(/fill the canvas|edge to edge|铺满画布/i)
+    const def = await buildMainRequest(mainPlanFor(lib, cat, cat.styles[0]!).main, '3:2', dims)
+    expect(def.prefix).toContain('like an opaque sticker laid over the whole face')
+    const custom = await buildMainRequest(mainPlanFor(lib, cat, cat.styles[0]!, 't_room').main, '3:2', dims)
+    expect(custom.prefix + custom.prompt).not.toMatch(/sticker|fill the canvas|edge to edge|铺满画布/i)
   })
 })
 
@@ -138,8 +140,10 @@ describe('提取请求', () => {
     const frame = lib.categories[0]!
     expect(extractPromptFor(lib, frame, frame.styles[1]!)).toContain('这是一张相框商品图')
     const r = buildExtractRequest('x', '2:3')
-    expect(r.prefix).toBe('[Canvas: 2:3 portrait format] 第一张图片是竞品商品图。\n')
+    expect(r.prefix).toBe('[Canvas: 2:3 portrait format] 第一张图片是竞品商品图。\n' + EXTRACT_CONSTRAINT + '\n')
     expect(r.size).toBe('1024x1536')
+    // 意思不能少：铺满、不带产品边框圆角、不重画、比例差一点补背景不裁文字
+    for (const k of ['edge to edge', 'rounded corners', 'Do not rearrange, redraw', 'never crop, squeeze or drop any text']) expect(EXTRACT_CONSTRAINT).toContain(k)
   })
 })
 

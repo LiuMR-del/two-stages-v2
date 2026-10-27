@@ -15,6 +15,7 @@ import { labelOf } from '../prompts/placeholders'
 import { chatJson } from '../ai/chatClient'
 import { AiError, ERROR_LABEL } from '../ai/errors'
 import { readSize, shrinkForAnalysis } from '../image/process'
+import { detectWhiteShape } from '../image/whiteShape'
 
 export const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 }, defParamCharset: 'utf8' })
 
@@ -88,7 +89,10 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
   })
 
   r.patch('/library/categories/:cid/styles/:sid', async (req, res) => {
-    const b = parseBody(z.object({ name: z.string().optional(), ratio: z.string().optional(), activeTemplate: z.string().optional() }), req.body)
+    const b = parseBody(
+      z.object({ name: z.string().optional(), ratio: z.string().optional(), activeTemplate: z.string().optional(), pasteMode: z.enum(['auto', 'local', 'ai']).optional() }),
+      req.body,
+    )
     await store.mutate((d) => ops.patchStyle(d, p(req, 'cid'), p(req, 'sid'), b))
     res.json(libraryPayload(ctx))
   })
@@ -100,7 +104,9 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
 
   r.put('/library/categories/:cid/styles/:sid/white', upload.single('file'), async (req, res) => {
     const buf = fileOf(req)
-    await store.mutate(async (d) => ops.setWhite(d, p(req, 'cid'), p(req, 'sid'), await addImage(buf)))
+    const hash = await addImage(buf)
+    const shape = await detectWhiteShape((await store.images.read(hash)).buffer)
+    await store.mutate((d) => ops.setWhite(d, p(req, 'cid'), p(req, 'sid'), hash, shape))
     res.json(libraryPayload(ctx))
   })
 
@@ -176,7 +182,7 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
 
   r.get('/library/recipe', async (req, res) => {
     const q = parseBody(z.object({ cid: z.string(), sid: z.string(), tid: z.string().optional() }), req.query)
-    res.json(await recipeFor(store.get(), store.images, q.cid, q.sid, q.tid))
+    res.json(await recipeFor(store, q.cid, q.sid, q.tid))
   })
 
   r.get('/library/extract-recipe', (req, res) => {

@@ -5,7 +5,8 @@ import express from 'express'
 import type { AppContext } from './context'
 import { ensureDirs, type Paths } from './paths'
 import { Bus } from './events/bus'
-import { SettingsStore } from './store/settings'
+import { resolveOutputDir, SettingsStore } from './store/settings'
+import { BatchFolders } from './pipeline/output'
 import { Limiter } from './ai/limiter'
 import { registerSettings } from './api/settings'
 import { registerMisc } from './api/misc'
@@ -41,7 +42,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
   const jobs = new JobStore(paths.jobsDir, (job) => bus.emit('job', { job: withView(job) }))
   let scheduler: Scheduler | null = null
   const limiter = new Limiter(() => scheduler?.tick())
-  scheduler = new Scheduler({ jobs, library, settings, limiter, bus, stateFile: path.join(paths.dataDir, 'queue.json') })
+  scheduler = new Scheduler({ jobs, library, settings, limiter, bus, stateFile: path.join(paths.dataDir, 'queue.json'), csvRowsDir: path.join(paths.dataDir, 'batches') })
   const sched = scheduler
   library.onChange(() => sched.onLibraryChanged())
   const ctx: AppContext = {
@@ -53,6 +54,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     library,
     jobs,
     scheduler: sched,
+    batch: new BatchFolders(path.join(paths.dataDir, 'batch.json'), () => resolveOutputDir(settings.get())),
     sse: { clients: 0 },
     onSettingsSaved: () => {},
     start: async () => {
