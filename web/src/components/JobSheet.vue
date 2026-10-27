@@ -68,6 +68,16 @@ const recipe = computed(() => {
   return { slots, prefix: r.snapshot.prefix, prompt: r.snapshot.prompt, out, local: false }
 })
 
+function colorText(q: NonNullable<Job['qc']>): string {
+  const c = q.color
+  if (!c) return '—'
+  if (!c.checked) return c.note ?? '没检查'
+  const s = c.shift!
+  const sign = (v: number) => (v > 0 ? '+' : '') + v
+  const head = c.issues.length ? c.issues.join('；') : `和竞品图一致（ΔE ${c.deltaE}，分块 ${c.gridDeltaE}，阈值 ${c.threshold ?? 5}，分块 ×2）`
+  return `${head}；素材图比竞品图：亮度 ${sign(s.L)}、红绿 ${sign(s.a)}、黄蓝 ${sign(s.b)}、鲜艳度 ${sign(s.C)}`
+}
+
 const QC_STATE: Record<string, string> = { pending: '等待验收', pass: '验收合格', fail: '没过验收', bypassed: '没过验收，已选择仍然使用' }
 const qc = computed(() => (step.value === 1 ? (job.value?.qc ?? null) : null))
 const qcSlots = computed<RecipeSlot[]>(() => {
@@ -254,6 +264,8 @@ async function openFolder() {
               <dd>{{ qc.patternTexts.join(' / ') || '（没有文字）' }}</dd>
               <dt>元素问题</dt>
               <dd>{{ qc.elementIssues.join('；') || '无' }}</dd>
+              <dt>颜色</dt>
+              <dd>{{ colorText(qc) }}</dd>
               <dt>版面</dt>
               <dd>{{ qc.layout ? (qc.layout.issues.join('；') || '四边铺满，没有圆角、边框') + (qc.layout.note ? `（${qc.layout.note}）` : qc.layout.ratioChecked ? '，比例一致' : '') : '—' }}</dd>
             </dl>

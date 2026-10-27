@@ -63,6 +63,8 @@ describe('e2e 13：素材图验收', () => {
     expect(r.status).toBe(200)
     const done = await waitJob(api, a.id, isDone)
     expect(done.qc.state).toBe('pass')
+    expect(done.qc.color).toMatchObject({ checked: true, threshold: 5 })
+    expect(done.qc.color.deltaE).toBeLessThan(2)
     expect(extracts(w)).toHaveLength(2)
     expect(extracts(w)[1]!.prompt).toContain('星星和雪花球一个都不能少')
     expect(qcRequests(w)).toHaveLength(2)

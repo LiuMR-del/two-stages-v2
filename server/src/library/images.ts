@@ -15,9 +15,16 @@ const MIME_BY_EXT: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg
 
 export class UnsupportedImageError extends Error {}
 
+/** ICC 配置文件的描述里带 sRGB（ASCII 或 UTF-16）就当作 sRGB */
+export function isSrgbProfile(icc: Buffer): boolean {
+  return icc.toString('latin1').includes('sRGB') || icc.includes(Buffer.from('\0s\0R\0G\0B', 'latin1'))
+}
+
 /**
  * 只接收 PNG / JPG / WebP。带 EXIF 旋转的 JPG 先转正再存，
  * 否则按像素算出的画布比例和模型实际看到的方向可能不一致。
+ * 带非 sRGB 色彩配置的图（如截屏带的显示器配置）转成 sRGB 再存：模型不认配置，
+ * 不转的话模型看到的颜色和电脑上看到的不一样，生成的图就有色差。
  */
 export async function normalizeLibraryImage(buf: Buffer): Promise<{ buffer: Buffer; ext: string; mime: string }> {
   const type = sniffImageType(buf)
@@ -30,8 +37,10 @@ export async function normalizeLibraryImage(buf: Buffer): Promise<{ buffer: Buff
   }
   if (!meta.width || !meta.height) throw new UnsupportedImageError('图片无法解码，可能已损坏')
   let out = buf
-  if (meta.orientation && meta.orientation !== 1) {
-    const s = sharp(buf).rotate()
+  const foreignProfile = !!meta.icc && !isSrgbProfile(meta.icc)
+  if ((meta.orientation && meta.orientation !== 1) || foreignProfile) {
+    // sharp 默认按图里的配置文件把像素转成 sRGB 并去掉配置文件
+    const s = sharp(buf).rotate().toColourspace('srgb')
     out = await (type === 'png' ? s.png() : type === 'webp' ? s.webp({ quality: 95 }) : s.jpeg({ quality: 95 })).toBuffer()
   }
   return { buffer: out, ext: EXT_OF[type], mime: MIME_OF[type] }

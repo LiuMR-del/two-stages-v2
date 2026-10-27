@@ -66,7 +66,7 @@ function parseSize(size: string | undefined): [number, number] {
 }
 
 /** 默认验收合格 */
-const DEFAULT_QC = { source_texts: ['HAPPY FAMILY'], pattern_texts: ['Happy Family'], element_score: 0.95, element_issues: [] }
+const DEFAULT_QC = { source_texts: ['HAPPY FAMILY'], pattern_texts: ['Happy Family'], print_box: [0, 0, 1, 1], element_score: 0.95, element_issues: [] }
 
 const DEFAULT_INFO = {
   scene: '温馨客厅里挂着的定制相框，适合节日送礼',
@@ -166,7 +166,20 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       return
     }
     const [w, h] = parseSize(fields.size)
-    const png = await sharp({ create: { width: w, height: h, channels: 3, background: colorFor((fields.prompt ?? '') + images.map((i) => i.sha256).join()) } }).png().toBuffer()
+    const key = (fields.prompt ?? '') + images.map((i) => i.sha256).join()
+    let background = colorFor(key)
+    // 提取素材图：颜色跟竞品图一样（只按提示词微调 ±2），默认能过素材图验收的色差检查
+    if ((fields.prompt ?? '').includes('竞品商品图') && files[0]) {
+      try {
+        const st = await sharp(files[0].buffer).stats()
+        const jitter = (createHash('sha256').update(key).digest()[0]! % 5) - 2
+        const ch = (i: number) => Math.max(0, Math.min(255, Math.round(st.channels[i]!.mean) + jitter))
+        background = { r: ch(0), g: ch(1), b: ch(2) }
+      } catch {
+        // 竞品图读不了就用默认颜色
+      }
+    }
+    const png = await sharp({ create: { width: w, height: h, channels: 3, background } }).png().toBuffer()
     const format = behavior === 'url' || behavior === 'binary' || behavior === 'b64' ? behavior : (b.format ?? 'b64')
     if (format === 'binary') {
       res.type('image/png').send(png)

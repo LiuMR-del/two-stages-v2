@@ -57,6 +57,8 @@ export const SettingsSchema = z.object({
   patternQc: z.boolean().default(true),
   /** 图案元素相似分低于这个值不合格 */
   patternQcThreshold: z.number().min(0).max(1).default(0.8),
+  /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
+  patternQcDeltaE: z.number().min(1).max(100).default(5),
 })
 
 export type Settings = z.infer<typeof SettingsSchema>
@@ -72,6 +74,7 @@ export const SettingsPatchSchema = z.object({
   blankImage: z.boolean().optional(),
   patternQc: z.boolean().optional(),
   patternQcThreshold: z.number().min(0).max(1).optional(),
+  patternQcDeltaE: z.number().min(1).max(100).optional(),
 })
 export type SettingsPatch = z.infer<typeof SettingsPatchSchema>
 
@@ -137,6 +140,7 @@ export class SettingsStore {
           blankImage: patch.blankImage,
           patternQc: patch.patternQc,
           patternQcThreshold: patch.patternQcThreshold,
+          patternQcDeltaE: patch.patternQcDeltaE,
         }),
         image,
         analysis,

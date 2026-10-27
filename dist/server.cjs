@@ -16128,11 +16128,11 @@ var require_object_inspect = __commonJS({
     function toStr(obj) {
       return objectToString.call(obj);
     }
-    function nameOf(f) {
-      if (f.name) {
-        return f.name;
+    function nameOf(f2) {
+      if (f2.name) {
+        return f2.name;
       }
-      var m = $match.call(functionToString.call(f), /^function\s*([\w$]+)/);
+      var m = $match.call(functionToString.call(f2), /^function\s*([\w$]+)/);
       if (m) {
         return m[1];
       }
@@ -20119,25 +20119,25 @@ var require_once = __commonJS({
       });
     });
     function once(fn) {
-      var f = function() {
-        if (f.called) return f.value;
-        f.called = true;
-        return f.value = fn.apply(this, arguments);
+      var f2 = function() {
+        if (f2.called) return f2.value;
+        f2.called = true;
+        return f2.value = fn.apply(this, arguments);
       };
-      f.called = false;
-      return f;
+      f2.called = false;
+      return f2;
     }
     function onceStrict(fn) {
-      var f = function() {
-        if (f.called)
-          throw new Error(f.onceError);
-        f.called = true;
-        return f.value = fn.apply(this, arguments);
+      var f2 = function() {
+        if (f2.called)
+          throw new Error(f2.onceError);
+        f2.called = true;
+        return f2.value = fn.apply(this, arguments);
       };
       var name = fn.name || "Function wrapped with `once`";
-      f.onceError = name + " shouldn't be called more than once";
-      f.called = false;
-      return f;
+      f2.onceError = name + " shouldn't be called more than once";
+      f2.called = false;
+      return f2;
     }
   }
 });
@@ -36954,11 +36954,11 @@ var require_make_middleware = __commonJS({
             function remove(file2, cb) {
               storage._removeFile(req, file2, cb);
             }
-            var pendingToRemove = pendingFiles.filter(function(f) {
-              return f.path;
+            var pendingToRemove = pendingFiles.filter(function(f2) {
+              return f2.path;
             });
-            pendingToRemove.forEach(function(f) {
-              abortRemovedFiles.add(f);
+            pendingToRemove.forEach(function(f2) {
+              abortRemovedFiles.add(f2);
             });
             var filesToRemove = uploadedFiles.concat(pendingToRemove);
             pendingFiles = [];
@@ -41714,7 +41714,7 @@ function handleIntersectionResults(result, left, right) {
     if (!collect(iss, "r"))
       result.issues.push(iss);
   }
-  const bothKeys = [...unrecKeys].filter(([, f]) => f.l && f.r).map(([k]) => k);
+  const bothKeys = [...unrecKeys].filter(([, f2]) => f2.l && f2.r).map(([k]) => k);
   if (bothKeys.length) {
     const aggregated = unrecIssue ? bothKeys.filter((k) => unrecIssue.keys.includes(k)) : [];
     if (aggregated.length)
@@ -50593,8 +50593,8 @@ var $ZodRegistry = class {
     if (p) {
       const pm = { ...this.get(p) ?? {} };
       delete pm.id;
-      const f = { ...pm, ...this._map.get(schema) };
-      return Object.keys(f).length ? f : void 0;
+      const f2 = { ...pm, ...this._map.get(schema) };
+      return Object.keys(f2).length ? f2 : void 0;
     }
     return this._map.get(schema);
   }
@@ -57450,7 +57450,9 @@ var SettingsSchema = external_exports.object({
   /** 素材图提取后和竞品图对比验收；关着时不发验收请求 */
   patternQc: external_exports.boolean().default(true),
   /** 图案元素相似分低于这个值不合格 */
-  patternQcThreshold: external_exports.number().min(0).max(1).default(0.8)
+  patternQcThreshold: external_exports.number().min(0).max(1).default(0.8),
+  /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
+  patternQcDeltaE: external_exports.number().min(1).max(100).default(5)
 });
 var SettingsPatchSchema = external_exports.object({
   image: external_exports.object(imageFields).partial().optional(),
@@ -57460,7 +57462,8 @@ var SettingsPatchSchema = external_exports.object({
   padSquare: external_exports.boolean().optional(),
   blankImage: external_exports.boolean().optional(),
   patternQc: external_exports.boolean().optional(),
-  patternQcThreshold: external_exports.number().min(0).max(1).optional()
+  patternQcThreshold: external_exports.number().min(0).max(1).optional(),
+  patternQcDeltaE: external_exports.number().min(1).max(100).optional()
 });
 function normalizeBaseUrl(u) {
   return u.trim().replace(/\/+$/, "");
@@ -57517,7 +57520,8 @@ var SettingsStore = class {
           padSquare: patch.padSquare,
           blankImage: patch.blankImage,
           patternQc: patch.patternQc,
-          patternQcThreshold: patch.patternQcThreshold
+          patternQcThreshold: patch.patternQcThreshold,
+          patternQcDeltaE: patch.patternQcDeltaE
         }),
         image,
         analysis
@@ -58496,6 +58500,9 @@ var EXTS = ["png", "jpg", "webp"];
 var MIME_BY_EXT = { png: "image/png", jpg: "image/jpeg", webp: "image/webp" };
 var UnsupportedImageError = class extends Error {
 };
+function isSrgbProfile(icc) {
+  return icc.toString("latin1").includes("sRGB") || icc.includes(Buffer.from("\0s\0R\0G\0B", "latin1"));
+}
 async function normalizeLibraryImage(buf) {
   const type = sniffImageType(buf);
   if (!type) throw new UnsupportedImageError("\u53EA\u652F\u6301 PNG\u3001JPG\u3001WebP \u683C\u5F0F\u7684\u56FE\u7247");
@@ -58507,8 +58514,9 @@ async function normalizeLibraryImage(buf) {
   }
   if (!meta3.width || !meta3.height) throw new UnsupportedImageError("\u56FE\u7247\u65E0\u6CD5\u89E3\u7801\uFF0C\u53EF\u80FD\u5DF2\u635F\u574F");
   let out = buf;
-  if (meta3.orientation && meta3.orientation !== 1) {
-    const s = (0, import_sharp2.default)(buf).rotate();
+  const foreignProfile = !!meta3.icc && !isSrgbProfile(meta3.icc);
+  if (meta3.orientation && meta3.orientation !== 1 || foreignProfile) {
+    const s = (0, import_sharp2.default)(buf).rotate().toColourspace("srgb");
     out = await (type === "png" ? s.png() : type === "webp" ? s.webp({ quality: 95 }) : s.jpeg({ quality: 95 })).toBuffer();
   }
   return { buffer: out, ext: EXT_OF[type], mime: MIME_OF[type] };
@@ -58547,16 +58555,16 @@ var ImageStore = class {
     return this.find(hash2) !== null;
   }
   async read(hash2) {
-    const f = this.find(hash2);
-    if (!f) throw new Error(`\u6A21\u7248\u5E93\u91CC\u627E\u4E0D\u5230\u56FE\u7247 ${hash2.slice(0, 8)}`);
-    return { buffer: await import_promises2.default.readFile(f.file), ext: f.ext, mime: f.mime };
+    const f2 = this.find(hash2);
+    if (!f2) throw new Error(`\u6A21\u7248\u5E93\u91CC\u627E\u4E0D\u5230\u56FE\u7247 ${hash2.slice(0, 8)}`);
+    return { buffer: await import_promises2.default.readFile(f2.file), ext: f2.ext, mime: f2.mime };
   }
   async thumbFile(hash2) {
     const t = import_node_path7.default.join(this.thumbsDir, `${hash2}.webp`);
     if (import_node_fs6.default.existsSync(t)) return t;
-    const f = this.find(hash2);
-    if (!f) return null;
-    await this.ensureThumb(hash2, await import_promises2.default.readFile(f.file));
+    const f2 = this.find(hash2);
+    if (!f2) return null;
+    await this.ensureThumb(hash2, await import_promises2.default.readFile(f2.file));
     return t;
   }
   async dims(hash2) {
@@ -58906,9 +58914,9 @@ var LibraryStore = class {
     import_node_fs7.default.mkdirSync(this.p.backupsDir, { recursive: true });
     const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
     import_node_fs7.default.copyFileSync(this.p.file, import_node_path8.default.join(this.p.backupsDir, `library-${stamp}.json`));
-    const files = import_node_fs7.default.readdirSync(this.p.backupsDir).filter((f) => /^library-.*\.json$/.test(f)).sort();
-    for (const f of files.slice(0, Math.max(0, files.length - MAX_BACKUPS))) {
-      import_node_fs7.default.rmSync(import_node_path8.default.join(this.p.backupsDir, f), { force: true });
+    const files = import_node_fs7.default.readdirSync(this.p.backupsDir).filter((f2) => /^library-.*\.json$/.test(f2)).sort();
+    for (const f2 of files.slice(0, Math.max(0, files.length - MAX_BACKUPS))) {
+      import_node_fs7.default.rmSync(import_node_path8.default.join(this.p.backupsDir, f2), { force: true });
     }
   }
 };
@@ -60078,29 +60086,29 @@ var exfl = function(ex) {
   }
   return le;
 };
-var wzh = function(d, b, f, fn, u, c, ce, co) {
-  var fl2 = fn.length, ex = f.extra, col = co && co.length;
+var wzh = function(d, b, f2, fn, u, c, ce, co) {
+  var fl2 = fn.length, ex = f2.extra, col = co && co.length;
   var exl = exfl(ex);
   wbytes(d, b, ce != null ? 33639248 : 67324752), b += 4;
   if (ce != null)
-    d[b++] = 20, d[b++] = f.os;
+    d[b++] = 20, d[b++] = f2.os;
   d[b] = 20, b += 2;
-  d[b++] = f.flag << 1 | (c < 0 && 8), d[b++] = u && 8;
-  d[b++] = f.compression & 255, d[b++] = f.compression >> 8;
-  var dt = new Date(f.mtime == null ? Date.now() : f.mtime), y = dt.getFullYear() - 1980;
+  d[b++] = f2.flag << 1 | (c < 0 && 8), d[b++] = u && 8;
+  d[b++] = f2.compression & 255, d[b++] = f2.compression >> 8;
+  var dt = new Date(f2.mtime == null ? Date.now() : f2.mtime), y = dt.getFullYear() - 1980;
   if (y < 0 || y > 119)
     err(10);
   wbytes(d, b, y << 25 | dt.getMonth() + 1 << 21 | dt.getDate() << 16 | dt.getHours() << 11 | dt.getMinutes() << 5 | dt.getSeconds() >> 1), b += 4;
   if (c != -1) {
-    wbytes(d, b, f.crc);
+    wbytes(d, b, f2.crc);
     wbytes(d, b + 4, c < 0 ? -c - 2 : c);
-    wbytes(d, b + 8, f.size);
+    wbytes(d, b + 8, f2.size);
   }
   wbytes(d, b + 12, fl2);
   wbytes(d, b + 14, exl), b += 16;
   if (ce != null) {
     wbytes(d, b, col);
-    wbytes(d, b + 6, f.attrs);
+    wbytes(d, b + 6, f2.attrs);
     wbytes(d, b + 10, ce), b += 14;
   }
   d.set(fn, b);
@@ -60135,7 +60143,7 @@ function zipSync(data, opts) {
   for (var fn in r) {
     var _a4 = r[fn], file2 = _a4[0], p = _a4[1];
     var compression = p.level == 0 ? 0 : 8;
-    var f = strToU8(fn), s = f.length;
+    var f2 = strToU8(fn), s = f2.length;
     var com = p.comment, m = com && strToU8(com), ms = m && m.length;
     var exl = exfl(p.extra);
     if (s > 65535)
@@ -60147,7 +60155,7 @@ function zipSync(data, opts) {
       size: file2.length,
       crc: c.d(),
       c: d,
-      f,
+      f: f2,
       m,
       u: s != fn.length || m && com.length != ms,
       o,
@@ -60158,11 +60166,11 @@ function zipSync(data, opts) {
   }
   var out = new u8(tot + 22), oe = o, cdl = tot - o;
   for (var i2 = 0; i2 < files.length; ++i2) {
-    var f = files[i2];
-    wzh(out, f.o, f, f.f, f.u, f.c.length);
-    var badd = 30 + f.f.length + exfl(f.extra);
-    out.set(f.c, f.o + badd);
-    wzh(out, o, f, f.f, f.u, f.c.length, f.o, f.m), o += 16 + badd + (f.m ? f.m.length : 0);
+    var f2 = files[i2];
+    wzh(out, f2.o, f2, f2.f, f2.u, f2.c.length);
+    var badd = 30 + f2.f.length + exfl(f2.extra);
+    out.set(f2.c, f2.o + badd);
+    wzh(out, o, f2, f2.f, f2.u, f2.c.length, f2.o, f2.m), o += 16 + badd + (f2.m ? f2.m.length : 0);
   }
   wzf(out, o, files.length, cdl, oe);
   return out;
@@ -60213,10 +60221,10 @@ function unzipSync(data, opts) {
 async function exportZip(lib, images) {
   const files = { "library.json": strToU8(JSON.stringify(lib, null, 2)) };
   for (const h of referencedHashes(lib)) {
-    const f = images.find(h);
-    if (!f) continue;
+    const f2 = images.find(h);
+    if (!f2) continue;
     const { buffer } = await images.read(h);
-    files[`images/${h}.${f.ext}`] = [new Uint8Array(buffer), { level: 0 }];
+    files[`images/${h}.${f2.ext}`] = [new Uint8Array(buffer), { level: 0 }];
   }
   return Buffer.from(zipSync(files, { level: 6 }));
 }
@@ -60358,9 +60366,9 @@ function snapRatio(r) {
 // server/src/api/library.ts
 var upload = (0, import_multer.default)({ storage: import_multer.default.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 }, defParamCharset: "utf8" });
 function fileOf(req) {
-  const f = req.file;
-  if (!f) throw new HttpError(400, "\u6CA1\u6709\u6536\u5230\u6587\u4EF6\uFF08\u8868\u5355\u5B57\u6BB5\u540D\u5E94\u4E3A file\uFF09");
-  return f.buffer;
+  const f2 = req.file;
+  if (!f2) throw new HttpError(400, "\u6CA1\u6709\u6536\u5230\u6587\u4EF6\uFF08\u8868\u5355\u5B57\u6BB5\u540D\u5E94\u4E3A file\uFF09");
+  return f2.buffer;
 }
 function libraryPayload(ctx) {
   const library = ctx.library.get();
@@ -60579,7 +60587,18 @@ var QcSchema = external_exports.object({
   textDiffs: external_exports.array(external_exports.string()).default([]),
   elementIssues: external_exports.array(external_exports.string()).default([]),
   layout: external_exports.object({ ok: external_exports.boolean(), issues: external_exports.array(external_exports.string()), ratioChecked: external_exports.boolean(), note: external_exports.string().nullable() }).nullable().default(null),
-  /** 不合格的原因，按 文字 → 元素 → 版面 */
+  /** 和竞品图印刷面的色差（2026-10-27 用户要求加） */
+  color: external_exports.object({
+    checked: external_exports.boolean(),
+    deltaE: external_exports.number().nullable(),
+    gridDeltaE: external_exports.number().nullable(),
+    shift: external_exports.object({ L: external_exports.number(), a: external_exports.number(), b: external_exports.number(), C: external_exports.number() }).nullable(),
+    box: external_exports.tuple([external_exports.number(), external_exports.number(), external_exports.number(), external_exports.number()]).nullable(),
+    issues: external_exports.array(external_exports.string()),
+    note: external_exports.string().nullable(),
+    threshold: external_exports.number().optional()
+  }).nullable().default(null),
+  /** 不合格的原因，按 文字 → 元素 → 颜色 → 版面 */
   reasons: external_exports.array(external_exports.string()).default([]),
   snapshot: SnapshotSchema.optional(),
   /** 模型原始回复 */
@@ -60881,8 +60900,8 @@ var import_node_fs9 = __toESM(require("node:fs"), 1);
 var import_node_path11 = __toESM(require("node:path"), 1);
 function planImageFile(jobDir, hash2) {
   for (const ext of ["png", "jpg", "webp"]) {
-    const f = import_node_path11.default.join(jobDir, `plan_${hash2}.${ext}`);
-    if (import_node_fs9.default.existsSync(f)) return f;
+    const f2 = import_node_path11.default.join(jobDir, `plan_${hash2}.${ext}`);
+    if (import_node_fs9.default.existsSync(f2)) return f2;
   }
   return null;
 }
@@ -61020,8 +61039,119 @@ async function parseImageResponse(body, contentType, signal) {
   throw new AiError("badImage", "\u8FD4\u56DE\u5185\u5BB9\u91CC\u53D6\u4E0D\u5230\u56FE\u7247");
 }
 
-// server/src/image/patternLayout.ts
+// server/src/image/colorCheck.ts
 var import_sharp5 = __toESM(require("sharp"), 1);
+var INSET = 0.06;
+var GRID = 3;
+var SAMPLE_W = 96;
+var LEAN = 3;
+var GRID_FACTOR = 2;
+function srgbToLinear(v) {
+  const c = v / 255;
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+var f = (t) => t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116;
+function rgbToLab(r, g, b) {
+  const R = srgbToLinear(r);
+  const G = srgbToLinear(g);
+  const B = srgbToLinear(b);
+  const X = (0.4124564 * R + 0.3575761 * G + 0.1804375 * B) / 0.95047;
+  const Y = 0.2126729 * R + 0.7151522 * G + 0.072175 * B;
+  const Z = (0.0193339 * R + 0.119192 * G + 0.9503041 * B) / 1.08883;
+  const fy = f(Y);
+  return [116 * fy - 16, 500 * (f(X) - fy), 200 * (fy - f(Z))];
+}
+var dE = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+var round1 = (v) => Math.round(v * 10) / 10;
+async function sample(buf, rect, w, h) {
+  const d = await (0, import_sharp5.default)(buf).rotate().flatten({ background: "#ffffff" }).extract(rect).resize(w, h, { fit: "fill" }).removeAlpha().raw().toBuffer();
+  const out = [];
+  for (let i2 = 0; i2 < w * h; i2++) out.push(rgbToLab(d[i2 * 3], d[i2 * 3 + 1], d[i2 * 3 + 2]));
+  return out;
+}
+function mean(px, w, x0 = 0, y0 = 0, x1 = w, y1 = px.length / w) {
+  const m = [0, 0, 0];
+  let n = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x2 = x0; x2 < x1; x2++) {
+      const p = px[y * w + x2];
+      m[0] += p[0];
+      m[1] += p[1];
+      m[2] += p[2];
+      n++;
+    }
+  }
+  return [m[0] / n, m[1] / n, m[2] / n];
+}
+function inset(x2, y, w, h) {
+  const dx = w * INSET;
+  const dy = h * INSET;
+  return { left: Math.round(x2 + dx), top: Math.round(y + dy), width: Math.max(1, Math.round(w - 2 * dx)), height: Math.max(1, Math.round(h - 2 * dy)) };
+}
+function normalizeBox(box, seen) {
+  if (!box || box.length !== 4 || box.some((v) => !Number.isFinite(v))) return null;
+  let [x0, y0, x1, y1] = box;
+  if (Math.max(x0, y0, x1, y1) > 1.5) {
+    x0 /= seen.width;
+    x1 /= seen.width;
+    y0 /= seen.height;
+    y1 /= seen.height;
+  }
+  const c = (v) => Math.min(1, Math.max(0, v));
+  [x0, y0, x1, y1] = [c(x0), c(y0), c(x1), c(y1)];
+  if (x1 - x0 < 0.15 || y1 - y0 < 0.15) return null;
+  return [x0, y0, x1, y1];
+}
+function describe3(s) {
+  const parts = [];
+  if (s.b >= LEAN) parts.push("\u504F\u9EC4");
+  else if (s.b <= -LEAN) parts.push("\u504F\u84DD");
+  if (s.a >= LEAN) parts.push("\u504F\u7EA2");
+  else if (s.a <= -LEAN) parts.push("\u504F\u7EFF");
+  if (s.L >= LEAN) parts.push("\u504F\u4EAE");
+  else if (s.L <= -LEAN) parts.push("\u504F\u6697");
+  if (s.C >= LEAN) parts.push("\u504F\u8273");
+  else if (s.C <= -LEAN) parts.push("\u504F\u7070");
+  return parts.join("\u3001");
+}
+async function compareColors(source, pattern, box, threshold) {
+  if (!box) return { checked: false, deltaE: null, gridDeltaE: null, shift: null, box: null, issues: [], note: "\u6A21\u578B\u6CA1\u7ED9\u51FA\u7ADE\u54C1\u56FE\u5370\u5237\u9762\u7684\u4F4D\u7F6E\uFF0C\u8FD9\u6B21\u6CA1\u68C0\u67E5\u989C\u8272" };
+  const { width: SW, height: SH } = await readSize(source);
+  const { width: PW, height: PH } = await readSize(pattern);
+  const [x0, y0, x1, y1] = box;
+  const srcRect = inset(x0 * SW, y0 * SH, (x1 - x0) * SW, (y1 - y0) * SH);
+  const patRect = inset(0, 0, PW, PH);
+  const w = SAMPLE_W;
+  const h = Math.max(GRID, Math.round(SAMPLE_W * PH / PW));
+  const a = await sample(source, srcRect, w, h);
+  const b = await sample(pattern, patRect, w, h);
+  const ma = mean(a, w);
+  const mb = mean(b, w);
+  const chroma = (p) => Math.hypot(p[1], p[2]);
+  const shift = { L: round1(mb[0] - ma[0]), a: round1(mb[1] - ma[1]), b: round1(mb[2] - ma[2]), C: round1(chroma(mb) - chroma(ma)) };
+  const deltaE = round1(dE(ma, mb));
+  const cells = [];
+  for (let gy = 0; gy < GRID; gy++) {
+    for (let gx = 0; gx < GRID; gx++) {
+      const cx0 = Math.floor(gx * w / GRID);
+      const cx1 = Math.floor((gx + 1) * w / GRID);
+      const cy0 = Math.floor(gy * h / GRID);
+      const cy1 = Math.floor((gy + 1) * h / GRID);
+      cells.push(dE(mean(a, w, cx0, cy0, cx1, cy1), mean(b, w, cx0, cy0, cx1, cy1)));
+    }
+  }
+  cells.sort((p, q) => p - q);
+  const gridDeltaE = round1(cells[Math.floor(cells.length / 2)]);
+  const issues = [];
+  const lean = describe3(shift);
+  if (deltaE > threshold) issues.push(`\u989C\u8272\u504F\u4E86\uFF1A\u6574\u4F53${lean || "\u6709\u8272\u5DEE"}\uFF08\u0394E ${deltaE}\uFF0C\u8D85\u8FC7 ${threshold}\uFF09`);
+  else if (gridDeltaE > threshold * GRID_FACTOR)
+    issues.push(`\u989C\u8272\u504F\u4E86\uFF1A\u5C40\u90E8\u989C\u8272\u548C\u7ADE\u54C1\u56FE\u5BF9\u4E0D\u4E0A\uFF08\u5206\u5757\u8272\u5DEE\u4E2D\u4F4D\u6570 \u0394E ${gridDeltaE}\uFF0C\u8D85\u8FC7 ${threshold * GRID_FACTOR}${lean ? `\uFF1B\u6574\u4F53${lean}` : ""}\uFF09`);
+  return { checked: true, deltaE, gridDeltaE, shift, box, issues, note: null };
+}
+
+// server/src/image/patternLayout.ts
+var import_sharp6 = __toESM(require("sharp"), 1);
 var WORK_EDGE2 = 1e3;
 var WHITE_MIN = 236;
 var WHITE_SPREAD = 18;
@@ -61116,9 +61246,9 @@ function stripStat(im, side, from, width) {
       for (let y = 0; y < im.h; y++) add(x2, y);
     }
   }
-  const mean = sum.map((s) => s / n);
-  const std = Math.max(...sq.map((s, c) => Math.sqrt(Math.max(0, s / n - mean[c] * mean[c]))));
-  return { mean, std };
+  const mean2 = sum.map((s) => s / n);
+  const std = Math.max(...sq.map((s, c) => Math.sqrt(Math.max(0, s / n - mean2[c] * mean2[c]))));
+  return { mean: mean2, std };
 }
 var dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 function hasBorder(im) {
@@ -61139,13 +61269,13 @@ function hasBorder(im) {
 }
 var pct = (v) => `${Math.round(v * 100)}%`;
 async function checkPatternLayout(buf, productRatio) {
-  const meta3 = await (0, import_sharp5.default)(buf).metadata();
+  const meta3 = await (0, import_sharp6.default)(buf).metadata();
   const W = meta3.width;
   const H = meta3.height;
   const s = Math.min(1, WORK_EDGE2 / Math.max(W, H));
   const w = Math.max(8, Math.round(W * s));
   const h = Math.max(8, Math.round(H * s));
-  const d = await (0, import_sharp5.default)(buf).rotate().flatten({ background: "#ffffff" }).resize(w, h, { fit: "fill" }).removeAlpha().raw().toBuffer();
+  const d = await (0, import_sharp6.default)(buf).rotate().flatten({ background: "#ffffff" }).resize(w, h, { fit: "fill" }).removeAlpha().raw().toBuffer();
   const im = { d, w, h };
   const issues = [];
   const m = margins(im);
@@ -61181,14 +61311,16 @@ async function checkPatternLayout(buf, productRatio) {
 // server/src/prompts/qc.ts
 var QC_SYSTEM = `\u4F60\u662F\u7D20\u6750\u56FE\u9A8C\u6536\u52A9\u624B\u3002\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u56FE\u7247\u662F\u4ECE\u5B83\u63D0\u53D6\u51FA\u6765\u7684\u5E73\u9762\u7D20\u6750\u56FE\uFF08\u53EA\u4FDD\u7559\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u56FE\u6848\uFF09\u3002\u8BF7\u5B8C\u6210\u4E24\u4EF6\u4E8B\uFF0C\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
 1. \u9010\u5B57\u6284\u5199\u6587\u5B57\uFF1A\u5206\u522B\u628A\u7B2C\u4E00\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u6240\u6709\u6587\u5B57\u3001\u7B2C\u4E8C\u5F20\u56FE\u91CC\u7684\u6240\u6709\u6587\u5B57\u9010\u5B57\u6284\u4E0B\u6765\u3002\u7167\u539F\u6837\u6284\uFF0C\u4E0D\u7FFB\u8BD1\u3001\u4E0D\u7EA0\u9519\u3001\u4E0D\u8865\u5168\u3001\u4E0D\u6539\u5927\u5C0F\u5199\uFF1B\u6309\u4ECE\u4E0A\u5230\u4E0B\u3001\u4ECE\u5DE6\u5230\u53F3\u7684\u987A\u5E8F\uFF0C\u6BCF\u4E00\u884C\uFF08\u6216\u8FDE\u5728\u4E00\u8D77\u7684\u4E00\u5C0F\u6BB5\uFF09\u4F5C\u4E3A\u6570\u7EC4\u91CC\u7684\u4E00\u9879\u3002\u5546\u54C1\u5370\u5237\u9762\u4EE5\u5916\u7684\u6587\u5B57\uFF08\u80CC\u666F\u3001\u6C34\u5370\u3001\u5305\u88C5\u3001\u4EF7\u683C\u6807\u7B7E\uFF09\u4E0D\u8981\u6284\u3002\u6CA1\u6709\u6587\u5B57\u7ED9\u7A7A\u6570\u7EC4\u3002
-2. \u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF1A\u6BD4\u5BF9\u4E24\u5F20\u56FE\u5370\u5237\u9762\u4E0A\u7684\u4E3B\u8981\u5143\u7D20\uFF08\u4EBA\u7269\u3001\u52A8\u7269\u3001\u5EFA\u7B51\u3001\u7269\u54C1\u3001\u88C5\u9970\uFF0C\u5982\u661F\u661F\u3001\u96EA\u82B1\u7403\uFF09\uFF0C\u770B\u7D20\u6750\u56FE\u6709\u6CA1\u6709\u7F3A\u5931\u3001\u591A\u51FA\u6216\u660E\u663E\u53D8\u6837\u7684\u5143\u7D20\u3002\u7ED9 0\uFF5E1 \u7684\u76F8\u4F3C\u5206\uFF081 \u8868\u793A\u5B8C\u5168\u4E00\u81F4\uFF09\uFF0C\u5E76\u7528\u4E2D\u6587\u77ED\u53E5\u5217\u51FA\u53D1\u73B0\u7684\u95EE\u9898\uFF0C\u6CA1\u6709\u95EE\u9898\u7ED9\u7A7A\u6570\u7EC4\u3002\u7D20\u6750\u56FE\u53BB\u6389\u4E86\u5546\u54C1\u5916\u5F62\u3001\u8FB9\u6846\u3001\u900F\u89C6\u3001\u5149\u5F71\u548C\u80CC\u666F\u662F\u6B63\u5E38\u7684\uFF0C\u4E0D\u8981\u56E0\u6B64\u6263\u5206\uFF1B\u6587\u5B57\u5DEE\u5F02\u4E0D\u7528\u5199\u8FDB\u5143\u7D20\u95EE\u9898\u3002
+2. \u6807\u51FA\u5370\u5237\u9762\u4F4D\u7F6E\uFF1A\u7ED9\u51FA\u7B2C\u4E00\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\uFF08\u5370\u7740\u56FE\u6848\u7684\u90A3\u4E00\u9762\uFF0C\u4E0D\u542B\u8FB9\u6846\u3001\u80CC\u666F\uFF09\u7684\u5916\u63A5\u77E9\u5F62 print_box\uFF0C\u683C\u5F0F [\u5DE6, \u4E0A, \u53F3, \u4E0B]\uFF0C\u7528 0\uFF5E1 \u7684\u6BD4\u4F8B\u8868\u793A\uFF08\u76F8\u5BF9\u7B2C\u4E00\u5F20\u56FE\u7684\u5BBD\u548C\u9AD8\uFF09\u3002
+3. \u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF1A\u6BD4\u5BF9\u4E24\u5F20\u56FE\u5370\u5237\u9762\u4E0A\u7684\u4E3B\u8981\u5143\u7D20\uFF08\u4EBA\u7269\u3001\u52A8\u7269\u3001\u5EFA\u7B51\u3001\u7269\u54C1\u3001\u88C5\u9970\uFF0C\u5982\u661F\u661F\u3001\u96EA\u82B1\u7403\uFF09\uFF0C\u770B\u7D20\u6750\u56FE\u6709\u6CA1\u6709\u7F3A\u5931\u3001\u591A\u51FA\u6216\u660E\u663E\u53D8\u6837\u7684\u5143\u7D20\u3002\u7ED9 0\uFF5E1 \u7684\u76F8\u4F3C\u5206\uFF081 \u8868\u793A\u5B8C\u5168\u4E00\u81F4\uFF09\uFF0C\u5E76\u7528\u4E2D\u6587\u77ED\u53E5\u5217\u51FA\u53D1\u73B0\u7684\u95EE\u9898\uFF0C\u6CA1\u6709\u95EE\u9898\u7ED9\u7A7A\u6570\u7EC4\u3002\u7D20\u6750\u56FE\u53BB\u6389\u4E86\u5546\u54C1\u5916\u5F62\u3001\u8FB9\u6846\u3001\u900F\u89C6\u3001\u5149\u5F71\u548C\u80CC\u666F\u662F\u6B63\u5E38\u7684\uFF0C\u4E0D\u8981\u56E0\u6B64\u6263\u5206\uFF1B\u6587\u5B57\u5DEE\u5F02\u4E0D\u7528\u5199\u8FDB\u5143\u7D20\u95EE\u9898\u3002
 \u8F93\u51FA\u683C\u5F0F\uFF1A
-{"source_texts": ["\u7B2C\u4E00\u5F20\u56FE\u7684\u6587\u5B57"], "pattern_texts": ["\u7B2C\u4E8C\u5F20\u56FE\u7684\u6587\u5B57"], "element_score": 0.95, "element_issues": []}`;
+{"source_texts": ["\u7B2C\u4E00\u5F20\u56FE\u7684\u6587\u5B57"], "pattern_texts": ["\u7B2C\u4E8C\u5F20\u56FE\u7684\u6587\u5B57"], "print_box": [0.1, 0.2, 0.9, 0.8], "element_score": 0.95, "element_issues": []}`;
 var QC_USER = "\u7B2C\u4E00\u5F20\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u662F\u63D0\u53D6\u51FA\u6765\u7684\u7D20\u6750\u56FE\u3002\u8BF7\u6309\u8981\u6C42\u6284\u5199\u6587\u5B57\u3001\u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF0C\u53EA\u8F93\u51FA JSON\u3002";
 var strList = external_exports.array(external_exports.unknown()).nullish().transform((a) => (a ?? []).map((x2) => String(x2 ?? "").trim()).filter(Boolean));
 var QcAnswerSchema = external_exports.object({
   source_texts: strList,
   pattern_texts: strList,
+  print_box: external_exports.array(external_exports.coerce.number()).nullish().catch(null).transform((v) => v ?? null),
   element_score: external_exports.coerce.number().min(0).max(1),
   element_issues: strList
 });
@@ -61245,7 +61377,7 @@ function fidelityParams(settings, size) {
 
 // server/src/pipeline/step1Extract.ts
 function newQc() {
-  return { state: "pending", score: null, sourceTexts: [], patternTexts: [], textOk: null, textDiffs: [], elementIssues: [], layout: null, reasons: [] };
+  return { state: "pending", score: null, sourceTexts: [], patternTexts: [], textOk: null, textDiffs: [], elementIssues: [], layout: null, color: null, reasons: [] };
 }
 var step1Extract = async (ctx) => {
   if (!ctx.job.route) {
@@ -61338,6 +61470,9 @@ async function runQc(ctx, patternFile) {
     const issues = data.element_issues.length ? `\uFF1A${data.element_issues.join("\uFF1B")}` : "";
     reasons.push(`\u56FE\u6848\u5143\u7D20\u76F8\u4F3C\u5206 ${data.element_score.toFixed(2)}\uFF0C\u4F4E\u4E8E ${threshold.toFixed(2)}${issues}`);
   }
+  const box = normalizeBox(data.print_box, await readSize(images[0]));
+  const color = { ...await compareColors(srcBuf, patBuf, box, settings.patternQcDeltaE), threshold: settings.patternQcDeltaE };
+  reasons.push(...color.issues);
   reasons.push(...layout.issues);
   const qc = {
     state: reasons.length ? "fail" : "pass",
@@ -61350,6 +61485,7 @@ async function runQc(ctx, patternFile) {
     textDiffs: text.diffs,
     elementIssues: data.element_issues,
     layout,
+    color,
     reasons,
     snapshot,
     raw
@@ -62063,7 +62199,7 @@ var Scheduler = class {
 var import_node_fs11 = __toESM(require("node:fs"), 1);
 var import_promises11 = __toESM(require("node:fs/promises"), 1);
 var import_node_path18 = __toESM(require("node:path"), 1);
-var import_sharp6 = __toESM(require("sharp"), 1);
+var import_sharp7 = __toESM(require("sharp"), 1);
 var MAX_FILES = 500;
 var MAX_BYTES = 50 * 1024 * 1024;
 var IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|tiff?|heic|heif|avif)$/i;
@@ -62095,7 +62231,7 @@ async function normalizeSource(buf) {
     return { buffer: n.buffer, ext: n.ext };
   }
   try {
-    const png = await (0, import_sharp6.default)(buf).rotate().png().toBuffer();
+    const png = await (0, import_sharp7.default)(buf).rotate().png().toBuffer();
     return { buffer: png, ext: EXT_OF.png };
   } catch {
     throw new Error("\u65E0\u6CD5\u8BC6\u522B\u7684\u56FE\u7247\u683C\u5F0F\uFF0C\u6216\u6587\u4EF6\u5DF2\u635F\u574F");
@@ -62110,7 +62246,7 @@ function registerJobs(r, ctx) {
   r.post("/jobs", upload.array("files", MAX_FILES), async (req, res) => {
     const files = req.files ?? [];
     if (!files.length) throw new HttpError(400, "\u6CA1\u6709\u6536\u5230\u56FE\u7247\uFF08\u8868\u5355\u5B57\u6BB5\u540D\u5E94\u4E3A files\uFF09");
-    res.json(await addSources(files.map((f) => ({ name: import_node_path18.default.basename(f.originalname || "image"), read: async () => f.buffer }))));
+    res.json(await addSources(files.map((f2) => ({ name: import_node_path18.default.basename(f2.originalname || "image"), read: async () => f2.buffer }))));
   });
   r.post("/jobs/from-clipboard", async (req, res) => {
     if (!sameOrigin(req)) throw new HttpError(403, "\u53EA\u80FD\u4ECE\u672C\u5DE5\u5177\u7684\u9875\u9762\u7C98\u8D34");

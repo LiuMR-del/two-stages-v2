@@ -57,7 +57,21 @@ const QcSchema = z.object({
   textDiffs: z.array(z.string()).default([]),
   elementIssues: z.array(z.string()).default([]),
   layout: z.object({ ok: z.boolean(), issues: z.array(z.string()), ratioChecked: z.boolean(), note: z.string().nullable() }).nullable().default(null),
-  /** 不合格的原因，按 文字 → 元素 → 版面 */
+  /** 和竞品图印刷面的色差（2026-10-27 用户要求加） */
+  color: z
+    .object({
+      checked: z.boolean(),
+      deltaE: z.number().nullable(),
+      gridDeltaE: z.number().nullable(),
+      shift: z.object({ L: z.number(), a: z.number(), b: z.number(), C: z.number() }).nullable(),
+      box: z.tuple([z.number(), z.number(), z.number(), z.number()]).nullable(),
+      issues: z.array(z.string()),
+      note: z.string().nullable(),
+      threshold: z.number().optional(),
+    })
+    .nullable()
+    .default(null),
+  /** 不合格的原因，按 文字 → 元素 → 颜色 → 版面 */
   reasons: z.array(z.string()).default([]),
   snapshot: SnapshotSchema.optional(),
   /** 模型原始回复 */

@@ -63,6 +63,7 @@ export type Settings = {
   blankImage: boolean
   patternQc: boolean
   patternQcThreshold: number
+  patternQcDeltaE: number
 }
 
 export type StepState = 'pending' | 'running' | 'done' | 'skipped' | 'failed'
@@ -97,6 +98,16 @@ export type Qc = {
   textDiffs: string[]
   elementIssues: string[]
   layout: null | { ok: boolean; issues: string[]; ratioChecked: boolean; note: string | null }
+  color: null | {
+    checked: boolean
+    deltaE: number | null
+    gridDeltaE: number | null
+    shift: { L: number; a: number; b: number; C: number } | null
+    box: [number, number, number, number] | null
+    issues: string[]
+    note: string | null
+    threshold?: number
+  }
   reasons: string[]
   snapshot?: StepSnapshot
   raw?: string

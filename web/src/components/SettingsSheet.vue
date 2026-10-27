@@ -130,7 +130,9 @@ function authDot(kind: 'image' | 'analysis') {
           <div v-if="st.settings.patternQc" class="fld">
             <label>图案相似分低于多少算不合格（0～1）</label>
             <AutoText :value="st.settings.patternQcThreshold.toFixed(2)" :save="saver((v) => ({ patternQcThreshold: num(v, '验收阈值') }))" label="素材图验收阈值" />
-            <div class="muted tiny">每张素材图多发一次分析请求；文字有任何缺、多、改都不合格</div>
+            <label>和竞品图的色差 ΔE 超过多少算不合格</label>
+            <AutoText :value="String(st.settings.patternQcDeltaE)" :save="saver((v) => ({ patternQcDeltaE: num(v, '色差阈值') }))" label="色差阈值" />
+            <div class="muted tiny">每张素材图多发一次分析请求；文字有任何缺、多、改都不合格。色差 ΔE 越小越严，2 左右人眼基本看不出，5 以上能看出偏色；分块比较的阈值是它的 2 倍</div>
           </div>
           <div><button type="button" class="btn sm" @click="ui.act(() => jobs.openFolder())">打开输出文件夹</button></div>
         </div>

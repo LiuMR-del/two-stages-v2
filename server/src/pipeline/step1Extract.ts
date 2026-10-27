@@ -6,7 +6,8 @@ import { resolvePlan } from './plan'
 import { buildExtractRequest } from '../prompts/extract'
 import { editImage } from '../ai/imageClient'
 import { chatJson } from '../ai/chatClient'
-import { flattenWhite, shrinkForAnalysis } from '../image/process'
+import { flattenWhite, readSize, shrinkForAnalysis } from '../image/process'
+import { compareColors, normalizeBox } from '../image/colorCheck'
 import { checkPatternLayout } from '../image/patternLayout'
 import { compareTexts, QC_SYSTEM, QC_USER, QcAnswerSchema } from '../prompts/qc'
 import { sha256 } from '../library/images'
@@ -17,7 +18,7 @@ import { fidelityParams } from './params'
 import { log } from '../util/log'
 
 export function newQc(): Qc {
-  return { state: 'pending', score: null, sourceTexts: [], patternTexts: [], textOk: null, textDiffs: [], elementIssues: [], layout: null, reasons: [] }
+  return { state: 'pending', score: null, sourceTexts: [], patternTexts: [], textOk: null, textDiffs: [], elementIssues: [], layout: null, color: null, reasons: [] }
 }
 
 /**
@@ -121,6 +122,9 @@ async function runQc(ctx: StepCtx, patternFile: string): Promise<StepResult> {
     const issues = data.element_issues.length ? `：${data.element_issues.join('；')}` : ''
     reasons.push(`图案元素相似分 ${data.element_score.toFixed(2)}，低于 ${threshold.toFixed(2)}${issues}`)
   }
+  const box = normalizeBox(data.print_box, await readSize(images[0]!))
+  const color = { ...(await compareColors(srcBuf, patBuf, box, settings.patternQcDeltaE)), threshold: settings.patternQcDeltaE }
+  reasons.push(...color.issues)
   reasons.push(...layout.issues)
   const qc: Qc = {
     state: reasons.length ? 'fail' : 'pass',
@@ -133,6 +137,7 @@ async function runQc(ctx: StepCtx, patternFile: string): Promise<StepResult> {
     textDiffs: text.diffs,
     elementIssues: data.element_issues,
     layout,
+    color,
     reasons,
     snapshot,
     raw,
