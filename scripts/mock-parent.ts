@@ -13,16 +13,13 @@ export type ParentMockState = {
   feishu: {
     appId: string
     appSecret: string
-    user: string
-    /** 换 token 时 access / refresh 的有效期（秒） */
-    accessTtl: number
-    refreshTtl: number
-    /** 合法的授权 code */
-    codes: Set<string>
+    /** tenant_access_token 的有效期（秒） */
+    ttl: number
+    /** 已发出的 token → 过期时间 */
     access: Map<string, number>
-    refresh: Set<string>
     wiki: Record<string, string>
-    sheets: Record<string, { title: string; tabs: MockSheetTab[] }>
+    /** denied：这张表没给应用加权限 */
+    sheets: Record<string, { title: string; tabs: MockSheetTab[]; denied?: boolean }>
   }
   spapi: {
     clientId: string
@@ -40,12 +37,8 @@ export function newParentMockState(): ParentMockState {
     feishu: {
       appId: 'cli_mock',
       appSecret: 'mock-app-secret-0001',
-      user: '测试用户',
-      accessTtl: 7200,
-      refreshTtl: 604800,
-      codes: new Set(),
+      ttl: 7200,
       access: new Map(),
-      refresh: new Set(),
       wiki: {},
       sheets: {},
     },
@@ -73,60 +66,51 @@ export function mountParentMock(app: express.Express, state: () => ParentMockSta
   app.use('/listings', record('spapi'))
 
   // ---- 飞书 ----
-  app.post('/open-apis/authen/v2/oauth/token', (req, res) => {
+  app.post('/open-apis/auth/v3/tenant_access_token/internal', (req, res) => {
     const f = state().feishu
     const b = req.body ?? {}
-    if (b.client_id !== f.appId || b.client_secret !== f.appSecret) return void res.status(400).json({ code: 20002, error: 'invalid_client', error_description: '应用凭证不对' })
-    let ok = false
-    if (b.grant_type === 'authorization_code' && f.codes.has(b.code)) {
-      f.codes.delete(b.code)
-      ok = true
-    } else if (b.grant_type === 'refresh_token' && f.refresh.has(b.refresh_token)) {
-      f.refresh.delete(b.refresh_token)
-      ok = true
-    }
-    if (!ok) return void res.status(400).json({ code: 20064, error: 'invalid_grant', error_description: 'code 或 refresh_token 无效' })
-    const n = ++seq
-    const access = `u-acc-${n}`
-    const refresh = `u-ref-${n}`
-    f.access.set(access, Date.now() + f.accessTtl * 1000)
-    f.refresh.add(refresh)
-    res.json({ code: 0, access_token: access, expires_in: f.accessTtl, refresh_token: refresh, refresh_token_expires_in: f.refreshTtl, token_type: 'Bearer' })
+    if (b.app_id !== f.appId || b.app_secret !== f.appSecret) return void res.json({ code: 10014, msg: 'app secret invalid' })
+    const t = `t-${++seq}`
+    f.access.set(t, Date.now() + f.ttl * 1000)
+    res.json({ code: 0, msg: 'ok', tenant_access_token: t, expire: f.ttl })
   })
 
   const authed = (req: express.Request, res: express.Response): boolean => {
     const t = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1]
     const exp = t ? state().feishu.access.get(t) : undefined
     if (!exp || exp < Date.now()) {
-      res.status(401).json({ code: 99991677, msg: 'user access token expired' })
+      res.status(400).json({ code: 99991663, msg: 'Invalid access token for authorization' })
       return false
     }
     return true
   }
 
-  app.get('/open-apis/authen/v1/user_info', (req, res) => {
-    if (authed(req, res)) res.json({ code: 0, data: { name: state().feishu.user } })
-  })
+  const denied = (token: string, res: express.Response): boolean => {
+    if (!state().feishu.sheets[token]?.denied) return false
+    res.status(403).json({ code: 1310213, msg: 'permission denied' })
+    return true
+  }
   app.get('/open-apis/wiki/v2/spaces/get_node', (req, res) => {
     if (!authed(req, res)) return
     const obj = state().feishu.wiki[String(req.query.token)]
     if (!obj) return void res.json({ code: 131005, msg: 'not found' })
+    if (state().feishu.sheets[obj]?.denied) return void res.status(403).json({ code: 131006, msg: 'permission denied: wiki space permission denied' })
     res.json({ code: 0, data: { node: { obj_token: obj, obj_type: 'sheet', title: state().feishu.sheets[obj]?.title ?? '' } } })
   })
   app.get('/open-apis/sheets/v3/spreadsheets/:token/sheets/query', (req, res) => {
-    if (!authed(req, res)) return
+    if (!authed(req, res) || denied(req.params.token, res)) return
     const s = state().feishu.sheets[req.params.token]
     if (!s) return void res.json({ code: 1310214, msg: 'spreadsheet not found' })
     res.json({ code: 0, data: { sheets: s.tabs.map((t, index) => ({ sheet_id: t.sheet_id, title: t.title, index })) } })
   })
   app.get('/open-apis/sheets/v3/spreadsheets/:token', (req, res) => {
-    if (!authed(req, res)) return
+    if (!authed(req, res) || denied(req.params.token, res)) return
     const s = state().feishu.sheets[req.params.token]
     if (!s) return void res.json({ code: 1310214, msg: 'spreadsheet not found' })
     res.json({ code: 0, data: { spreadsheet: { title: s.title, token: req.params.token } } })
   })
   app.get('/open-apis/sheets/v2/spreadsheets/:token/values/:range', (req, res) => {
-    if (!authed(req, res)) return
+    if (!authed(req, res) || denied(req.params.token, res)) return
     const s = state().feishu.sheets[req.params.token]
     const sheetId = String(req.params.range).split('!')[0]
     const tab = s?.tabs.find((t) => t.sheet_id === sheetId)

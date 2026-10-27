@@ -2,9 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { startMockRelay, type MockRelay } from '../../scripts/mock-relay'
 import { startInProcess, type Api } from '../inprocess'
 import type { AppContext } from '../../server/src/context'
-import { cellText, parseParentRows, parseSheetLink, FEISHU_SCOPE } from '../../server/src/parent/feishu'
+import { cellText, parseParentRows, parseSheetLink, resetAppToken } from '../../server/src/parent/feishu'
 import { parseSpapiCredentials, rtfToText } from '../../server/src/parent/credentials'
-import { LARK_REDIRECT } from '../../server/src/parent/oauth'
 import { redact } from '../../server/src/util/log'
 
 let mock: MockRelay
@@ -22,7 +21,10 @@ afterAll(async () => {
   await srv.close()
   await mock.close()
 })
-beforeEach(() => mock.reset())
+beforeEach(() => {
+  mock.reset()
+  resetAppToken()
+})
 
 const FAKE = {
   sellerId: 'A1B2C3D4E5F6G7',
@@ -45,24 +47,16 @@ const FAKE_RTF = `{\\rtf1\\ansi\\ansicpg936\\cocoartf2822
 async function useMock() {
   // 接口地址设置接口改不了，测试从程序内部指到模拟服务
   await ctx.settings.updateParent((p) => {
-    Object.assign(p.feishu, { baseUrl: mock.origin, accountsUrl: mock.origin, user: null, authAppId: '', accessToken: '', accessExpiresAt: '', refreshToken: '', refreshExpiresAt: '' })
+    p.feishu.baseUrl = mock.origin
     Object.assign(p.spapi, { endpoint: mock.origin, tokenUrl: mock.origin + '/auth/o2/token' })
   })
   ctx.parent.sheets.clear()
   await api.json('PUT', '/settings', {
     parent: {
-      feishu: { appId: mock.parent.feishu.appId, appSecret: mock.parent.feishu.appSecret, redirect: 'self' },
+      feishu: { appId: mock.parent.feishu.appId, appSecret: mock.parent.feishu.appSecret },
       spapi: { sellerId: mock.parent.spapi.sellerId, clientId: mock.parent.spapi.clientId, clientSecret: mock.parent.spapi.clientSecret, refreshToken: mock.parent.spapi.refreshToken },
     },
   })
-}
-
-async function authorize(): Promise<void> {
-  const r = await api.json('POST', '/settings/feishu/authorize')
-  const state = new URL(r.body.url).searchParams.get('state')!
-  mock.parent.feishu.codes.add('code-1')
-  const cb = await api.raw(`/feishu/callback?code=code-1&state=${state}`)
-  expect(cb.status).toBe(200)
 }
 
 describe('父体匹配设置', () => {
@@ -70,7 +64,7 @@ describe('父体匹配设置', () => {
     const s = (await api.json('GET', '/settings')).body.parent
     expect(s).toMatchObject({ enabled: false, threshold: 0.7, creatorMark: '5', sheetUrl: '', recentUrls: [] })
     expect(s.spapi.marketplaceId).toBe('ATVPDKIKX0DER')
-    expect(s.feishu.redirect).toBe('lark3000')
+    expect(Object.keys(s.feishu).sort()).toEqual(['appId', 'appSecret', 'baseUrl'])
   })
 
   it('密钥打码返回；打码的值原样传回不覆盖原值；日志里也打码', async () => {
@@ -85,7 +79,7 @@ describe('父体匹配设置', () => {
 
   it('凭证要发往的接口地址不能通过设置接口改', async () => {
     const before = ctx.settings.get().parent.spapi.tokenUrl
-    await api.json('PUT', '/settings', { parent: { spapi: { tokenUrl: 'http://evil.example/token' }, feishu: { baseUrl: 'http://evil.example' } } })
+    await api.json('PUT', '/settings', { parent: { spapi: { tokenUrl: 'http://evil.example/token' }, feishu: { baseUrl: 'http://evil.example' } } } as any)
     expect(ctx.settings.get().parent.spapi.tokenUrl).toBe(before)
     expect(ctx.settings.get().parent.feishu.baseUrl).not.toBe('http://evil.example')
   })
@@ -94,7 +88,7 @@ describe('父体匹配设置', () => {
     const evil = (path: string, body: string) =>
       fetch(api.base + path, { method: 'POST', headers: { Origin: 'http://evil.example', 'Content-Type': 'application/x-www-form-urlencoded' }, body })
     expect((await evil('/settings/spapi/import', `text=${encodeURIComponent('店铺ID：AEVIL1234567')}`)).status).toBe(403)
-    expect((await evil('/settings/feishu/logout', '')).status).toBe(403)
+    expect((await evil('/settings/parent/test', '')).status).toBe(403)
     expect((await evil('/jobs/clear-all', '')).status).toBe(403)
     expect(ctx.settings.get().parent.spapi.sellerId).not.toBe('AEVIL1234567')
   })
@@ -148,87 +142,53 @@ describe('SP-API 测试连接', () => {
   })
 })
 
-describe('飞书授权', () => {
-  it('授权页地址带 App ID、回调、只读 scope 和 state；回调换 token，显示授权人', async () => {
+describe('飞书应用身份', () => {
+  it('只用 App ID / App Secret 读表，不用登录；token 复用，不每次都换', async () => {
     await useMock()
-    const r = await api.json('POST', '/settings/feishu/authorize')
-    const u = new URL(r.body.url)
-    expect(u.origin + u.pathname).toBe(mock.origin + '/open-apis/authen/v1/authorize')
-    expect(u.searchParams.get('client_id')).toBe(mock.parent.feishu.appId)
-    expect(u.searchParams.get('scope')).toBe(FEISHU_SCOPE)
-    expect(u.searchParams.get('redirect_uri')).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/api\/feishu\/callback$/)
-    // 默认在已登录的飞书 App 里打开同一个授权页
-    const app = new URL(r.body.appUrl)
-    expect(app.origin + app.pathname).toBe('https://applink.feishu.cn/client/web_url/open')
-    expect(app.searchParams.get('mode')).toBe('window')
-    expect(app.searchParams.get('url')).toBe(r.body.url)
-    mock.parent.feishu.codes.add('good')
-    const html = await (await api.raw(`/feishu/callback?code=good&state=${u.searchParams.get('state')}`)).text()
-    expect(html).toContain('授权成功，可以关闭这个页面')
-    const f = (await api.json('GET', '/settings')).body.parent.feishu
-    expect(f.user).toBe('测试用户')
-    expect(f.accessToken).toMatch(/^••••/)
-    // state 只能用一次
-    expect((await api.raw(`/feishu/callback?code=good&state=${u.searchParams.get('state')}`)).status).toBe(400)
+    mock.parent.feishu.sheets.shtA = { title: '父体分类汇总', tabs: [{ sheet_id: 's1', title: '铝板画', values: [['父体SKU'], ['A-1']] }] }
+    const r = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtA' })
+    expect(r.body).toMatchObject({ ok: true, title: '父体分类汇总' })
+    ctx.parent.sheets.clear()
+    await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtA' })
+    expect(mock.parent.calls.filter((c) => c.path === '/auth/v3/tenant_access_token/internal')).toHaveLength(1)
+    // 飞书只读：除了换 token，全是 GET
+    expect(mock.parent.calls.filter((c) => c.service === 'feishu' && c.method !== 'GET' && c.path !== '/auth/v3/tenant_access_token/internal')).toEqual([])
   })
 
-  it('access token 过期时用 refresh token 换新的，并保存新的 refresh token；refresh 也过期时报授权过期', async () => {
+  it('App Secret 不对：提示去设置检查（第 6 步会暂停）', async () => {
     await useMock()
-    await authorize()
-    mock.parent.feishu.sheets.shtA = { title: '父体分类汇总', tabs: [] }
-    const oldRefresh = ctx.settings.get().parent.feishu.refreshToken
-    await ctx.settings.updateParent((p) => (p.feishu.accessExpiresAt = new Date(Date.now() - 1000).toISOString()))
-    ctx.parent.sheets.clear()
-    const ok = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtA' })
-    expect(ok.body.ok).toBe(true)
-    const f = ctx.settings.get().parent.feishu
-    expect(f.refreshToken).not.toBe(oldRefresh)
-    expect(mock.parent.feishu.refresh.has(oldRefresh)).toBe(false)
-
-    await ctx.settings.updateParent((p) => {
-      p.feishu.accessExpiresAt = new Date(Date.now() - 1000).toISOString()
-      p.feishu.refreshExpiresAt = new Date(Date.now() - 1000).toISOString()
-    })
-    ctx.parent.sheets.clear()
-    const bad = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtA' })
-    expect(bad.body).toMatchObject({ ok: false, auth: true, message: '飞书授权已过期，去设置重新授权' })
+    await api.json('PUT', '/settings', { parent: { feishu: { appSecret: 'wrong-secret-0000' } } })
+    mock.parent.feishu.sheets.shtA = { title: 'T', tabs: [] }
+    const r = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtA' })
+    expect(r.body).toMatchObject({ ok: false, auth: true })
+    expect(r.body.message).toContain('App ID 或 App Secret 不对')
   })
 
-  it('飞书超时、连不上不算授权过期；飞书说 access token 无效时先用 refresh token 换一次再试', async () => {
+  it('表没给应用加权限：告诉用户怎么「添加文档应用」', async () => {
     await useMock()
-    await authorize()
+    mock.parent.feishu.sheets.shtE = { title: 'T', tabs: [], denied: true }
+    mock.parent.feishu.wiki.wikiE = 'shtE'
+    for (const url of ['https://x.feishu.cn/sheets/shtE', 'https://x.feishu.cn/wiki/wikiE']) {
+      ctx.parent.sheets.clear()
+      const r = await api.json('POST', '/settings/parent/test', { url })
+      expect(r.body.ok).toBe(false)
+      expect(r.body.message).toContain('「添加文档应用」')
+    }
+  })
+
+  it('token 被飞书提前作废：重新换一次再试；连不上飞书报普通错误', async () => {
+    await useMock()
     mock.parent.feishu.sheets.shtD = { title: '表D', tabs: [] }
-    // 服务端提前作废了 access token（本地还以为没过期）
+    await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtD' })
     mock.parent.feishu.access.clear()
-    const r = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtD' })
-    expect(r.body.ok).toBe(true)
-    // 换 token 时网络出错：报普通错误，不把授权标成过期
-    await ctx.settings.updateParent((p) => (p.feishu.accessExpiresAt = new Date(Date.now() - 1000).toISOString()))
+    ctx.parent.sheets.clear()
+    expect((await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtD' })).body.ok).toBe(true)
     await ctx.settings.updateParent((p) => (p.feishu.baseUrl = 'http://127.0.0.1:9'))
+    resetAppToken()
     ctx.parent.sheets.clear()
     const net = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtD' })
     expect(net.body.ok).toBe(false)
     expect(net.body.auth).toBeUndefined()
-    const f = ctx.settings.get().parent.feishu
-    expect(new Date(f.refreshExpiresAt).getTime()).toBeGreaterThan(Date.now())
-    expect(f.refreshToken).not.toBe('')
-  })
-
-  it('借用 lark-mcp 的 localhost:3000/callback：临时在 3000 端口接收一次', async (t) => {
-    await useMock()
-    await api.json('PUT', '/settings', { parent: { feishu: { redirect: 'lark3000' } } })
-    const r = await api.json('POST', '/settings/feishu/authorize')
-    if (r.status === 409) return t.skip() // 这台机器上 3000 端口正被占用
-    const u = new URL(r.body.url)
-    expect(u.searchParams.get('redirect_uri')).toBe(LARK_REDIRECT)
-    mock.parent.feishu.codes.add('c3000')
-    const cb = await fetch(`http://127.0.0.1:3000/callback?code=c3000&state=${u.searchParams.get('state')}`)
-    expect(await cb.text()).toContain('授权成功')
-    expect(ctx.settings.get().parent.feishu.user).toBe('测试用户')
-    // 收到一次就关掉
-    await new Promise((r2) => setTimeout(r2, 50))
-    await expect(fetch('http://127.0.0.1:3000/callback')).rejects.toThrow()
-    await expect(fetch('http://[::1]:3000/callback')).rejects.toThrow()
   })
 })
 
@@ -259,7 +219,6 @@ describe('读飞书表', () => {
 
   it('读一下试试：知识库链接换成表格，返回表格名、标签页和父体数量；记进用过的链接', async () => {
     await useMock()
-    await authorize()
     mock.parent.feishu.wiki.wikiTok = 'shtB'
     mock.parent.feishu.sheets.shtB = {
       title: '父体分类汇总',
@@ -294,7 +253,6 @@ describe('读飞书表', () => {
 
   it('5 分钟内同一个链接 + 标签页只读一次', async () => {
     await useMock()
-    await authorize()
     mock.parent.feishu.sheets.shtC = { title: 'T', tabs: [{ sheet_id: 's1', title: '铝板画', values: [['父体SKU'], ['A-1']] }] }
     ctx.parent.sheets.clear()
     const before = mock.parent.calls.filter((c) => c.path.includes('/values/')).length

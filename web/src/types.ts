@@ -73,17 +73,8 @@ export type Settings = {
     tabs: string[]
     threshold: number
     creatorMark: string
-    feishu: {
-      appId: string
-      appSecret: string
-      user: string | null
-      authAppId: string
-      accessToken: string
-      accessExpiresAt: string
-      refreshToken: string
-      refreshExpiresAt: string
-      redirect: 'lark3000' | 'self'
-    }
+    /** 飞书用应用身份读表，只要 App ID / App Secret */
+    feishu: { appId: string; appSecret: string }
     spapi: { sellerId: string; clientId: string; clientSecret: string; refreshToken: string; marketplaceId: string }
   }
 }

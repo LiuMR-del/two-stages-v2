@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import AutoText from './AutoText.vue'
 import { api } from '../api'
 import { useSettings } from '../stores/settings'
@@ -17,37 +17,9 @@ const missing = computed(() => {
   const out: string[] = []
   if (!p.value.sheetUrl) out.push('父体表链接')
   if (!p.value.feishu.appId || !p.value.feishu.appSecret) out.push('飞书 App ID / App Secret')
-  if (!p.value.feishu.refreshToken || otherApp.value || authExpired.value) out.push('飞书授权')
   const sp = p.value.spapi
   if (!sp.sellerId || !sp.clientId || !sp.clientSecret || !sp.refreshToken) out.push('SP-API 凭证')
   return out
-})
-
-const authExpired = computed(() => {
-  const f = p.value.feishu
-  return !!f.refreshToken && !!f.refreshExpiresAt && new Date(f.refreshExpiresAt).getTime() < Date.now()
-})
-/** 授权是用另一个 App ID 做的 */
-const otherApp = computed(() => !!p.value.feishu.authAppId && p.value.feishu.authAppId !== p.value.feishu.appId)
-const authText = computed(() => {
-  const f = p.value.feishu
-  if (!f.refreshToken) return '还没有授权'
-  if (otherApp.value) return 'App ID 换过了，请重新授权'
-  if (authExpired.value) return '飞书授权已过期，请重新授权'
-  return `已用你的飞书账号授权${f.user ? `（${f.user}）` : ''} · 你能看的表这里都能读`
-})
-
-// 授权在浏览器另一个标签页里完成，切回来时刷新一下设置
-const reload = () => {
-  if (document.visibilityState === 'visible') void ui.act(() => st.load())
-}
-onMounted(() => {
-  window.addEventListener('focus', reload)
-  document.addEventListener('visibilitychange', reload)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('focus', reload)
-  document.removeEventListener('visibilitychange', reload)
 })
 
 function saver(build: (v: string) => Record<string, unknown>) {
@@ -68,30 +40,6 @@ const num = (v: string, field: string) => {
 
 async function toggle(enabled: boolean) {
   await ui.act(() => st.save({ parent: { enabled } }))
-}
-
-const authUrl = ref('')
-const appUrl = ref('')
-/** 默认在已登录的飞书 App 里打开授权页；browser 为 true 时用浏览器打开 */
-async function authorize(browser = false) {
-  // 先同步开一个窗口，await 之后再开容易被浏览器当成弹窗拦掉
-  const w = window.open('', '_blank')
-  const r = await ui.act(() => api.post<{ url: string; appUrl: string; redirectUri: string }>('/settings/feishu/authorize'))
-  if (!r) {
-    w?.close()
-    return
-  }
-  authUrl.value = r.url
-  appUrl.value = r.appUrl
-  if (w) {
-    w.opener = null
-    w.location.href = browser ? r.url : r.appUrl
-  }
-}
-
-async function logout() {
-  const r = await ui.act(() => api.post<Settings>('/settings/feishu/logout'))
-  if (r) st.settings = r
 }
 
 const reading = ref(false)
@@ -160,20 +108,12 @@ async function testSpapi() {
         </div>
         <div class="fld">
           <label>App Secret</label>
-          <AutoText :value="p.feishu.appSecret" :save="saver((v) => ({ feishu: { appSecret: v.trim() } }))" label="飞书 App Secret" />
+          <AutoText :value="p.feishu.appSecret" :save="saver((v) => ({ feishu: { appSecret: v.trim() } }))" label="飞书 App Secret" secret />
         </div>
       </div>
-      <div class="row">
-        <span class="dot" :class="p.feishu.refreshToken && !authExpired && !otherApp ? '' : 'rd'"></span>
-        <span class="small">{{ authText }}</span>
-        <button type="button" class="btn sm" @click="authorize()">{{ p.feishu.refreshToken ? '重新授权' : '在飞书 App 里授权' }}</button>
-        <button v-if="p.feishu.refreshToken" type="button" class="btn txt sm" @click="logout">退出授权</button>
+      <div class="muted tiny">
+        工具用这个飞书应用的身份读表，不用登录。父体表要给这个应用阅读权限：在飞书里打开那张表，点右上角「…」→「更多」→「添加文档应用」，选这个应用。换新表时也要加一次。
       </div>
-      <div v-if="authUrl" class="muted tiny">
-        会在飞书 App 里打开授权页，点「授权」后回到这里，状态会自动更新。飞书 App 没有打开的话，<a :href="appUrl" target="_blank" rel="noopener">再试一次</a>，或者<a href="#" @click.prevent="authorize(true)">用浏览器授权</a>（浏览器没登录飞书时要扫码）。
-      </div>
-      <div v-else-if="!p.feishu.refreshToken" class="muted tiny">只需要授权一次，之后工具自己续期；很久不用过期了再点一次。</div>
-      <div v-if="p.feishu.redirect === 'lark3000'" class="muted tiny">授权回调借用 lark-mcp 在应用后台登记的 http://localhost:3000/callback，点授权后 10 分钟内有效。</div>
       <div class="fld">
         <label>父体表链接</label>
         <AutoText :value="p.sheetUrl" :save="saver((v) => ({ sheetUrl: v.trim() }))" label="父体表链接" placeholder="https://….feishu.cn/wiki/… 或 /sheets/…" />
@@ -202,7 +142,7 @@ async function testSpapi() {
       <div class="two">
         <div class="fld">
           <label>店铺 ID</label>
-          <AutoText :value="p.spapi.sellerId" :save="saver((v) => ({ spapi: { sellerId: v.trim() } }))" label="店铺 ID" />
+          <AutoText :value="p.spapi.sellerId" :save="saver((v) => ({ spapi: { sellerId: v.trim() } }))" label="店铺 ID" secret />
         </div>
         <div class="fld">
           <label>站点</label>

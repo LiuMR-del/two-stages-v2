@@ -47,22 +47,12 @@ const AnalysisApiSchema = z.object({
 })
 
 /** 父体匹配（识别父体）。密钥、token 都会登记打码，接口返回时也打码 */
+/** 飞书用应用身份读表（2026-10-27 改，不再用户授权）：只要 App ID / App Secret */
 const FeishuSchema = z.object({
   appId: z.string().default(''),
   appSecret: z.string().default(''),
-  /** 授权人的飞书名字，显示用 */
-  user: z.string().nullable().default(null),
-  /** 授权时用的 App ID；和现在的不一样说明换过应用，要重新授权 */
-  authAppId: z.string().default(''),
-  accessToken: z.string().default(''),
-  accessExpiresAt: z.string().default(''),
-  refreshToken: z.string().default(''),
-  refreshExpiresAt: z.string().default(''),
-  /** 授权回调：lark3000 = 借用 lark-mcp 在后台登记的 http://localhost:3000/callback（2026-10-27 用户确认）；self = 回调进本服务 */
-  redirect: z.enum(['lark3000', 'self']).default('lark3000'),
-  /** 接口地址，测试时由程序内部指向模拟服务；设置接口不能改（否则能把 token 发到别处） */
+  /** 接口地址，测试时由程序内部指向模拟服务；设置接口不能改（否则能把 App Secret 发到别处） */
   baseUrl: z.string().default('https://open.feishu.cn'),
-  accountsUrl: z.string().default('https://accounts.feishu.cn'),
 })
 
 const SpapiSchema = z.object({
@@ -137,7 +127,6 @@ export const SettingsPatchSchema = z.object({
         .object({
           appId: z.string().max(200),
           appSecret: z.string().max(500),
-          redirect: z.enum(['lark3000', 'self']),
         })
         .partial()
         .optional(),
@@ -188,7 +177,7 @@ export function maskSettings(s: Settings): Settings {
     analysis: { ...s.analysis, apiKey: maskKey(s.analysis.apiKey) },
     parent: {
       ...s.parent,
-      feishu: { ...f, appSecret: maskSecret(f.appSecret), accessToken: maskSecret(f.accessToken), refreshToken: maskSecret(f.refreshToken) },
+      feishu: { ...f, appSecret: maskSecret(f.appSecret) },
       spapi: {
         ...sp,
         sellerId: maskSecret(sp.sellerId),
@@ -201,7 +190,7 @@ export function maskSettings(s: Settings): Settings {
 }
 
 function registerParentSecrets(p: ParentSettings): void {
-  for (const v of [p.feishu.appSecret, p.feishu.accessToken, p.feishu.refreshToken, p.spapi.clientId, p.spapi.clientSecret, p.spapi.refreshToken, p.spapi.sellerId]) {
+  for (const v of [p.feishu.appSecret, p.spapi.clientId, p.spapi.clientSecret, p.spapi.refreshToken, p.spapi.sellerId]) {
     registerSecret(v)
   }
 }

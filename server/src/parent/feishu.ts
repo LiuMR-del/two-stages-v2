@@ -1,27 +1,24 @@
-import type { ParentSettings, SettingsStore } from '../store/settings'
-import { log } from '../util/log'
+import type { SettingsStore } from '../store/settings'
 
 /**
- * 飞书：用户自己的账号授权（user_access_token），只读表格，不写。
- * 授权页 accounts.feishu.cn/open-apis/authen/v1/authorize，换 token 用 /open-apis/authen/v2/oauth/token。
+ * 飞书：用应用身份（tenant_access_token）只读表格，不写。表要在飞书里「添加文档应用」给这个应用阅读权限。
  */
 
-export const FEISHU_SCOPE = 'wiki:wiki:readonly sheets:spreadsheet:readonly offline_access'
 const TIMEOUT_MS = 20_000
-/** access token 过期前这么久就换新的 */
+/** token 过期前这么久就换新的 */
 const REFRESH_AHEAD_MS = 60_000
 /** 同一个链接 + 标签页，这么久内读过的结果共用 */
 export const SHEET_CACHE_MS = 5 * 60_000
 const READ_RANGE = 'A1:Z1000'
 const HEADER_ROWS = 5
 
-/** 授权过期 / 被撤销 / 没授权：第 6 步整体暂停，去设置重新授权 */
+/** App ID / Secret 没填或不对：第 6 步整体暂停，去设置检查 */
 export class FeishuAuthError extends Error {}
 /** 链接读不了、没有权限等：同样暂停，提示用户 */
 export class FeishuError extends Error {}
 
 /** 飞书接口里表示 token 无效、过期的错误码 */
-const TOKEN_ERRORS = new Set([99991663, 99991664, 99991668, 99991677, 20005, 20026, 20037, 20064, 20073, 20074])
+const TOKEN_ERRORS = new Set([99991661, 99991663, 99991664, 99991668])
 
 type Json = Record<string, any>
 
@@ -43,108 +40,65 @@ async function call(url: string, init: RequestInit): Promise<Json> {
     throw new FeishuError(`飞书返回的不是 JSON（HTTP ${resp.status}）`)
   }
   const code = Number(body.code ?? 0)
-  if (resp.status === 401 || TOKEN_ERRORS.has(code)) throw new FeishuAuthError(`飞书授权已失效（${body.msg ?? body.error_description ?? code}）`)
+  if (resp.status === 401 || TOKEN_ERRORS.has(code)) throw new FeishuAuthError(`飞书 token 无效（${body.msg ?? code}）`)
   if (!resp.ok || code !== 0) throw new FeishuError(String(body.msg ?? body.error_description ?? body.error ?? `HTTP ${resp.status}`) + (code ? `（${code}）` : ''))
   return body
 }
 
-type TokenAnswer = { access_token: string; expires_in: number; refresh_token?: string; refresh_token_expires_in?: number }
+// ---- 应用身份 ----
 
-const isoIn = (sec: number | undefined) => (sec ? new Date(Date.now() + sec * 1000).toISOString() : '')
-
-// ---- 授权 ----
-
-export function authorizeUrl(f: ParentSettings['feishu'], redirectUri: string, state: string): string {
-  const q = new URLSearchParams({ client_id: f.appId, response_type: 'code', redirect_uri: redirectUri, scope: FEISHU_SCOPE, state })
-  return `${f.accountsUrl.replace(/\/+$/, '')}/open-apis/authen/v1/authorize?${q}`
-}
-
-async function tokenRequest(f: ParentSettings['feishu'], body: Record<string, string>): Promise<TokenAnswer> {
-  const r = (await call(`${f.baseUrl.replace(/\/+$/, '')}/open-apis/authen/v2/oauth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ client_id: f.appId, client_secret: f.appSecret, ...body }),
-  })) as TokenAnswer
-  if (!r.access_token) throw new FeishuError('飞书没有返回 access_token')
-  return r
-}
-
-/** 用回调拿到的 code 换 token，存进设置，并取授权人名字 */
-export async function exchangeCode(settings: SettingsStore, code: string, redirectUri: string): Promise<string | null> {
-  const f = settings.get().parent.feishu
-  const t = await tokenRequest(f, { grant_type: 'authorization_code', code, redirect_uri: redirectUri })
-  let user: string | null = null
-  try {
-    const info = await call(`${f.baseUrl.replace(/\/+$/, '')}/open-apis/authen/v1/user_info`, { headers: { Authorization: `Bearer ${t.access_token}` } })
-    user = (info.data?.name as string) || null
-  } catch (e) {
-    log.warn(`取飞书授权人名字失败：${(e as Error).message}`)
-  }
-  await settings.updateParent((p) => {
-    Object.assign(p.feishu, {
-      authAppId: f.appId,
-      user,
-      accessToken: t.access_token,
-      accessExpiresAt: isoIn(t.expires_in),
-      refreshToken: t.refresh_token ?? '',
-      refreshExpiresAt: isoIn(t.refresh_token_expires_in),
-    })
-  })
-  return user
-}
-
-export async function logout(settings: SettingsStore): Promise<void> {
-  await settings.updateParent((p) => Object.assign(p.feishu, { authAppId: '', user: null, accessToken: '', accessExpiresAt: '', refreshToken: '', refreshExpiresAt: '' }))
-}
-
-const expired = (iso: string, aheadMs = 0) => !iso || new Date(iso).getTime() - aheadMs <= Date.now()
-
-let refreshing: Promise<string> | null = null
-
-/** 授权是用另一个 App ID 做的（用户后来换了应用）：要重新授权 */
-const otherApp = (f: ParentSettings['feishu']) => !!f.authAppId && f.authAppId !== f.appId
+let cached: { key: string; token: string; expiresAt: number } | null = null
+let pending: Promise<string> | null = null
 
 /**
- * 每次用之前检查 access token，过期就用 refresh token 换新的，并保存新的 refresh token（旧的会作废）。
- * 同时只换一次，别的调用等它的结果。force：服务端说 access token 无效时（时钟偏差、提前作废）强制换一次。
+ * 应用身份的 tenant_access_token：只用 App ID / App Secret，不用登录、不会过期（快到期自动重新换）。
+ * 2026-10-27 用户选的方式；原来的用户授权要在应用后台登记重定向 URL，实测报 20029。
+ * force：飞书说 token 无效时重新换一次。
  */
-export async function userToken(settings: SettingsStore, force = false): Promise<string> {
+export async function appToken(settings: SettingsStore, force = false): Promise<string> {
   const f = settings.get().parent.feishu
-  if (!f.accessToken && !f.refreshToken) throw new FeishuAuthError('还没有授权飞书')
-  if (otherApp(f)) throw new FeishuAuthError('飞书应用换过了，去设置重新授权')
-  if (!force && f.accessToken && !expired(f.accessExpiresAt, REFRESH_AHEAD_MS)) return f.accessToken
-  if (!f.refreshToken || (f.refreshExpiresAt && expired(f.refreshExpiresAt))) throw new FeishuAuthError('飞书授权已过期，去设置重新授权')
-  refreshing ??= (async () => {
-    const used = f.refreshToken
+  if (!f.appId || !f.appSecret) throw new FeishuAuthError('还没有填飞书应用的 App ID / App Secret')
+  const key = [f.baseUrl, f.appId, f.appSecret].join('|')
+  if (!force && cached && cached.key === key && cached.expiresAt - REFRESH_AHEAD_MS > Date.now()) return cached.token
+  pending ??= (async () => {
     try {
-      const t = await tokenRequest(f, { grant_type: 'refresh_token', refresh_token: used })
-      await settings.updateParent((p) => {
-        // 换 token 的同时用户退出了授权：不把新 token 写回去
-        if (p.feishu.refreshToken !== used) return
-        p.feishu.accessToken = t.access_token
-        p.feishu.accessExpiresAt = isoIn(t.expires_in)
-        if (t.refresh_token) {
-          p.feishu.refreshToken = t.refresh_token
-          p.feishu.refreshExpiresAt = isoIn(t.refresh_token_expires_in)
-        }
+      const r = await call(`${f.baseUrl.replace(/\/+$/, '')}/open-apis/auth/v3/tenant_access_token/internal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ app_id: f.appId, app_secret: f.appSecret }),
+      }).catch((e) => {
+        // App ID / Secret 不对时飞书返回 10003、10014 等普通错误码，这里当作凭证问题
+        if (e instanceof FeishuError && /app|secret|10003|10014|10015/i.test(e.message)) throw new FeishuAuthError(`飞书 App ID 或 App Secret 不对（${e.message}）`)
+        throw e
       })
-      return t.access_token
-    } catch (e) {
-      // 只有飞书明确说 refresh token 无效才算授权过期；超时、连不上照常往上抛，按普通错误重试
-      if (e instanceof FeishuAuthError) {
-        await settings.updateParent((p) => {
-          if (p.feishu.refreshToken !== used) return
-          p.feishu.accessToken = ''
-          p.feishu.refreshExpiresAt = new Date().toISOString()
-        })
-        throw new FeishuAuthError('飞书授权已过期，去设置重新授权')
-      }
-      throw e
+      if (!r.tenant_access_token) throw new FeishuError('飞书没有返回 tenant_access_token')
+      cached = { key, token: String(r.tenant_access_token), expiresAt: Date.now() + Number(r.expire ?? 7200) * 1000 }
+      return cached.token
     } finally {
-      refreshing = null
+      pending = null
     }
   })()
-  return refreshing
+  return pending
+}
+
+/** 测试用：清掉缓存的 token */
+export function resetAppToken(): void {
+  cached = null
+}
+
+/** 应用没有这张表的权限、或没开通读表权限时，给用户的说明 */
+export const ADD_APP_HINT = '在飞书里打开这张表，点右上角「…」→「更多」→「添加文档应用」，选这个应用（给阅读权限）'
+const PERMISSION_CODES = new Set([1310213, 1310203, 131006, 1254302, 91403, 1770032])
+const SCOPE_CODES = new Set([99991672, 99991679])
+
+function explain(e: unknown): unknown {
+  if (!(e instanceof FeishuError) || e instanceof FeishuAuthError) return e
+  const code = Number(/（(\d+)）$/.exec(e.message)?.[1] ?? 0)
+  if (SCOPE_CODES.has(code)) return new FeishuError(`飞书应用还没开通读表格 / 知识库的权限，要在开发者后台开通「查看电子表格」「查看知识库」并发布版本（${e.message}）`)
+  if (PERMISSION_CODES.has(code) || /permission|forbidden|no access|无权限|没有权限/i.test(e.message)) {
+    return new FeishuError(`应用没有这张表的权限：${ADD_APP_HINT}（${e.message}）`)
+  }
+  return e
 }
 
 // ---- 读表 ----
@@ -216,14 +170,16 @@ export class FeishuSheets {
   }
 
   private async get(path: string): Promise<Json> {
-    const token = await userToken(this.settings)
+    const token = await appToken(this.settings)
     try {
       return await call(this.base() + path, { headers: { Authorization: `Bearer ${token}` } })
     } catch (e) {
-      if (!(e instanceof FeishuAuthError)) throw e
-      // access token 被提前判为无效：refresh token 还能用就换一次再试，只试一次
-      const fresh = await userToken(this.settings, true)
-      return call(this.base() + path, { headers: { Authorization: `Bearer ${fresh}` } })
+      if (!(e instanceof FeishuAuthError)) throw explain(e)
+      // token 被提前作废：重新换一次再试，只试一次
+      const fresh = await appToken(this.settings, true)
+      return call(this.base() + path, { headers: { Authorization: `Bearer ${fresh}` } }).catch((e2) => {
+        throw explain(e2)
+      })
     }
   }
 

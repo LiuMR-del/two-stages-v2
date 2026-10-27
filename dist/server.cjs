@@ -21197,7 +21197,7 @@ var require_application = __commonJS({
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
     var View = require_view();
-    var http3 = require("node:http");
+    var http2 = require("node:http");
     var methods = require_utils3().methods;
     var compileETag = require_utils3().compileETag;
     var compileQueryParser = require_utils3().compileQueryParser;
@@ -21430,7 +21430,7 @@ var require_application = __commonJS({
       tryRender(view, renderOptions, done);
     };
     app.listen = function listen2() {
-      var server = http3.createServer(this);
+      var server = http2.createServer(this);
       var args = slice.call(arguments);
       if (typeof args[args.length - 1] === "function") {
         var done = args[args.length - 1] = once(args[args.length - 1]);
@@ -22141,12 +22141,12 @@ var require_request = __commonJS({
     var accepts = require_accepts();
     var isIP = require("node:net").isIP;
     var typeis = require_type_is();
-    var http3 = require("node:http");
+    var http2 = require("node:http");
     var fresh = require_fresh();
     var parseRange = require_range_parser();
     var parse3 = require_parseurl();
     var proxyaddr = require_proxy_addr();
-    var req = Object.create(http3.IncomingMessage.prototype);
+    var req = Object.create(http2.IncomingMessage.prototype);
     module2.exports = req;
     req.get = req.header = function header(name) {
       if (!name) {
@@ -23320,7 +23320,7 @@ var require_response = __commonJS({
     var deprecate = require_depd()("express");
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
-    var http3 = require("node:http");
+    var http2 = require("node:http");
     var onFinished = require_on_finished();
     var mime = require_mime_types();
     var path20 = require("node:path");
@@ -23337,7 +23337,7 @@ var require_response = __commonJS({
     var basename = path20.basename;
     var vary = require_vary();
     var { Buffer: Buffer2 } = require("node:buffer");
-    var res = Object.create(http3.ServerResponse.prototype);
+    var res = Object.create(http2.ServerResponse.prototype);
     module2.exports = res;
     res.status = function status(code) {
       if (!Number.isInteger(code)) {
@@ -37635,7 +37635,7 @@ function readJsonSync(file2) {
 // server/src/server.ts
 var import_node_fs13 = __toESM(require("node:fs"), 1);
 var import_node_path19 = __toESM(require("node:path"), 1);
-var import_node_http2 = __toESM(require("node:http"), 1);
+var import_node_http = __toESM(require("node:http"), 1);
 var import_express = __toESM(require_express2(), 1);
 
 // server/src/events/bus.ts
@@ -42734,9 +42734,9 @@ var NONE = 0;
 var ASSUMED = 1;
 var PROVEN = 2;
 function isRecursive(inst, stack, resolve) {
-  const cached2 = recursive.get(inst);
-  if (cached2 !== void 0)
-    return cached2 ? PROVEN : NONE;
+  const cached3 = recursive.get(inst);
+  if (cached3 !== void 0)
+    return cached3 ? PROVEN : NONE;
   if (stack.has(inst))
     return PROVEN;
   stack.add(inst);
@@ -54359,13 +54359,13 @@ var recordProcessor = (schema, ctx, _json, params) => {
         ...params,
         path: [...params.path, "propertyNames"]
       });
-      let pending = pendingRecords.get(ctx);
-      if (!pending) {
-        pending = [];
-        pendingRecords.set(ctx, pending);
+      let pending2 = pendingRecords.get(ctx);
+      if (!pending2) {
+        pending2 = [];
+        pendingRecords.set(ctx, pending2);
         ctx.deferred.push(() => rewriteKeyNames(ctx));
       }
-      pending.push(schema);
+      pending2.push(schema);
     }
     json2.additionalProperties = processSchema(def.valueType, ctx, {
       ...params,
@@ -57170,15 +57170,15 @@ function visit(schema, fnOrHandlers) {
   };
   const cache = /* @__PURE__ */ new Map();
   function run2(s) {
-    const cached2 = cache.get(s);
-    if (cached2 === RESOLVING) {
+    const cached3 = cache.get(s);
+    if (cached3 === RESOLVING) {
       return new $ZodLazy({
         type: "lazy",
         getter: () => cache.get(s)
       });
     }
-    if (cached2 !== void 0)
-      return cached2;
+    if (cached3 !== void 0)
+      return cached3;
     cache.set(s, RESOLVING);
     const inner = mapInner(s);
     const mapped = fn(inner, inner !== s);
@@ -57443,19 +57443,8 @@ var AnalysisApiSchema = external_exports.object({
 var FeishuSchema = external_exports.object({
   appId: external_exports.string().default(""),
   appSecret: external_exports.string().default(""),
-  /** 授权人的飞书名字，显示用 */
-  user: external_exports.string().nullable().default(null),
-  /** 授权时用的 App ID；和现在的不一样说明换过应用，要重新授权 */
-  authAppId: external_exports.string().default(""),
-  accessToken: external_exports.string().default(""),
-  accessExpiresAt: external_exports.string().default(""),
-  refreshToken: external_exports.string().default(""),
-  refreshExpiresAt: external_exports.string().default(""),
-  /** 授权回调：lark3000 = 借用 lark-mcp 在后台登记的 http://localhost:3000/callback（2026-10-27 用户确认）；self = 回调进本服务 */
-  redirect: external_exports.enum(["lark3000", "self"]).default("lark3000"),
-  /** 接口地址，测试时由程序内部指向模拟服务；设置接口不能改（否则能把 token 发到别处） */
-  baseUrl: external_exports.string().default("https://open.feishu.cn"),
-  accountsUrl: external_exports.string().default("https://accounts.feishu.cn")
+  /** 接口地址，测试时由程序内部指向模拟服务；设置接口不能改（否则能把 App Secret 发到别处） */
+  baseUrl: external_exports.string().default("https://open.feishu.cn")
 });
 var SpapiSchema = external_exports.object({
   sellerId: external_exports.string().default(""),
@@ -57517,8 +57506,7 @@ var SettingsPatchSchema = external_exports.object({
     creatorMark: external_exports.string().max(10).optional(),
     feishu: external_exports.object({
       appId: external_exports.string().max(200),
-      appSecret: external_exports.string().max(500),
-      redirect: external_exports.enum(["lark3000", "self"])
+      appSecret: external_exports.string().max(500)
     }).partial().optional(),
     spapi: external_exports.object({
       sellerId: external_exports.string().max(100),
@@ -57555,7 +57543,7 @@ function maskSettings(s) {
     analysis: { ...s.analysis, apiKey: maskKey(s.analysis.apiKey) },
     parent: {
       ...s.parent,
-      feishu: { ...f2, appSecret: maskSecret(f2.appSecret), accessToken: maskSecret(f2.accessToken), refreshToken: maskSecret(f2.refreshToken) },
+      feishu: { ...f2, appSecret: maskSecret(f2.appSecret) },
       spapi: {
         ...sp,
         sellerId: maskSecret(sp.sellerId),
@@ -57567,7 +57555,7 @@ function maskSettings(s) {
   };
 }
 function registerParentSecrets(p) {
-  for (const v of [p.feishu.appSecret, p.feishu.accessToken, p.feishu.refreshToken, p.spapi.clientId, p.spapi.clientSecret, p.spapi.refreshToken, p.spapi.sellerId]) {
+  for (const v of [p.feishu.appSecret, p.spapi.clientId, p.spapi.clientSecret, p.spapi.refreshToken, p.spapi.sellerId]) {
     registerSecret(v);
   }
 }
@@ -57759,7 +57747,6 @@ async function writeOutput(outputDir, job, kind, buf) {
 }
 
 // server/src/parent/feishu.ts
-var FEISHU_SCOPE = "wiki:wiki:readonly sheets:spreadsheet:readonly offline_access";
 var TIMEOUT_MS = 2e4;
 var REFRESH_AHEAD_MS = 6e4;
 var SHEET_CACHE_MS = 5 * 6e4;
@@ -57769,7 +57756,7 @@ var FeishuAuthError = class extends Error {
 };
 var FeishuError = class extends Error {
 };
-var TOKEN_ERRORS = /* @__PURE__ */ new Set([99991663, 99991664, 99991668, 99991677, 20005, 20026, 20037, 20064, 20073, 20074]);
+var TOKEN_ERRORS = /* @__PURE__ */ new Set([99991661, 99991663, 99991664, 99991668]);
 async function call(url2, init) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
@@ -57788,87 +57775,47 @@ async function call(url2, init) {
     throw new FeishuError(`\u98DE\u4E66\u8FD4\u56DE\u7684\u4E0D\u662F JSON\uFF08HTTP ${resp.status}\uFF09`);
   }
   const code = Number(body.code ?? 0);
-  if (resp.status === 401 || TOKEN_ERRORS.has(code)) throw new FeishuAuthError(`\u98DE\u4E66\u6388\u6743\u5DF2\u5931\u6548\uFF08${body.msg ?? body.error_description ?? code}\uFF09`);
+  if (resp.status === 401 || TOKEN_ERRORS.has(code)) throw new FeishuAuthError(`\u98DE\u4E66 token \u65E0\u6548\uFF08${body.msg ?? code}\uFF09`);
   if (!resp.ok || code !== 0) throw new FeishuError(String(body.msg ?? body.error_description ?? body.error ?? `HTTP ${resp.status}`) + (code ? `\uFF08${code}\uFF09` : ""));
   return body;
 }
-var isoIn = (sec) => sec ? new Date(Date.now() + sec * 1e3).toISOString() : "";
-function authorizeUrl(f2, redirectUri, state) {
-  const q = new URLSearchParams({ client_id: f2.appId, response_type: "code", redirect_uri: redirectUri, scope: FEISHU_SCOPE, state });
-  return `${f2.accountsUrl.replace(/\/+$/, "")}/open-apis/authen/v1/authorize?${q}`;
-}
-async function tokenRequest(f2, body) {
-  const r = await call(`${f2.baseUrl.replace(/\/+$/, "")}/open-apis/authen/v2/oauth/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-    body: JSON.stringify({ client_id: f2.appId, client_secret: f2.appSecret, ...body })
-  });
-  if (!r.access_token) throw new FeishuError("\u98DE\u4E66\u6CA1\u6709\u8FD4\u56DE access_token");
-  return r;
-}
-async function exchangeCode(settings, code, redirectUri) {
+var cached2 = null;
+var pending = null;
+async function appToken(settings, force = false) {
   const f2 = settings.get().parent.feishu;
-  const t = await tokenRequest(f2, { grant_type: "authorization_code", code, redirect_uri: redirectUri });
-  let user = null;
-  try {
-    const info = await call(`${f2.baseUrl.replace(/\/+$/, "")}/open-apis/authen/v1/user_info`, { headers: { Authorization: `Bearer ${t.access_token}` } });
-    user = info.data?.name || null;
-  } catch (e) {
-    log.warn(`\u53D6\u98DE\u4E66\u6388\u6743\u4EBA\u540D\u5B57\u5931\u8D25\uFF1A${e.message}`);
-  }
-  await settings.updateParent((p) => {
-    Object.assign(p.feishu, {
-      authAppId: f2.appId,
-      user,
-      accessToken: t.access_token,
-      accessExpiresAt: isoIn(t.expires_in),
-      refreshToken: t.refresh_token ?? "",
-      refreshExpiresAt: isoIn(t.refresh_token_expires_in)
-    });
-  });
-  return user;
-}
-async function logout(settings) {
-  await settings.updateParent((p) => Object.assign(p.feishu, { authAppId: "", user: null, accessToken: "", accessExpiresAt: "", refreshToken: "", refreshExpiresAt: "" }));
-}
-var expired = (iso, aheadMs = 0) => !iso || new Date(iso).getTime() - aheadMs <= Date.now();
-var refreshing = null;
-var otherApp = (f2) => !!f2.authAppId && f2.authAppId !== f2.appId;
-async function userToken(settings, force = false) {
-  const f2 = settings.get().parent.feishu;
-  if (!f2.accessToken && !f2.refreshToken) throw new FeishuAuthError("\u8FD8\u6CA1\u6709\u6388\u6743\u98DE\u4E66");
-  if (otherApp(f2)) throw new FeishuAuthError("\u98DE\u4E66\u5E94\u7528\u6362\u8FC7\u4E86\uFF0C\u53BB\u8BBE\u7F6E\u91CD\u65B0\u6388\u6743");
-  if (!force && f2.accessToken && !expired(f2.accessExpiresAt, REFRESH_AHEAD_MS)) return f2.accessToken;
-  if (!f2.refreshToken || f2.refreshExpiresAt && expired(f2.refreshExpiresAt)) throw new FeishuAuthError("\u98DE\u4E66\u6388\u6743\u5DF2\u8FC7\u671F\uFF0C\u53BB\u8BBE\u7F6E\u91CD\u65B0\u6388\u6743");
-  refreshing ??= (async () => {
-    const used = f2.refreshToken;
+  if (!f2.appId || !f2.appSecret) throw new FeishuAuthError("\u8FD8\u6CA1\u6709\u586B\u98DE\u4E66\u5E94\u7528\u7684 App ID / App Secret");
+  const key = [f2.baseUrl, f2.appId, f2.appSecret].join("|");
+  if (!force && cached2 && cached2.key === key && cached2.expiresAt - REFRESH_AHEAD_MS > Date.now()) return cached2.token;
+  pending ??= (async () => {
     try {
-      const t = await tokenRequest(f2, { grant_type: "refresh_token", refresh_token: used });
-      await settings.updateParent((p) => {
-        if (p.feishu.refreshToken !== used) return;
-        p.feishu.accessToken = t.access_token;
-        p.feishu.accessExpiresAt = isoIn(t.expires_in);
-        if (t.refresh_token) {
-          p.feishu.refreshToken = t.refresh_token;
-          p.feishu.refreshExpiresAt = isoIn(t.refresh_token_expires_in);
-        }
+      const r = await call(`${f2.baseUrl.replace(/\/+$/, "")}/open-apis/auth/v3/tenant_access_token/internal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ app_id: f2.appId, app_secret: f2.appSecret })
+      }).catch((e) => {
+        if (e instanceof FeishuError && /app|secret|10003|10014|10015/i.test(e.message)) throw new FeishuAuthError(`\u98DE\u4E66 App ID \u6216 App Secret \u4E0D\u5BF9\uFF08${e.message}\uFF09`);
+        throw e;
       });
-      return t.access_token;
-    } catch (e) {
-      if (e instanceof FeishuAuthError) {
-        await settings.updateParent((p) => {
-          if (p.feishu.refreshToken !== used) return;
-          p.feishu.accessToken = "";
-          p.feishu.refreshExpiresAt = (/* @__PURE__ */ new Date()).toISOString();
-        });
-        throw new FeishuAuthError("\u98DE\u4E66\u6388\u6743\u5DF2\u8FC7\u671F\uFF0C\u53BB\u8BBE\u7F6E\u91CD\u65B0\u6388\u6743");
-      }
-      throw e;
+      if (!r.tenant_access_token) throw new FeishuError("\u98DE\u4E66\u6CA1\u6709\u8FD4\u56DE tenant_access_token");
+      cached2 = { key, token: String(r.tenant_access_token), expiresAt: Date.now() + Number(r.expire ?? 7200) * 1e3 };
+      return cached2.token;
     } finally {
-      refreshing = null;
+      pending = null;
     }
   })();
-  return refreshing;
+  return pending;
+}
+var ADD_APP_HINT = "\u5728\u98DE\u4E66\u91CC\u6253\u5F00\u8FD9\u5F20\u8868\uFF0C\u70B9\u53F3\u4E0A\u89D2\u300C\u2026\u300D\u2192\u300C\u66F4\u591A\u300D\u2192\u300C\u6DFB\u52A0\u6587\u6863\u5E94\u7528\u300D\uFF0C\u9009\u8FD9\u4E2A\u5E94\u7528\uFF08\u7ED9\u9605\u8BFB\u6743\u9650\uFF09";
+var PERMISSION_CODES = /* @__PURE__ */ new Set([1310213, 1310203, 131006, 1254302, 91403, 1770032]);
+var SCOPE_CODES = /* @__PURE__ */ new Set([99991672, 99991679]);
+function explain(e) {
+  if (!(e instanceof FeishuError) || e instanceof FeishuAuthError) return e;
+  const code = Number(/（(\d+)）$/.exec(e.message)?.[1] ?? 0);
+  if (SCOPE_CODES.has(code)) return new FeishuError(`\u98DE\u4E66\u5E94\u7528\u8FD8\u6CA1\u5F00\u901A\u8BFB\u8868\u683C / \u77E5\u8BC6\u5E93\u7684\u6743\u9650\uFF0C\u8981\u5728\u5F00\u53D1\u8005\u540E\u53F0\u5F00\u901A\u300C\u67E5\u770B\u7535\u5B50\u8868\u683C\u300D\u300C\u67E5\u770B\u77E5\u8BC6\u5E93\u300D\u5E76\u53D1\u5E03\u7248\u672C\uFF08${e.message}\uFF09`);
+  if (PERMISSION_CODES.has(code) || /permission|forbidden|no access|无权限|没有权限/i.test(e.message)) {
+    return new FeishuError(`\u5E94\u7528\u6CA1\u6709\u8FD9\u5F20\u8868\u7684\u6743\u9650\uFF1A${ADD_APP_HINT}\uFF08${e.message}\uFF09`);
+  }
+  return e;
 }
 function parseSheetLink(url2) {
   let u;
@@ -57919,13 +57866,15 @@ var FeishuSheets = class {
     return this.settings.get().parent.feishu.baseUrl.replace(/\/+$/, "");
   }
   async get(path20) {
-    const token = await userToken(this.settings);
+    const token = await appToken(this.settings);
     try {
       return await call(this.base() + path20, { headers: { Authorization: `Bearer ${token}` } });
     } catch (e) {
-      if (!(e instanceof FeishuAuthError)) throw e;
-      const fresh = await userToken(this.settings, true);
-      return call(this.base() + path20, { headers: { Authorization: `Bearer ${fresh}` } });
+      if (!(e instanceof FeishuAuthError)) throw explain(e);
+      const fresh = await appToken(this.settings, true);
+      return call(this.base() + path20, { headers: { Authorization: `Bearer ${fresh}` } }).catch((e2) => {
+        throw explain(e2);
+      });
     }
   }
   cached(key, fn, fresh) {
@@ -58084,10 +58033,6 @@ var SpapiClient = class {
   }
 };
 
-// server/src/parent/oauth.ts
-var import_node_http = __toESM(require("node:http"), 1);
-var import_node_crypto3 = require("node:crypto");
-
 // server/src/util/errors.ts
 var HttpError = class extends Error {
   constructor(status, message) {
@@ -58095,108 +58040,6 @@ var HttpError = class extends Error {
     this.status = status;
   }
   status;
-};
-
-// server/src/parent/oauth.ts
-function appLinkFor(url2) {
-  return `https://applink.feishu.cn/client/web_url/open?${new URLSearchParams({ mode: "window", url: url2 })}`;
-}
-var LARK_REDIRECT = "http://localhost:3000/callback";
-var LARK_PORT = 3e3;
-var WAIT_MS = 10 * 6e4;
-var esc2 = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-var page = (title, text) => `<!doctype html><meta charset="utf-8"><title>${esc2(title)}</title><body style="font:16px -apple-system,'PingFang SC',sans-serif;padding:48px;color:#333"><h3>${esc2(title)}</h3><p>${esc2(text)}</p></body>`;
-var FeishuOAuth = class {
-  constructor(settings, onAuthorized) {
-    this.settings = settings;
-    this.onAuthorized = onAuthorized;
-  }
-  settings;
-  onAuthorized;
-  states = /* @__PURE__ */ new Map();
-  temp = [];
-  tempTimer = null;
-  /** selfBase：本服务的地址（如 http://127.0.0.1:3451），回调进本服务时用 */
-  async start(selfBase) {
-    const f2 = this.settings.get().parent.feishu;
-    if (!f2.appId || !f2.appSecret) throw new HttpError(400, "\u5148\u586B\u98DE\u4E66\u5E94\u7528\u7684 App ID \u548C App Secret");
-    const redirectUri = f2.redirect === "lark3000" ? LARK_REDIRECT : `${selfBase}/api/feishu/callback`;
-    if (f2.redirect === "lark3000") await this.listenLark();
-    const state = (0, import_node_crypto3.randomBytes)(16).toString("hex");
-    const now = Date.now();
-    for (const [k, v] of this.states) if (v.expires < now) this.states.delete(k);
-    this.states.set(state, { redirectUri, expires: now + WAIT_MS });
-    const url2 = authorizeUrl(f2, redirectUri, state);
-    return { url: url2, appUrl: appLinkFor(url2), redirectUri };
-  }
-  /** 回调：返回给浏览器的页面 */
-  async callback(q) {
-    const state = String(q.state ?? "");
-    const entry = this.states.get(state);
-    if (!entry || entry.expires < Date.now()) return { status: 400, html: page("\u6388\u6743\u6CA1\u6709\u5B8C\u6210", "\u8FD9\u4E2A\u6388\u6743\u94FE\u63A5\u5DF2\u7ECF\u5931\u6548\uFF0C\u8BF7\u56DE\u5230\u5DE5\u5177\u7684\u8BBE\u7F6E\u91CC\u91CD\u65B0\u70B9\u300C\u6388\u6743\u98DE\u4E66\u300D\u3002") };
-    if (q.error || !q.code) {
-      this.states.delete(state);
-      return { status: 400, html: page("\u6388\u6743\u6CA1\u6709\u5B8C\u6210", `\u98DE\u4E66\u6CA1\u6709\u7ED9\u51FA\u6388\u6743\uFF08${String(q.error ?? "\u7F3A\u5C11 code")}\uFF09\uFF0C\u8BF7\u56DE\u5230\u8BBE\u7F6E\u91CC\u91CD\u65B0\u6388\u6743\u3002`) };
-    }
-    this.states.delete(state);
-    try {
-      const user = await exchangeCode(this.settings, String(q.code), entry.redirectUri);
-      log.info(`\u98DE\u4E66\u6388\u6743\u6210\u529F${user ? `\uFF08${user}\uFF09` : ""}`);
-      this.onAuthorized();
-      return { status: 200, html: page("\u6388\u6743\u6210\u529F\uFF0C\u53EF\u4EE5\u5173\u95ED\u8FD9\u4E2A\u9875\u9762", `\u5DF2\u7528${user ? `\u300C${user}\u300D\u7684` : "\u4F60\u7684"}\u98DE\u4E66\u8D26\u53F7\u6388\u6743\uFF0C\u56DE\u5230\u5DE5\u5177\u91CC\u5C31\u80FD\u8BFB\u7236\u4F53\u8868\u4E86\u3002`) };
-    } catch (e) {
-      log.warn(`\u98DE\u4E66\u6388\u6743\u6362 token \u5931\u8D25\uFF1A${e.message}`);
-      return { status: 500, html: page("\u6388\u6743\u6CA1\u6709\u5B8C\u6210", `\u6362 token \u5931\u8D25\uFF1A${e.message}\u3002\u8BF7\u56DE\u5230\u8BBE\u7F6E\u91CC\u91CD\u65B0\u6388\u6743\u3002`) };
-    }
-  }
-  /** 临时在 3000 端口接收一次回调；localhost 可能解析成 127.0.0.1 或 ::1，两个都听 */
-  async listenLark() {
-    if (this.temp.length) {
-      this.armTimer();
-      return;
-    }
-    const handler = (req, res) => {
-      const u = new URL(req.url ?? "/", LARK_REDIRECT);
-      if (u.pathname !== "/callback") {
-        res.writeHead(404).end();
-        return;
-      }
-      void this.callback(Object.fromEntries(u.searchParams)).then((r) => {
-        res.writeHead(r.status, { "Content-Type": "text/html; charset=utf-8" }).end(r.html);
-        if (r.status === 200) this.closeLark();
-      });
-    };
-    const listen2 = (host) => new Promise((resolve, reject) => {
-      const s = import_node_http.default.createServer(handler);
-      s.once("error", (e) => host === "::1" && (e.code === "EADDRNOTAVAIL" || e.code === "EAFNOSUPPORT") ? resolve(null) : reject(e));
-      s.listen(LARK_PORT, host, () => resolve(s));
-    });
-    const opened = [];
-    try {
-      opened.push(await listen2("127.0.0.1"));
-      const v6 = await listen2("::1");
-      if (v6) opened.push(v6);
-      this.temp = opened;
-    } catch (e) {
-      for (const s of opened) s.close();
-      const code = e.code;
-      throw new HttpError(409, code === "EADDRINUSE" ? "3000 \u7AEF\u53E3\u88AB\u5360\u7528\uFF08\u53EF\u80FD lark-mcp \u6B63\u5728\u767B\u5F55\uFF09\uFF0C\u5173\u6389\u5B83\u540E\u518D\u70B9\u300C\u6388\u6743\u98DE\u4E66\u300D" : `3000 \u7AEF\u53E3\u6253\u4E0D\u5F00\uFF1A${e.message}`);
-    }
-    this.armTimer();
-  }
-  armTimer() {
-    if (this.tempTimer) clearTimeout(this.tempTimer);
-    this.tempTimer = setTimeout(() => this.closeLark(), WAIT_MS);
-  }
-  closeLark() {
-    if (this.tempTimer) clearTimeout(this.tempTimer);
-    this.tempTimer = null;
-    for (const s of this.temp) {
-      s.closeAllConnections?.();
-      s.close();
-    }
-    this.temp = [];
-  }
 };
 
 // server/src/api/util.ts
@@ -58251,7 +58094,7 @@ var import_node_path7 = __toESM(require("node:path"), 1);
 var import_node_fs5 = __toESM(require("node:fs"), 1);
 var import_promises2 = __toESM(require("node:fs/promises"), 1);
 var import_node_path6 = __toESM(require("node:path"), 1);
-var import_node_crypto4 = require("node:crypto");
+var import_node_crypto3 = require("node:crypto");
 var import_sharp2 = __toESM(require("sharp"), 1);
 
 // server/src/image/process.ts
@@ -58530,7 +58373,7 @@ function migrateLibrary(raw2) {
 }
 
 // server/src/library/images.ts
-var sha256 = (b) => (0, import_node_crypto4.createHash)("sha256").update(b).digest("hex");
+var sha256 = (b) => (0, import_node_crypto3.createHash)("sha256").update(b).digest("hex");
 var EXTS = ["png", "jpg", "webp"];
 var MIME_BY_EXT = { png: "image/png", jpg: "image/jpeg", webp: "image/webp" };
 var UnsupportedImageError = class extends Error {
@@ -58910,8 +58753,8 @@ var LibraryStore = class {
    * buffer 给了就不再读库里的图（任务目录里复制的那份）。
    */
   async whiteShape(hash2, buffer) {
-    const cached2 = this.value.whiteChecks[hash2] ?? this.shapeCache.get(hash2);
-    if (cached2) return cached2;
+    const cached3 = this.value.whiteChecks[hash2] ?? this.shapeCache.get(hash2);
+    if (cached3) return cached3;
     const buf = buffer ?? (await this.images.read(hash2)).buffer;
     const shape = await detectWhiteShape(buf);
     this.shapeCache.set(hash2, shape);
@@ -60536,12 +60379,12 @@ function extractFirstJsonObject(text) {
 function matchBrace(s, start) {
   let depth = 0;
   let inStr = false;
-  let esc3 = false;
+  let esc2 = false;
   for (let i2 = start; i2 < s.length; i2++) {
     const c = s[i2];
     if (inStr) {
-      if (esc3) esc3 = false;
-      else if (c === "\\") esc3 = true;
+      if (esc2) esc2 = false;
+      else if (c === "\\") esc2 = true;
       else if (c === '"') inStr = false;
       continue;
     }
@@ -60907,20 +60750,6 @@ function parseSpapiCredentials(input2) {
 function registerParent(r, ctx) {
   const { settings } = ctx;
   const p = ctx.parent;
-  r.post("/settings/feishu/authorize", async (req, res) => {
-    const host = req.headers.host ?? "127.0.0.1";
-    res.json(await p.oauth.start(`http://${host}`));
-  });
-  r.get("/feishu/callback", async (req, res) => {
-    const out = await p.oauth.callback(req.query);
-    res.status(out.status).type("html").send(out.html);
-  });
-  r.post("/settings/feishu/logout", async (_req, res) => {
-    await logout(settings);
-    p.sheets.clear();
-    log.info("\u5DF2\u9000\u51FA\u98DE\u4E66\u6388\u6743");
-    res.json(maskSettings(settings.get()));
-  });
   r.post("/settings/parent/test", async (req, res) => {
     const b = parseBody(external_exports.object({ url: external_exports.string().optional() }), req.body ?? {});
     const url2 = (b.url ?? settings.get().parent.sheetUrl).trim();
@@ -61898,9 +61727,9 @@ async function resolvePlan(job, lib, images, jobDir, scope = "all") {
 var import_sharp5 = __toESM(require("sharp"), 1);
 
 // server/src/ai/multipart.ts
-var import_node_crypto5 = require("node:crypto");
+var import_node_crypto4 = require("node:crypto");
 function encodeMultipart(parts) {
-  const boundary = "----TwoStages" + (0, import_node_crypto5.randomBytes)(12).toString("hex");
+  const boundary = "----TwoStages" + (0, import_node_crypto4.randomBytes)(12).toString("hex");
   const chunks = [];
   for (const p of parts) {
     let head = `--${boundary}\r
@@ -63485,8 +63314,7 @@ async function createContext(paths) {
     batch: new BatchFolders(import_node_path19.default.join(paths.dataDir, "batch.json"), () => resolveOutputDir(settings.get())),
     parent: {
       sheets: new FeishuSheets(settings),
-      spapi: new SpapiClient(settings),
-      oauth: new FeishuOAuth(settings, () => ctx.onSettingsSaved())
+      spapi: new SpapiClient(settings)
     },
     sse: { clients: 0 },
     onSettingsSaved: () => {
@@ -63501,7 +63329,6 @@ async function createContext(paths) {
     },
     stop: async () => {
       sched.stop();
-      ctx.parent.oauth.closeLark();
       limiter.dispose();
       await jobs.flush();
     },
@@ -63552,7 +63379,7 @@ function listen(app, ports) {
   return new Promise((resolve, reject) => {
     const tryAt = (i2) => {
       if (i2 >= ports.length) return reject(new Error(`\u7AEF\u53E3 ${ports[0]}\uFF5E${ports[ports.length - 1]} \u90FD\u88AB\u5360\u7528\u4E86`));
-      const server = import_node_http2.default.createServer(app);
+      const server = import_node_http.default.createServer(app);
       server.once("error", (e) => {
         if (e.code === "EADDRINUSE" || e.code === "EACCES") tryAt(i2 + 1);
         else reject(e);

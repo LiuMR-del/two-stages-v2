@@ -10,8 +10,10 @@ const props = withDefaults(
     placeholder?: string
     label?: string
     rows?: number
+    /** 密钥：用密码框，截图时不露出来 */
+    secret?: boolean
   }>(),
-  { multiline: false, placeholder: '', label: '', rows: 4 },
+  { multiline: false, placeholder: '', label: '', rows: 4, secret: false },
 )
 
 const local = ref(props.value)
@@ -51,7 +53,7 @@ function onBlur() {
       @input="onInput"
       @blur="onBlur"
     />
-    <input v-else type="text" :value="local" :placeholder="placeholder" :aria-label="label" @focus="focused = true" @input="onInput" @blur="onBlur" />
+    <input v-else :type="secret ? 'password' : 'text'" autocomplete="off" :value="local" :placeholder="placeholder" :aria-label="label" @focus="focused = true" @input="onInput" @blur="onBlur" />
     <span v-if="saver.status.value === 'saved'" class="saved">已保存</span>
     <span v-else-if="saver.status.value === 'saving'" class="saved muted">保存中…</span>
     <span v-else-if="saver.status.value === 'error'" class="saved" style="color: var(--rd)">没保存上</span>

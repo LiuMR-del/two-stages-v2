@@ -4,31 +4,14 @@ import type { AppContext } from '../context'
 import { HttpError, parseBody } from './util'
 import { upload } from './library'
 import { maskSettings, MAX_RECENT_URLS } from '../store/settings'
-import { FeishuAuthError, FeishuError, logout } from '../parent/feishu'
+import { FeishuAuthError, FeishuError } from '../parent/feishu'
 import { parseSpapiCredentials } from '../parent/credentials'
 import { log } from '../util/log'
 
-/** 父体匹配的设置接口：飞书授权、读表试试、SP-API 凭证导入和测试。对飞书和 SP-API 都只读 */
+/** 父体匹配的设置接口：读表试试（飞书应用身份）、SP-API 凭证导入和测试。对飞书和 SP-API 都只读 */
 export function registerParent(r: Router, ctx: AppContext): void {
   const { settings } = ctx
   const p = ctx.parent
-
-  r.post('/settings/feishu/authorize', async (req, res) => {
-    const host = req.headers.host ?? '127.0.0.1'
-    res.json(await p.oauth.start(`http://${host}`))
-  })
-
-  r.get('/feishu/callback', async (req, res) => {
-    const out = await p.oauth.callback(req.query as Record<string, unknown>)
-    res.status(out.status).type('html').send(out.html)
-  })
-
-  r.post('/settings/feishu/logout', async (_req, res) => {
-    await logout(settings)
-    p.sheets.clear()
-    log.info('已退出飞书授权')
-    res.json(maskSettings(settings.get()))
-  })
 
   /** 读一次链接：表格名、所有标签页和每页的父体数量；顺便记进「用过的链接」和模版库下拉用的标签页 */
   r.post('/settings/parent/test', async (req, res) => {

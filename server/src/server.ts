@@ -9,7 +9,6 @@ import { resolveOutputDir, SettingsStore } from './store/settings'
 import { BatchFolders } from './pipeline/output'
 import { FeishuSheets } from './parent/feishu'
 import { SpapiClient } from './parent/spapi'
-import { FeishuOAuth } from './parent/oauth'
 import { registerParent } from './api/parent'
 import { Limiter } from './ai/limiter'
 import { registerSettings } from './api/settings'
@@ -62,7 +61,6 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     parent: {
       sheets: new FeishuSheets(settings),
       spapi: new SpapiClient(settings),
-      oauth: new FeishuOAuth(settings, () => ctx.onSettingsSaved()),
     },
     sse: { clients: 0 },
     onSettingsSaved: () => {},
@@ -76,7 +74,6 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     },
     stop: async () => {
       sched.stop()
-      ctx.parent.oauth.closeLark()
       limiter.dispose()
       await jobs.flush()
     },
