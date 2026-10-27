@@ -119,6 +119,13 @@ export async function startWorld(opts: { image?: number; analysis?: number } = {
   return w
 }
 
+/** 这个测试只跑了一批图，输出里应该只有一个批次文件夹 */
+export function onlyBatch(w: World): string {
+  const ds = fs.existsSync(w.outDir) ? fs.readdirSync(w.outDir).filter((n) => n.startsWith('主图生成-')) : []
+  if (ds.length !== 1) throw new Error('输出里应该只有一个批次文件夹，实际：' + (ds.join('、') || '没有'))
+  return path.join(w.outDir, ds[0]!)
+}
+
 // ---- 模版库搭建 ----
 
 export type StyleSpec = { name: string; ratio: string; white?: [number, number] }
@@ -146,18 +153,23 @@ export async function makeCategory(api: Api, name: string, styles: StyleSpec[], 
     }
   }
   if (hint) await api.json('PATCH', `/library/categories/${cid}`, { hint })
-  let tid: string | null = null
+  // 模版属于款式：给每个款式各建一份同样的模版并设为使用中
+  const tids: Record<string, string> = {}
   if (tpl) {
-    const t = await api.json('POST', `/library/categories/${cid}/templates`, { name: tpl.name, prompt: tpl.prompt })
-    tid = t.body.template.id
-    for (const [sname, [w, h]] of Object.entries(tpl.images ?? {})) {
-      await api.upload('PUT', `/library/categories/${cid}/templates/${tid}/images/${ids[sname]}`, 'file', [
-        { name: 'ref.png', buffer: await png(w, h, { r: 200, g: 190, b: 170 }), type: 'image/png' },
-      ])
+    for (const [sname, sid] of Object.entries(ids)) {
+      const t = await api.json('POST', `/library/categories/${cid}/styles/${sid}/templates`, { name: tpl.name, prompt: tpl.prompt })
+      tids[sname] = t.body.template.id
+      const size = tpl.images?.[sname]
+      if (size) {
+        await api.upload('PUT', `/library/categories/${cid}/styles/${sid}/templates/${tids[sname]}/image`, 'file', [
+          { name: 'ref.png', buffer: await png(size[0], size[1], { r: 200, g: 190, b: 170 }), type: 'image/png' },
+        ])
+      }
+      await api.json('PATCH', `/library/categories/${cid}/styles/${sid}`, { activeTemplate: tids[sname] })
     }
-    await api.json('PATCH', `/library/categories/${cid}`, { activeTemplate: tid })
   }
-  return { cid, styles: ids, tid }
+  const first = Object.keys(ids)[0]!
+  return { cid, styles: ids, tid: tpl ? tids[first]! : null, tids }
 }
 
 // ---- 任务 ----

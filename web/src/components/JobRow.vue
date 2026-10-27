@@ -3,8 +3,8 @@ import { computed } from 'vue'
 import { ChevronRight } from '@lucide/vue'
 import ImageSlot from './ImageSlot.vue'
 import StepTile from './StepTile.vue'
-import { useJobs } from '../stores/jobs'
-import { useLibrary } from '../stores/library'
+import { useJobs, type FileKind } from '../stores/jobs'
+import { activeTemplateName, useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import type { Job } from '../types'
 
@@ -19,15 +19,19 @@ const label = computed(() => {
 })
 const templateName = computed(() => {
   if (props.job.plan) return props.job.plan.main.templateName
-  const c = lib.category(props.job.route?.categoryId)
+  const r = props.job.route
+  const c = lib.category(r?.categoryId)
   if (!c) return ''
-  if (c.activeTemplate === 'default') return '默认 · 贴图'
-  return c.templates.find((t) => t.id === c.activeTemplate)?.name ?? '默认 · 贴图'
+  return activeTemplateName(c.styles.find((s) => s.id === r!.styleId))
 })
 const dot = computed(() => ({ queued: 'dot gr', running: 'dot bl', attention: 'dot am', done: 'dot' })[props.job.view.phase])
 
 function open(step: number) {
   ui.sheet = { jobId: props.job.id, step }
+}
+function view(kind: FileKind) {
+  const items = jobs.viewItems(props.job)
+  ui.view(items, items.findIndex((i) => i.kind === kind), { title: props.job.source.originalName, jobId: props.job.id })
 }
 function defaultStep() {
   const v = props.job.view
@@ -42,7 +46,9 @@ function defaultStep() {
 <template>
   <div class="job">
     <div class="src">
-      <ImageSlot state="image" :img="jobs.fileUrl(job, 'source')" :size="56" />
+      <button type="button" class="tile" aria-label="查看竞品图大图" title="点击看大图" @click="view('source')">
+        <ImageSlot state="image" :img="jobs.fileUrl(job, 'source')" :size="56" />
+      </button>
       <div style="min-width: 0">
         <div class="nm" :title="job.source.originalName">{{ job.source.originalName }}</div>
         <div class="meta">
@@ -56,11 +62,11 @@ function defaultStep() {
       </div>
     </div>
     <div class="flow">
-      <StepTile :job="job" :step="1" kind="pattern" label="素材图" @open="open" />
+      <StepTile :job="job" :step="1" kind="pattern" label="素材图" @open="open" @view="view" />
       <span class="arr">→</span>
-      <StepTile :job="job" :step="2" kind="main" label="主图" @open="open" />
+      <StepTile :job="job" :step="2" kind="main" label="主图" @open="open" @view="view" />
       <span class="arr">→</span>
-      <StepTile :job="job" :step="4" kind="blank" label="空白图" @open="open" />
+      <StepTile :job="job" :step="4" kind="blank" label="空白图" @open="open" @view="view" />
     </div>
     <div style="display: flex; align-items: center; gap: 6px; justify-content: space-between">
       <span class="st" :class="{ muted: job.view.phase === 'queued' }"><span :class="dot"></span>{{ job.view.label }}</span>

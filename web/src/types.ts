@@ -1,18 +1,17 @@
 // 与 server/src 里 zod 推导出的类型保持一致
 
-export type Style = { id: string; name: string; ratio: string; whiteImage: string | null }
-export type Template = { id: string; name: string; prompt: string; images: Record<string, string>; canvasRatio: string | null }
+export type Template = { id: string; name: string; prompt: string; image: string | null; canvasRatio: string | null }
+/** 自定义模版属于款式，款式之间互不影响 */
+export type Style = { id: string; name: string; ratio: string; whiteImage: string | null; activeTemplate: string; templates: Template[] }
 export type Category = {
   id: string
   name: string
   hint: string
   extractPrompt: string | null
-  activeTemplate: string
   styles: Style[]
-  templates: Template[]
 }
 export type Library = {
-  version: 1
+  version: 2
   defaults: { extractPrompt: string; pastePrompt: string }
   categories: Category[]
 }
@@ -75,6 +74,7 @@ export type Job = {
   order: number
   source: { file: string; originalName: string; width: number; height: number; sha256: string }
   outputDay: string
+  outputFolder: string
   outputBase: string
   route: null | {
     categoryId: string

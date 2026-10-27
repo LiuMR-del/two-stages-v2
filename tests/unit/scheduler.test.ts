@@ -32,7 +32,7 @@ async function setup(limits: { image: number; analysis: number }) {
   started = []
   jobs = new JobStore(path.join(dir, 'jobs'))
   settings = new SettingsStore(path.join(dir, 'settings.json'))
-  await settings.update({ image: { concurrency: limits.image }, analysis: { concurrency: limits.analysis } })
+  await settings.update({ image: { concurrency: limits.image }, analysis: { concurrency: limits.analysis }, outputDir: path.join(dir, 'out') })
   limiter = new Limiter(() => sched.tick())
   limiter.configure('image', limits.image)
   limiter.configure('analysis', limits.analysis)

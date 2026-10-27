@@ -1,6 +1,7 @@
 import { canvasFor, ratioToWH, type ApiSize } from './canvas'
 import { fillPlaceholders } from './placeholders'
 import type { Category, Library, Style } from '../library/schema'
+import { labelOf } from './placeholders'
 
 export type PlanImageRole = '白底图' | '参考图'
 
@@ -24,9 +25,9 @@ export function mainPlanFor(
   lib: Library,
   cat: Category,
   style: Style,
-  templateId: string = cat.activeTemplate,
+  templateId: string = style.activeTemplate,
 ): { main: PlanMain; missingWhite: boolean; scope: string } {
-  const tpl = templateId === 'default' ? undefined : cat.templates.find((t) => t.id === templateId)
+  const tpl = templateId === 'default' ? undefined : style.templates.find((t) => t.id === templateId)
   const values = { category: cat.name, style: style.name, ratio: style.ratio }
   if (!tpl) {
     return {
@@ -40,17 +41,16 @@ export function mainPlanFor(
       scope: '全局共用 · 所有品类',
     }
   }
-  const ref = tpl.images[style.id]
   return {
     main: {
       templateId: tpl.id,
       templateName: tpl.name,
       prompt: fillPlaceholders(tpl.prompt, values),
-      image: ref ? { role: '参考图', hash: ref } : null,
+      image: tpl.image ? { role: '参考图', hash: tpl.image } : null,
       canvasRatio: tpl.canvasRatio ?? null,
     },
     missingWhite: false,
-    scope: `「${cat.name}」所有款式共用`,
+    scope: `只给「${labelOf(cat.name, style.name)}」用`,
   }
 }
 

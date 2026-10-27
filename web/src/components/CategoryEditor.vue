@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { Check, Lock, ScanSearch, Trash2 } from '@lucide/vue'
 import { api, imageUrl } from '../api'
-import { useLibrary } from '../stores/library'
+import { activeTemplateName, useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import AutoText from './AutoText.vue'
 import RecipeCard, { type RecipeSlot } from './RecipeCard.vue'
@@ -13,10 +13,12 @@ const ui = useUi()
 
 const cat = computed(() => lib.category(ui.libSel) as Category)
 const style = computed<Style>(() => cat.value.styles.find((s) => s.id === ui.libStyle) ?? cat.value.styles[0]!)
-const tplId = computed(() => (ui.libTpl === 'default' || cat.value.templates.some((t) => t.id === ui.libTpl) ? ui.libTpl : cat.value.activeTemplate))
-const tpl = computed(() => cat.value.templates.find((t) => t.id === tplId.value) ?? null)
+/** 主图模版属于款式：每个款式有自己的一套，切换款式就看那个款式的 */
+const tplId = computed(() => (ui.libTpl === 'default' || style.value.templates.some((t) => t.id === ui.libTpl) ? ui.libTpl : style.value.activeTemplate))
+const tpl = computed(() => style.value.templates.find((t) => t.id === tplId.value) ?? null)
 const singleUnnamed = computed(() => cat.value.styles.length === 1 && !cat.value.styles[0]!.name)
 const styleLabel = (s: Style) => s.name || '单款式'
+const styleTitle = computed(() => (singleUnnamed.value ? cat.value.name : `${cat.value.name} · ${style.value.name}`))
 
 const editingName = ref(false)
 const editingHint = ref(false)
@@ -35,7 +37,17 @@ watch(
   },
 )
 
+watch(
+  () => style.value?.id,
+  () => {
+    ui.libTpl = style.value.activeTemplate
+    confirmDeleteTpl.value = false
+  },
+)
+
 const base = computed(() => `/library/categories/${cat.value.id}`)
+const sbase = computed(() => `${base.value}/styles/${style.value.id}`)
+const tplPath = (tid: string) => `${sbase.value}/templates/${tid}`
 
 /** 保存失败时弹提示并让输入框显示「没保存上」 */
 function saver<T>(fn: (v: string) => Promise<T>) {
@@ -53,8 +65,8 @@ const saveName = saver((v) => api.patch(base.value, { name: v }))
 const saveHint = saver((v) => api.patch(base.value, { hint: v }))
 const saveStyleName = (sid: string) => saver((v) => api.patch(`${base.value}/styles/${sid}`, { name: v }))
 const saveStyleRatio = (sid: string) => saver((v) => api.patch(`${base.value}/styles/${sid}`, { ratio: v }))
-const saveTplName = (tid: string) => saver((v) => api.patch(`${base.value}/templates/${tid}`, { name: v }))
-const saveTplCanvas = (tid: string) => saver((v) => api.patch(`${base.value}/templates/${tid}`, { canvasRatio: v.trim() || null }))
+const saveTplName = (tid: string) => saver((v) => api.patch(tplPath(tid), { name: v }))
+const saveTplCanvas = (tid: string) => saver((v) => api.patch(tplPath(tid), { canvasRatio: v.trim() || null }))
 const saveExtract = saver((v) => api.patch(base.value, { extractPrompt: v }))
 
 async function deleteCategory() {
@@ -86,7 +98,7 @@ async function deleteStyle(s: Style) {
 }
 
 async function addTemplate() {
-  const r = await ui.act(() => lib.mutate(() => api.post<any>(`${base.value}/templates`, { name: '', prompt: '' })))
+  const r = await ui.act(() => lib.mutate(() => api.post<any>(`${sbase.value}/templates`, { name: '', prompt: '' })))
   if (r) ui.libTpl = r.template.id
 }
 
@@ -98,14 +110,36 @@ async function deleteTemplate() {
     return
   }
   const id = tpl.value.id
-  const r = await ui.act(() => lib.mutate(() => api.del(`${base.value}/templates/${id}`)))
+  const r = await ui.act(() => lib.mutate(() => api.del(tplPath(id))))
   confirmDeleteTpl.value = false
-  if (r) ui.libTpl = cat.value.activeTemplate
+  if (r) ui.libTpl = style.value.activeTemplate
 }
 
 async function activate() {
-  const r = await ui.act(() => lib.mutate(() => api.patch(base.value, { activeTemplate: tplId.value })))
-  if (r) ui.toast(`之后识别为「${cat.value.name}」的图，都用「${recipe.value?.templateName ?? ''}」生成主图`)
+  const r = await ui.act(() => lib.mutate(() => api.patch(sbase.value, { activeTemplate: tplId.value })))
+  if (r) ui.toast(`之后识别为「${styleTitle.value}」的图，都用「${recipe.value?.templateName ?? ''}」生成主图`)
+}
+
+// ---- AI 估算比例 ----
+type Estimate = { styleId: string; ratio: string; value: number; shape: string; surface: string; reason: string; source: string }
+const estimating = ref(false)
+const estimated = ref<Estimate | null>(null)
+
+async function estimate() {
+  const sid = style.value.id
+  estimating.value = true
+  const r = await ui.act(() => api.post<Omit<Estimate, 'styleId'>>(`${base.value}/styles/${sid}/estimate-ratio`, { templateId: tplId.value === 'default' ? undefined : tplId.value }))
+  estimating.value = false
+  if (r) estimated.value = { ...r, styleId: sid }
+}
+async function applyEstimate() {
+  const e = estimated.value
+  if (!e) return
+  const r = await ui.act(() => lib.mutate(() => api.patch(`${base.value}/styles/${e.styleId}`, { ratio: e.ratio })))
+  if (r) {
+    ui.toast(`比例已改成 ${e.ratio}`)
+    estimated.value = null
+  }
 }
 
 async function toggleExtract() {
@@ -132,7 +166,7 @@ watch(
     const cov: Record<string, Recipe> = {}
     await Promise.all(
       cat.value.styles.map(async (s) => {
-        const rr = await lib.recipe(cid, s.id, tid).catch(() => null)
+        const rr = await lib.recipe(cid, s.id, s.activeTemplate).catch(() => null)
         if (rr) cov[s.id] = rr
       }),
     )
@@ -156,7 +190,8 @@ const slots = computed<RecipeSlot[]>(() => {
       sub: `${owner} · ${im.required ? '必需' : '可选'}`,
       state: im.hash ? 'image' : 'empty',
       img: im.hash ? imageUrl(im.hash) : null,
-      text: im.required ? '缺白底图' : '未上传',
+      full: im.hash ? imageUrl(im.hash, false) : null,
+      text: im.required ? '缺白底图\n点击上传' : '点击上传',
       white: im.role === '白底图',
       editable: true,
     }
@@ -172,16 +207,20 @@ const promptEdit = computed(() => {
     }
   }
   const t = tpl.value!
-  return { raw: t.prompt, save: saver((v) => api.patch(`${base.value}/templates/${t.id}`, { prompt: v })) }
+  return {
+    raw: t.prompt,
+    save: saver((v) => api.patch(tplPath(t.id), { prompt: v })),
+    hint: `只给「${styleTitle.value}」用，改了不影响其他款式。{品类}、{款式}、{比例} 会自动替换`,
+  }
 })
 
 async function upload(_key: string, file: File) {
-  const path = tplId.value === 'default' ? `${base.value}/styles/${style.value.id}/white` : `${base.value}/templates/${tplId.value}/images/${style.value.id}`
+  const path = tplId.value === 'default' ? `${sbase.value}/white` : `${tplPath(tplId.value)}/image`
   const r = await ui.act(() => lib.mutate(() => api.upload<any>('PUT', path, 'file', file)))
   if (r && tplId.value === 'default') ui.toast('白底图已上传')
 }
 async function remove() {
-  const path = tplId.value === 'default' ? `${base.value}/styles/${style.value.id}/white` : `${base.value}/templates/${tplId.value}/images/${style.value.id}`
+  const path = tplId.value === 'default' ? `${sbase.value}/white` : `${tplPath(tplId.value)}/image`
   await ui.act(() => lib.mutate(() => api.del(path)))
 }
 
@@ -192,8 +231,9 @@ function coverageOf(s: Style): { dot: string; text: string } {
   if (first?.required && !first.hash) return { dot: 'rd', text: '缺白底图' }
   if (!r.prompt.trim()) return { dot: 'rd', text: '提示词为空' }
   if (r.warnings.some((w) => w.startsWith('提示词里提到'))) return { dot: 'am', text: '图片数量与提示词不符' }
-  if (tplId.value === 'default') return { dot: '', text: '白底图已配' }
-  return { dot: '', text: first?.hash ? '有参考图' : '不发参考图' }
+  const name = activeTemplateName(s)
+  if (s.activeTemplate === 'default') return { dot: '', text: `${name} · 白底图已配` }
+  return { dot: '', text: `${name} · ${first?.hash ? '有参考图' : '不发参考图'}` }
 }
 </script>
 
@@ -250,14 +290,30 @@ function coverageOf(s: Style): { dot: string; text: string } {
           </div>
         </template>
 
-        <span class="k">主图模版</span>
+        <span class="k"></span>
+        <div class="v edit-row">
+          <span class="muted tiny">比例是图案本身的宽:高，也就是商品上印图案那一块表面的形状，不是整张图的比例</span>
+          <button type="button" class="btn txt sm" :disabled="estimating" @click="estimate">{{ estimating ? 'AI 正在看图…' : 'AI 帮我估算' }}</button>
+        </div>
+        <template v-if="estimated && estimated.styleId === style.id">
+          <span class="k"></span>
+          <div class="v edit-row est">
+            <span>建议{{ singleUnnamed ? '' : '「' + styleLabel(style) + '」的' }}比例用 <b>{{ estimated.ratio }}</b></span>
+            <span class="muted small">看的是{{ estimated.source }}：{{ estimated.surface }}{{ estimated.shape ? '，' + estimated.shape : '' }}，宽÷高约 {{ estimated.value.toFixed(2) }}。{{ estimated.reason }}</span>
+            <button v-if="estimated.ratio !== style.ratio" type="button" class="btn sm pri" @click="applyEstimate">采用 {{ estimated.ratio }}</button>
+            <span v-else class="muted small">和现在填的一样</span>
+            <button type="button" class="btn sm" @click="estimated = null">关闭</button>
+          </div>
+        </template>
+
+        <span class="k">{{ singleUnnamed ? '主图模版' : styleLabel(style) + ' 的主图模版' }}</span>
         <div class="v">
           <div class="chips">
             <button type="button" class="chip" :aria-pressed="tplId === 'default'" @click="ui.libTpl = 'default'">
-              默认 · 贴图<span v-if="cat.activeTemplate === 'default'" class="star">使用中</span>
+              默认 · 贴图<span v-if="style.activeTemplate === 'default'" class="star">使用中</span>
             </button>
-            <button v-for="t in cat.templates" :key="t.id" type="button" class="chip" :aria-pressed="tplId === t.id" @click="ui.libTpl = t.id">
-              {{ t.name }}<span v-if="cat.activeTemplate === t.id" class="star">使用中</span>
+            <button v-for="t in style.templates" :key="t.id" type="button" class="chip" :aria-pressed="tplId === t.id" @click="ui.libTpl = t.id">
+              {{ t.name }}<span v-if="style.activeTemplate === t.id" class="star">使用中</span>
             </button>
           </div>
           <button type="button" class="chip add" @click="addTemplate">+ 自定义模版</button>
@@ -278,8 +334,8 @@ function coverageOf(s: Style): { dot: string; text: string } {
           <b>发送给生图模型</b>
           <span class="muted small">{{ cat.name }}{{ style.name ? ' · ' + style.name : '' }} · {{ recipe?.templateName }}</span>
           <div class="r">
-            <span v-if="cat.activeTemplate === tplId" class="pill ac"><Check aria-hidden="true" />本品类正在使用</span>
-            <button v-else type="button" class="btn sm pri" @click="activate">设为本品类使用</button>
+            <span v-if="style.activeTemplate === tplId" class="pill ac"><Check aria-hidden="true" />{{ singleUnnamed ? '本品类' : '「' + style.name + '」' }}正在使用</span>
+            <button v-else type="button" class="btn sm pri" @click="activate">设为{{ singleUnnamed ? '本品类' : '「' + style.name + '」' }}使用</button>
           </div>
         </div>
         <RecipeCard
@@ -328,3 +384,7 @@ function coverageOf(s: Style): { dot: string; text: string } {
     </div>
   </div>
 </template>
+
+<style scoped>
+.est { background: var(--ac-soft); border-radius: 8px; padding: 8px 10px; color: var(--tx); }
+</style>

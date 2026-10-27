@@ -67,7 +67,9 @@ function goUpload(j: Job) {
   <div class="box">
     <div v-if="!jobs.attention.length" class="none">没有需要处理的图</div>
     <div v-for="j in jobs.attention" :key="j.id" class="exc">
-      <ImageSlot state="image" :img="jobs.fileUrl(j, 'source')" :size="48" />
+      <button type="button" class="tile" aria-label="查看竞品图大图" title="点击看大图" @click="ui.view(jobs.viewItems(j), 0, { title: j.source.originalName, jobId: j.id })">
+        <ImageSlot state="image" :img="jobs.fileUrl(j, 'source')" :size="48" />
+      </button>
       <div class="why">
         <b>{{ title(j) }}</b> <span class="muted small">{{ j.source.originalName }}</span>
         <div class="muted small">{{ j.attention!.message }}</div>

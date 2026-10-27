@@ -1,11 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { readJsonSync, writeJsonAtomic } from '../store/atomic'
+import { readJsonSync, writeFileAtomicSync, writeJsonAtomic } from '../store/atomic'
 import { Mutex } from '../util/mutex'
 import { HttpError } from '../util/errors'
 import { log } from '../util/log'
 import { ImageStore } from './images'
-import { initialLibrary, LibrarySchema, referencedHashes, validateIntegrity, type Category, type Library } from './schema'
+import { initialLibrary, LibrarySchema, migrateLibrary, referencedHashes, validateIntegrity, type Category, type Library, type Style } from './schema'
 import { newCategoryId, newStyleId, newTemplateId } from '../util/ids'
 import { ratioToWH } from '../prompts/canvas'
 
@@ -28,7 +28,8 @@ export class LibraryStore {
       this.value = initialLibrary()
       fs.writeFileSync(p.file, JSON.stringify(this.value, null, 2))
     } else {
-      const r = LibrarySchema.safeParse(raw)
+      const migrated = migrateLibrary(raw)
+      const r = LibrarySchema.safeParse(migrated)
       if (!r.success) {
         const bad = path.join(path.dirname(p.file), `library.broken-${Date.now()}.json`)
         fs.copyFileSync(p.file, bad)
@@ -36,6 +37,12 @@ export class LibraryStore {
         this.value = initialLibrary()
       } else {
         this.value = r.data
+        if (migrated !== raw) {
+          const old = path.join(path.dirname(p.file), `library.v1-${Date.now()}.json`)
+          fs.copyFileSync(p.file, old)
+          writeFileAtomicSync(p.file, JSON.stringify(this.value, null, 2))
+          log.info(`模版库已升级：自定义模版改为每个款式各一套（旧文件另存为 ${old}）`)
+        }
       }
     }
   }
@@ -101,7 +108,19 @@ function findCat(lib: Library, cid: string): Category {
   return c
 }
 
-export function checkCategoryName(lib: Library, name: string, exceptId?: string): string {
+export function findStyle(lib: Library, cid: string, sid: string): Style {
+  const s = findCat(lib, cid).styles.find((x) => x.id === sid)
+  if (!s) throw new HttpError(404, '款式不存在，可能已被删除')
+  return s
+}
+
+function findTemplate(lib: Library, cid: string, sid: string, tid: string) {
+  const t = findStyle(lib, cid, sid).templates.find((x) => x.id === tid)
+  if (!t) throw new HttpError(404, '模版不存在，可能已被删除')
+  return t
+}
+
+function checkCategoryName(lib: Library, name: string, exceptId?: string): string {
   const n = name.trim()
   if (n.length < 1 || n.length > 20) throw new HttpError(400, '品类名称要 1～20 个字')
   if (lib.categories.some((c) => c.name === n && c.id !== exceptId)) throw new HttpError(400, `已经有叫「${n}」的品类了`)
@@ -124,25 +143,17 @@ export const ops = {
       name: checkCategoryName(lib, name),
       hint: '',
       extractPrompt: null,
-      activeTemplate: 'default',
-      styles: [{ id: newStyleId(), name: '', ratio: '1:1', whiteImage: null }],
-      templates: [],
+      styles: [{ id: newStyleId(), name: '', ratio: '1:1', whiteImage: null, activeTemplate: 'default', templates: [] }],
     }
     lib.categories.push(c)
     return c
   },
 
-  patchCategory(lib: Library, cid: string, p: { name?: string; hint?: string; extractPrompt?: string | null; activeTemplate?: string }): Category {
+  patchCategory(lib: Library, cid: string, p: { name?: string; hint?: string; extractPrompt?: string | null }): Category {
     const c = findCat(lib, cid)
     if (p.name !== undefined) c.name = checkCategoryName(lib, p.name, cid)
     if (p.hint !== undefined) c.hint = p.hint
     if (p.extractPrompt !== undefined) c.extractPrompt = p.extractPrompt
-    if (p.activeTemplate !== undefined) {
-      if (p.activeTemplate !== 'default' && !c.templates.some((t) => t.id === p.activeTemplate)) {
-        throw new HttpError(400, '要使用的模版不存在')
-      }
-      c.activeTemplate = p.activeTemplate
-    }
     return c
   },
 
@@ -167,12 +178,12 @@ export const ops = {
     if (c.styles.some((s) => s.name === n)) throw new HttpError(400, `「${c.name}」已经有叫「${n}」的款式了`)
     // 单款式品类的款式没有名字；加第二个款式时给它补一个，否则两个款式没法区分
     for (const s of c.styles) if (!s.name) s.name = n === '默认' ? '原款式' : '默认'
-    const st = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null }
+    const st: Style = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: 'default', templates: [] }
     c.styles.push(st)
     return st
   },
 
-  patchStyle(lib: Library, cid: string, sid: string, p: { name?: string; ratio?: string }) {
+  patchStyle(lib: Library, cid: string, sid: string, p: { name?: string; ratio?: string; activeTemplate?: string }) {
     const c = findCat(lib, cid)
     const s = c.styles.find((x) => x.id === sid)
     if (!s) throw new HttpError(404, '款式不存在，可能已被删除')
@@ -184,6 +195,10 @@ export const ops = {
       s.name = n
     }
     if (p.ratio !== undefined) s.ratio = checkRatio(p.ratio)
+    if (p.activeTemplate !== undefined) {
+      if (p.activeTemplate !== 'default' && !s.templates.some((t) => t.id === p.activeTemplate)) throw new HttpError(400, '要使用的模版不存在')
+      s.activeTemplate = p.activeTemplate
+    }
     return s
   },
 
@@ -192,7 +207,6 @@ export const ops = {
     if (!c.styles.some((s) => s.id === sid)) throw new HttpError(404, '款式不存在，可能已被删除')
     if (c.styles.length <= 1) throw new HttpError(400, '每个品类至少要保留一个款式')
     c.styles = c.styles.filter((s) => s.id !== sid)
-    for (const t of c.templates) delete t.images[sid]
   },
 
   setWhite(lib: Library, cid: string, sid: string, hash: string | null): void {
@@ -202,19 +216,17 @@ export const ops = {
     s.whiteImage = hash
   },
 
-  addTemplate(lib: Library, cid: string, name: string, prompt: string) {
-    const c = findCat(lib, cid)
-    const n = name.trim() || `自定义 ${c.templates.length + 1}`
+  addTemplate(lib: Library, cid: string, sid: string, name: string, prompt: string) {
+    const s = findStyle(lib, cid, sid)
+    const n = name.trim() || `自定义 ${s.templates.length + 1}`
     if (n.length > 30) throw new HttpError(400, '模版名称不能超过 30 个字')
-    const t = { id: newTemplateId(), name: n, prompt, images: {} as Record<string, string>, canvasRatio: null }
-    c.templates.push(t)
+    const t = { id: newTemplateId(), name: n, prompt, image: null, canvasRatio: null }
+    s.templates.push(t)
     return t
   },
 
-  patchTemplate(lib: Library, cid: string, tid: string, p: { name?: string; prompt?: string; canvasRatio?: string | null }) {
-    const c = findCat(lib, cid)
-    const t = c.templates.find((x) => x.id === tid)
-    if (!t) throw new HttpError(404, '模版不存在，可能已被删除')
+  patchTemplate(lib: Library, cid: string, sid: string, tid: string, p: { name?: string; prompt?: string; canvasRatio?: string | null }) {
+    const t = findTemplate(lib, cid, sid, tid)
     if (p.name !== undefined) {
       const n = p.name.trim()
       if (!n || n.length > 30) throw new HttpError(400, '模版名称要 1～30 个字')
@@ -225,19 +237,14 @@ export const ops = {
     return t
   },
 
-  deleteTemplate(lib: Library, cid: string, tid: string): void {
-    const c = findCat(lib, cid)
-    if (!c.templates.some((t) => t.id === tid)) throw new HttpError(404, '模版不存在，可能已被删除')
-    c.templates = c.templates.filter((t) => t.id !== tid)
-    if (c.activeTemplate === tid) c.activeTemplate = 'default'
+  deleteTemplate(lib: Library, cid: string, sid: string, tid: string): void {
+    const s = findStyle(lib, cid, sid)
+    findTemplate(lib, cid, sid, tid)
+    s.templates = s.templates.filter((t) => t.id !== tid)
+    if (s.activeTemplate === tid) s.activeTemplate = 'default'
   },
 
-  setTemplateImage(lib: Library, cid: string, tid: string, sid: string, hash: string | null): void {
-    const c = findCat(lib, cid)
-    const t = c.templates.find((x) => x.id === tid)
-    if (!t) throw new HttpError(404, '模版不存在，可能已被删除')
-    if (!c.styles.some((s) => s.id === sid)) throw new HttpError(404, '款式不存在，可能已被删除')
-    if (hash) t.images[sid] = hash
-    else delete t.images[sid]
+  setTemplateImage(lib: Library, cid: string, sid: string, tid: string, hash: string | null): void {
+    findTemplate(lib, cid, sid, tid).image = hash
   },
 }

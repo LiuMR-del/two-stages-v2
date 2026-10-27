@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { Router, Request } from 'express'
 import { z } from 'zod'
@@ -6,15 +7,45 @@ import sharp from 'sharp'
 import type { AppContext } from '../context'
 import { HttpError, parseBody } from './util'
 import { upload } from './library'
-import { newSteps, withView, type Job } from '../store/jobs'
+import { isFinished, newSteps, withView, type Job } from '../store/jobs'
 import { localDay, newJobId } from '../util/ids'
 import { EXT_OF, readSize, sniffImageType } from '../image/process'
 import { normalizeLibraryImage, sha256 } from '../library/images'
 import { writeJobImage, JOB_FILES } from '../pipeline/files'
-import { baseNameOf } from '../pipeline/output'
+import { baseNameOf, folderForNewJobs } from '../pipeline/output'
+import { resolveOutputDir } from '../store/settings'
 import { log } from '../util/log'
+import { readClipboardFiles } from '../util/platform'
 
 const MAX_FILES = 500
+const MAX_BYTES = 50 * 1024 * 1024
+const IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|tiff?|heic|heif|avif)$/i
+
+/** 复制的可能是文件夹，逐层展开；隐藏文件跳过 */
+async function expandPaths(paths: string[]): Promise<string[]> {
+  const out: string[] = []
+  const walk = async (p: string): Promise<void> => {
+    if (path.basename(p).startsWith('.')) return
+    const st = await fsp.stat(p).catch(() => null)
+    if (!st) return
+    if (st.isDirectory()) {
+      for (const c of (await fsp.readdir(p)).sort()) await walk(path.join(p, c))
+    } else if (st.isFile()) out.push(p)
+  }
+  for (const p of paths) await walk(p)
+  return out
+}
+
+/** 浏览器跨站发来的请求一律不认，防止别的网页让本机服务去读剪贴板 */
+function sameOrigin(req: Request): boolean {
+  const o = req.headers.origin
+  if (!o) return true
+  try {
+    return new URL(o).host === req.headers.host
+  } catch {
+    return false
+  }
+}
 
 /** 非 PNG/JPG/WebP 的图片转成 PNG；带 EXIF 旋转的先转正 */
 async function normalizeSource(buf: Buffer): Promise<{ buffer: Buffer; ext: string }> {
@@ -41,12 +72,41 @@ export function registerJobs(r: Router, ctx: AppContext): void {
   r.post('/jobs', upload.array('files', MAX_FILES), async (req, res) => {
     const files = (req.files as Express.Multer.File[] | undefined) ?? []
     if (!files.length) throw new HttpError(400, '没有收到图片（表单字段名应为 files）')
+    res.json(await addSources(files.map((f) => ({ name: path.basename(f.originalname || 'image'), read: async () => f.buffer }))))
+  })
+
+  r.post('/jobs/from-clipboard', async (req, res) => {
+    if (!sameOrigin(req)) throw new HttpError(403, '只能从本工具的页面粘贴')
+    let paths: string[] | null
+    try {
+      paths = await readClipboardFiles()
+    } catch (e) {
+      log.warn(`读取剪贴板失败：${(e as Error).message}`)
+      paths = null
+    }
+    if (!paths) return res.json({ supported: false, copied: 0, jobs: [], errors: [] })
+    const images = (await expandPaths(paths)).filter((p) => IMAGE_EXT.test(p)).slice(0, MAX_FILES)
+    const added = images.length
+      ? await addSources(
+          images.map((p) => ({
+            name: path.basename(p),
+            read: async () => {
+              if ((await fsp.stat(p)).size > MAX_BYTES) throw new Error('文件超过 50 MB')
+              return fsp.readFile(p)
+            },
+          })),
+        )
+      : { jobs: [], errors: [] }
+    res.json({ supported: true, copied: paths.length, ...added })
+  })
+
+  async function addSources(sources: { name: string; read: () => Promise<Buffer> }[]) {
     const created: ReturnType<typeof withView>[] = []
     const errors: { name: string; error: string }[] = []
-    for (const f of files) {
-      const name = path.basename(f.originalname || 'image')
+    const folder = folderForNewJobs(jobs.list(), resolveOutputDir(ctx.settings.get()), isFinished)
+    for (const { name, read } of sources) {
       try {
-        const { buffer, ext } = await normalizeSource(f.buffer)
+        const { buffer, ext } = await normalizeSource(await read())
         const { width, height } = await readSize(buffer)
         const jobId = newJobId()
         const dir = jobs.dirOf(jobId)
@@ -58,6 +118,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           order: jobs.maxOrder() + 1,
           source: { file, originalName: name, width, height, sha256: sha256(buffer) },
           outputDay: localDay(),
+          outputFolder: folder,
           outputBase: baseNameOf(name),
           route: null,
           plan: null,
@@ -75,11 +136,17 @@ export function registerJobs(r: Router, ctx: AppContext): void {
     }
     if (created.length) log.info(`加入队列 ${created.length} 张图`)
     scheduler.tick()
-    res.json({ jobs: created, errors })
-  })
+    return { jobs: created, errors }
+  }
 
   r.post('/jobs/clear-done', async (_req, res) => {
     res.json({ removed: await scheduler.clearDone() })
+  })
+
+  r.post('/jobs/clear-all', async (_req, res) => {
+    const removed = await scheduler.clearAll()
+    if (removed) log.info(`清空队列，移除 ${removed} 张图`)
+    res.json({ removed })
   })
 
   r.delete('/jobs/:id', async (req, res) => {

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { Lock, TriangleAlert } from '@lucide/vue'
 import ImageSlot, { type SlotState } from './ImageSlot.vue'
 import AutoText from './AutoText.vue'
+import { useUi } from '../stores/ui'
 
 export type RecipeSlot = {
   key: string
@@ -16,6 +17,8 @@ export type RecipeSlot = {
   white?: boolean
   /** 可以上传、替换、移除 */
   editable?: boolean
+  /** 原图地址，有就能点开看大图 */
+  full?: string | null
 }
 
 const props = withDefaults(
@@ -26,7 +29,7 @@ const props = withDefaults(
     scope?: string
     /** 可编辑时给出原始提示词（含占位符）和保存函数 */
     edit?: { raw: string; save: (v: string) => Promise<unknown>; hint?: string } | null
-    out?: { label: string; state: SlotState; img?: string | null; text?: string; white?: boolean; onClick?: () => void } | null
+    out?: { label: string; state: SlotState; img?: string | null; text?: string; white?: boolean; full?: string | null } | null
     warnings?: string[]
     prefixLabel?: string
   }>(),
@@ -34,6 +37,7 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ upload: [key: string, file: File]; remove: [key: string] }>()
 
+const ui = useUi()
 const editing = ref(false)
 const picker = ref<HTMLInputElement | null>(null)
 let pickKey = ''
@@ -48,6 +52,21 @@ function onPicked(e: Event) {
   input.value = ''
   if (f) emit('upload', pickKey, f)
 }
+
+const OUT_KEY = '__out'
+function viewAt(key: string) {
+  const all = [...props.slots.map((s) => ({ key: s.key, label: s.role, full: s.state === 'image' ? s.full : null })), { key: OUT_KEY, label: props.out?.label ?? '', full: props.out?.state === 'image' ? props.out.full : null }]
+  const items = all.filter((i) => i.full)
+  ui.view(
+    items.map((i) => ({ src: i.full!, label: i.label })),
+    items.findIndex((i) => i.key === key),
+  )
+}
+const viewable = (s: RecipeSlot) => s.state === 'image' && !!s.full
+function slotClick(s: RecipeSlot) {
+  if (viewable(s)) viewAt(s.key)
+  else if (s.editable) pick(s.key)
+}
 </script>
 
 <template>
@@ -55,7 +74,17 @@ function onPicked(e: Event) {
     <template v-for="s in props.slots" :key="s.key">
       <div class="slot">
         <div class="no" :class="{ off: s.no === null }">{{ s.no === null ? '不发送' : '图 ' + s.no }}</div>
-        <ImageSlot :state="s.state" :img="s.img" :text="s.text" :white="s.white" :droppable="s.editable" @drop="(f) => emit('upload', s.key, f)" />
+        <button
+          v-if="viewable(s) || s.editable"
+          type="button"
+          class="tile"
+          :aria-label="viewable(s) ? '查看' + s.role + '大图' : '上传' + s.role"
+          :title="viewable(s) ? '点击看大图' : '点击选择图片，也可以把图片拖进来'"
+          @click="slotClick(s)"
+        >
+          <ImageSlot :state="s.state" :img="s.img" :text="s.text" :white="s.white" :droppable="s.editable" @drop="(f) => emit('upload', s.key, f)" />
+        </button>
+        <ImageSlot v-else :state="s.state" :img="s.img" :text="s.text" :white="s.white" />
         <div class="cap">{{ s.role }}<span v-if="s.sub">{{ s.sub }}</span></div>
         <div v-if="s.editable" class="acts">
           <button type="button" class="btn txt sm" @click="pick(s.key)">{{ s.state === 'image' ? '替换' : '上传' }}</button>
@@ -83,7 +112,7 @@ function onPicked(e: Event) {
       <span class="op">→</span>
       <div class="slot">
         <div class="no">结果</div>
-        <button v-if="out.onClick" type="button" class="tile" :aria-label="'查看' + out.label" @click="out.onClick">
+        <button v-if="out.state === 'image' && out.full" type="button" class="tile" :aria-label="'查看' + out.label + '大图'" title="点击看大图" @click="viewAt(OUT_KEY)">
           <ImageSlot :state="out.state" :img="out.img" :text="out.text" :white="out.white" />
         </button>
         <ImageSlot v-else :state="out.state" :img="out.img" :text="out.text" :white="out.white" />

@@ -41,7 +41,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
   const jobs = new JobStore(paths.jobsDir, (job) => bus.emit('job', { job: withView(job) }))
   let scheduler: Scheduler | null = null
   const limiter = new Limiter(() => scheduler?.tick())
-  scheduler = new Scheduler({ jobs, library, settings, limiter, bus })
+  scheduler = new Scheduler({ jobs, library, settings, limiter, bus, stateFile: path.join(paths.dataDir, 'queue.json') })
   const sched = scheduler
   library.onChange(() => sched.onLibraryChanged())
   const ctx: AppContext = {

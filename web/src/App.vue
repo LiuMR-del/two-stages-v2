@@ -4,6 +4,7 @@ import TopBar from './components/TopBar.vue'
 import Toast from './components/Toast.vue'
 import JobSheet from './components/JobSheet.vue'
 import SettingsSheet from './components/SettingsSheet.vue'
+import ImageViewer from './components/ImageViewer.vue'
 import { connectEvents } from './sse'
 import { useLibrary } from './stores/library'
 import { useJobs } from './stores/jobs'
@@ -38,5 +39,6 @@ onBeforeUnmount(() => disconnect?.())
   <RouterView />
   <JobSheet />
   <SettingsSheet />
+  <ImageViewer />
   <Toast />
 </template>

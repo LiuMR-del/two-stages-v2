@@ -37,6 +37,7 @@ export function makeApi(base: string): Api {
 export async function startInProcess(): Promise<{ api: Api; ctx: AppContext; dir: string; close: () => Promise<void> }> {
   const dir = tmpDir()
   const ctx = await createContext(resolvePaths({ libraryDir: path.join(dir, 'library'), dataDir: path.join(dir, 'data') }))
+  await ctx.settings.update({ outputDir: path.join(dir, 'out') })
   await ctx.start()
   const { server, port } = await listen(createApp(ctx), [0])
   return {

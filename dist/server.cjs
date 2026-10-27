@@ -37578,14 +37578,14 @@ async function renameWithRetry(from, to) {
 async function writeFileAtomic(file2, data) {
   await import_promises.default.mkdir(import_node_path3.default.dirname(file2), { recursive: true });
   const tmp = `${file2}.tmp-${(0, import_node_crypto2.randomBytes)(4).toString("hex")}`;
-  const fh = await import_promises.default.open(tmp, "w");
   try {
-    await fh.writeFile(data);
-    await fh.sync();
-  } finally {
-    await fh.close();
-  }
-  try {
+    const fh = await import_promises.default.open(tmp, "w");
+    try {
+      await fh.writeFile(data);
+      await fh.sync();
+    } finally {
+      await fh.close();
+    }
     await renameWithRetry(tmp, file2);
   } catch (e) {
     await import_promises.default.rm(tmp, { force: true });
@@ -57169,7 +57169,7 @@ function visit(schema, fnOrHandlers) {
     return h ? h(node2, rewritten) : node2;
   };
   const cache = /* @__PURE__ */ new Map();
-  function run(s) {
+  function run2(s) {
     const cached2 = cache.get(s);
     if (cached2 === RESOLVING) {
       return new $ZodLazy({
@@ -57195,21 +57195,21 @@ function visit(schema, fnOrHandlers) {
         let changed = false;
         const newShape = {};
         for (const k of keys) {
-          const mapped = run(oldShape[k]);
+          const mapped = run2(oldShape[k]);
           if (mapped !== oldShape[k])
             changed = true;
           newShape[k] = mapped;
         }
         let newCatchall = def.catchall;
         if (def.catchall) {
-          newCatchall = run(def.catchall);
+          newCatchall = run2(def.catchall);
           if (newCatchall !== def.catchall)
             changed = true;
         }
         return changed ? clone(s, { ...def, shape: newShape, catchall: newCatchall }) : s;
       }
       case "array": {
-        const mapped = run(def.element);
+        const mapped = run2(def.element);
         return mapped === def.element ? s : clone(s, { ...def, element: mapped });
       }
       case "tuple": {
@@ -57217,14 +57217,14 @@ function visit(schema, fnOrHandlers) {
         let changed = false;
         const newItems = [];
         for (const item of oldItems) {
-          const mapped = run(item);
+          const mapped = run2(item);
           if (mapped !== item)
             changed = true;
           newItems.push(mapped);
         }
         let newRest = def.rest;
         if (def.rest) {
-          newRest = run(def.rest);
+          newRest = run2(def.rest);
           if (newRest !== def.rest)
             changed = true;
         }
@@ -57232,12 +57232,12 @@ function visit(schema, fnOrHandlers) {
       }
       case "record":
       case "map": {
-        const newKey = run(def.keyType);
-        const newVal = run(def.valueType);
+        const newKey = run2(def.keyType);
+        const newVal = run2(def.valueType);
         return newKey === def.keyType && newVal === def.valueType ? s : clone(s, { ...def, keyType: newKey, valueType: newVal });
       }
       case "set": {
-        const newVal = run(def.valueType);
+        const newVal = run2(def.valueType);
         return newVal === def.valueType ? s : clone(s, { ...def, valueType: newVal });
       }
       case "union": {
@@ -57245,7 +57245,7 @@ function visit(schema, fnOrHandlers) {
         let changed = false;
         const newOptions = [];
         for (const opt of oldOptions) {
-          const mapped = run(opt);
+          const mapped = run2(opt);
           if (mapped !== opt)
             changed = true;
           newOptions.push(mapped);
@@ -57253,8 +57253,8 @@ function visit(schema, fnOrHandlers) {
         return changed ? clone(s, { ...def, options: newOptions }) : s;
       }
       case "intersection": {
-        const newLeft = run(def.left);
-        const newRight = run(def.right);
+        const newLeft = run2(def.left);
+        const newRight = run2(def.right);
         return newLeft === def.left && newRight === def.right ? s : clone(s, { ...def, left: newLeft, right: newRight });
       }
       case "optional":
@@ -57266,23 +57266,23 @@ function visit(schema, fnOrHandlers) {
       case "nonoptional":
       case "promise":
       case "success": {
-        const newInner = run(def.innerType);
+        const newInner = run2(def.innerType);
         return newInner === def.innerType ? s : clone(s, { ...def, innerType: newInner });
       }
       case "pipe": {
-        const newIn = run(def.in);
-        const newOut = run(def.out);
+        const newIn = run2(def.in);
+        const newOut = run2(def.out);
         return newIn === def.in && newOut === def.out ? s : clone(s, { ...def, in: newIn, out: newOut });
       }
       case "function": {
-        const newInput = run(def.input);
-        const newOutput = run(def.output);
+        const newInput = run2(def.input);
+        const newOutput = run2(def.output);
         return newInput === def.input && newOutput === def.output ? s : clone(s, { ...def, input: newInput, output: newOutput });
       }
       case "lazy": {
         const original = def.getter;
         const { _cachedInner, ...rest } = def;
-        return clone(s, { ...rest, getter: () => run(original()) });
+        return clone(s, { ...rest, getter: () => run2(original()) });
       }
       // A leaf by choice: `parts` are regex fragments, not data positions.
       case "template_literal":
@@ -57313,7 +57313,7 @@ function visit(schema, fnOrHandlers) {
       }
     }
   }
-  return run(schema);
+  return run2(schema);
 }
 
 // node_modules/zod/v4/classic/deep-partial.js
@@ -57405,7 +57405,8 @@ var KeyedMutex = class {
 };
 
 // server/src/store/settings.ts
-var DEFAULT_OUTPUT_DIR = import_node_path4.default.join("~", "Downloads", "\u4E3B\u56FE\u751F\u6210");
+var DEFAULT_OUTPUT_DIR = import_node_path4.default.join("~", "Downloads");
+var OLD_DEFAULT_OUTPUT_DIR = import_node_path4.default.join("~", "Downloads", "\u4E3B\u56FE\u751F\u6210");
 var imageFields = {
   baseUrl: external_exports.string(),
   apiKey: external_exports.string(),
@@ -57482,6 +57483,7 @@ var SettingsStore = class {
     const raw = readJsonSync(file2);
     const parsed = SettingsSchema.safeParse(raw ?? {});
     this.value = parsed.success ? parsed.data : SettingsSchema.parse({});
+    if (this.value.outputDir === OLD_DEFAULT_OUTPUT_DIR) this.value.outputDir = DEFAULT_OUTPUT_DIR;
     registerSecret(this.value.image.apiKey);
     registerSecret(this.value.analysis.apiKey);
   }
@@ -57974,11 +57976,34 @@ function openBrowser(url2) {
   else if (process.platform === "win32") launch("cmd", ["/c", "start", '""', url2]);
   else launch("xdg-open", [url2]);
 }
+var MAC_CLIPBOARD_FILES = `ObjC.import('AppKit')
+const opts = $.NSDictionary.dictionaryWithObjectForKey($.NSNumber.numberWithBool(true), $.NSPasteboardURLReadingFileURLsOnlyKey)
+const urls = $.NSPasteboard.generalPasteboard.readObjectsForClassesOptions($.NSArray.arrayWithObject($.NSURL), opts)
+const out = []
+if (urls) for (let i = 0; i < urls.count; i++) out.push(urls.objectAtIndex(i).path.js)
+JSON.stringify(out)`;
+var WIN_CLIPBOARD_FILES = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-Clipboard -Format FileDropList | ForEach-Object { $_.FullName }";
+function run(cmd, args) {
+  return new Promise((resolve, reject) => {
+    (0, import_node_child_process.execFile)(cmd, args, { timeout: 8e3, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err2, stdout) => err2 ? reject(err2) : resolve(stdout));
+  });
+}
+async function readClipboardFiles() {
+  if (process.platform === "darwin") {
+    const out = await run("osascript", ["-l", "JavaScript", "-e", MAC_CLIPBOARD_FILES]);
+    return JSON.parse(out.trim() || "[]");
+  }
+  if (process.platform === "win32") {
+    const out = await run("powershell.exe", ["-NoProfile", "-STA", "-Command", WIN_CLIPBOARD_FILES]);
+    return out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  }
+  return null;
+}
 
 // server/src/pipeline/output.ts
 var import_node_fs4 = __toESM(require("node:fs"), 1);
 var import_node_path5 = __toESM(require("node:path"), 1);
-var OUTPUT_SUFFIX = { pattern: "_\u7D20\u6750.png", main: "_\u4E3B\u56FE.png", blank: "_\u7A7A\u767D.png" };
+var OUTPUT_FOLDER = { main: "\u4E3B\u56FE", pattern: "\u7D20\u6750\u56FE", blank: "\u7A7A\u767D\u56FE" };
 function safeName(s) {
   const t = s.replace(/[\\/:*?"<>|]/g, "_").replace(/[\x00-\x1f]/g, "").trim().replace(/[. ]+$/, "");
   return t || "\u672A\u547D\u540D";
@@ -57987,25 +58012,45 @@ function baseNameOf(originalName) {
   const ext = import_node_path5.default.extname(originalName);
   return safeName(ext ? originalName.slice(0, -ext.length) : originalName);
 }
+function batchDir(outputDir, folder) {
+  return import_node_path5.default.join(outputDir, folder);
+}
+var recentFolders = /* @__PURE__ */ new Set();
+function newBatchFolder(outputDir, now = /* @__PURE__ */ new Date()) {
+  const hm = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+  const base = `\u4E3B\u56FE\u751F\u6210-${localDay(now)}-${hm}`;
+  for (let n = 1; ; n++) {
+    const cand = n === 1 ? base : `${base}-${n}`;
+    if (recentFolders.has(cand) || import_node_fs4.default.existsSync(import_node_path5.default.join(outputDir, cand))) continue;
+    recentFolders.add(cand);
+    return cand;
+  }
+}
+function folderForNewJobs(jobs, outputDir, isFinished2, now = /* @__PURE__ */ new Date()) {
+  const open2 = jobs.filter((j) => !isFinished2(j) && j.outputDay === localDay(now) && j.outputFolder).at(-1);
+  return open2 ? open2.outputFolder : newBatchFolder(outputDir, now);
+}
 function categoryDir(outputDir, job) {
-  return import_node_path5.default.join(outputDir, job.outputDay, safeName(job.route?.categoryName ?? "\u672A\u5206\u7C7B"));
+  return import_node_path5.default.join(batchDir(outputDir, job.outputFolder), safeName(job.route?.categoryName ?? "\u672A\u5206\u7C7B"));
+}
+function outputRel(kind, base) {
+  return import_node_path5.default.join(OUTPUT_FOLDER[kind], base + ".png");
 }
 function assignOutputBase(job, others, outputDir, categoryName) {
-  const dir = import_node_path5.default.join(outputDir, job.outputDay, safeName(categoryName));
+  const dir = import_node_path5.default.join(batchDir(outputDir, job.outputFolder), safeName(categoryName));
   const base = baseNameOf(job.source.originalName);
   const taken = new Set(
-    others.filter((o) => o.id !== job.id && o.outputDay === job.outputDay && o.route && safeName(o.route.categoryName) === safeName(categoryName)).map((o) => o.outputBase)
+    others.filter((o) => o.id !== job.id && o.outputFolder === job.outputFolder && o.route && safeName(o.route.categoryName) === safeName(categoryName)).map((o) => o.outputBase)
   );
   for (let n = 1; ; n++) {
     const cand = n === 1 ? base : `${base}_${n}`;
     if (taken.has(cand)) continue;
-    if (import_node_fs4.default.existsSync(import_node_path5.default.join(dir, cand + OUTPUT_SUFFIX.pattern)) || import_node_fs4.default.existsSync(import_node_path5.default.join(dir, cand + OUTPUT_SUFFIX.main))) continue;
+    if (import_node_fs4.default.existsSync(import_node_path5.default.join(dir, outputRel("pattern", cand))) || import_node_fs4.default.existsSync(import_node_path5.default.join(dir, outputRel("main", cand)))) continue;
     return cand;
   }
 }
 async function writeOutput(outputDir, job, kind, buf) {
-  const dir = categoryDir(outputDir, job);
-  const file2 = import_node_path5.default.join(dir, job.outputBase + OUTPUT_SUFFIX[kind]);
+  const file2 = import_node_path5.default.join(categoryDir(outputDir, job), outputRel(kind, job.outputBase));
   await writeFileAtomic(file2, buf);
   return file2;
 }
@@ -58016,21 +58061,22 @@ var HEADER = ["\u539F\u6587\u4EF6\u540D", "\u54C1\u7C7B", "\u6B3E\u5F0F", "\u573
 function cell(v) {
   return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
-function csvForDay(jobs, day) {
-  const rows = jobs.filter((j) => j.outputDay === day && j.steps[3].state === "done" && j.info && j.route).map((j) => [
+function csvOf(jobs) {
+  const rows = jobs.filter((j) => j.steps[3].state === "done" && j.info && j.route).map((j) => [
     j.source.originalName,
     j.route.categoryName,
     j.route.styleName,
     j.info.scene,
     j.info.keywords.join("; "),
     j.info.customizable.join("\u3001"),
-    import_node_path6.default.join(safeName(j.route.categoryName), j.outputBase + OUTPUT_SUFFIX.main)
+    import_node_path6.default.join(safeName(j.route.categoryName), outputRel("main", j.outputBase))
   ]);
   return "\uFEFF" + [HEADER, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
 }
+var csvForDay = (jobs, day) => csvOf(jobs.filter((j) => j.outputDay === day));
 var CSV_NAME = "\u8BC6\u522B\u4FE1\u606F.csv";
-async function writeDayCsv(outputDir, jobs, day) {
-  await writeFileAtomic(import_node_path6.default.join(outputDir, day, CSV_NAME), csvForDay(jobs, day));
+async function writeBatchCsv(outputDir, jobs, folder) {
+  await writeFileAtomic(import_node_path6.default.join(batchDir(outputDir, folder), CSV_NAME), csvOf(jobs.filter((j) => j.outputFolder === folder)));
 }
 
 // server/src/api/misc.ts
@@ -58041,7 +58087,8 @@ function registerMisc(r, ctx) {
   r.post("/open-output", (req, res) => {
     const b = parseBody(external_exports.object({ jobId: external_exports.string().optional() }), req.body);
     const root = resolveOutputDir(ctx.settings.get());
-    let dir = root;
+    const latest = ctx.jobs.list().at(-1);
+    let dir = latest ? batchDir(root, latest.outputFolder) : root;
     if (b.jobId) {
       const job = ctx.jobs.get(b.jobId);
       if (!job) throw new HttpError(404, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u4E0D\u5728\u961F\u5217\u91CC\u4E86");
@@ -58090,6 +58137,7 @@ data: ${JSON.stringify(payload)}
 }
 
 // server/src/api/library.ts
+var import_promises3 = __toESM(require("node:fs/promises"), 1);
 var import_multer = __toESM(require_multer(), 1);
 
 // server/src/library/store.ts
@@ -58251,31 +58299,34 @@ function canvasFor(w, h) {
 var HASH_RE = /^[a-f0-9]{64}$/;
 var Hash = external_exports.string().regex(HASH_RE, "\u56FE\u7247\u6307\u7EB9\u683C\u5F0F\u4E0D\u5BF9");
 var Ratio = external_exports.string().refine(isValidRatio, "\u6BD4\u4F8B\u8981\u5199\u6210\u300C3:2\u300D\u8FD9\u6837\u7684\u4E24\u4E2A\u6B63\u6574\u6570");
-var StyleSchema = external_exports.object({
-  id: external_exports.string().min(1),
-  name: external_exports.string().max(20),
-  ratio: Ratio,
-  whiteImage: Hash.nullable()
-});
 var TemplateSchema = external_exports.object({
   id: external_exports.string().min(1),
   name: external_exports.string().min(1).max(30),
   prompt: external_exports.string(),
-  images: external_exports.record(external_exports.string(), Hash),
+  /** 参考图，可不配 */
+  image: Hash.nullable(),
   /** 没有参考图时主图画布用的比例；null 表示跟款式比例 */
   canvasRatio: Ratio.nullable().default(null)
+});
+var StyleSchema = external_exports.object({
+  id: external_exports.string().min(1),
+  name: external_exports.string().max(20),
+  ratio: Ratio,
+  whiteImage: Hash.nullable(),
+  /** 'default' 或本款式某个模版的 id */
+  activeTemplate: external_exports.string().min(1),
+  templates: external_exports.array(TemplateSchema)
 });
 var CategorySchema = external_exports.object({
   id: external_exports.string().min(1),
   name: external_exports.string().min(1).max(20),
   hint: external_exports.string(),
   extractPrompt: external_exports.string().nullable(),
-  activeTemplate: external_exports.string().min(1),
-  styles: external_exports.array(StyleSchema).min(1),
-  templates: external_exports.array(TemplateSchema)
+  styles: external_exports.array(StyleSchema).min(1)
 });
+var LIBRARY_VERSION = 2;
 var LibrarySchema = external_exports.object({
-  version: external_exports.literal(1),
+  version: external_exports.literal(LIBRARY_VERSION),
   defaults: external_exports.object({
     extractPrompt: external_exports.string(),
     pastePrompt: external_exports.string()
@@ -58286,7 +58337,7 @@ var DEFAULT_EXTRACT_PROMPT = "\u8FD9\u662F\u4E00\u5F20{\u54C1\u7C7B}\u5546\u54C1
 var DEFAULT_PASTE_PROMPT = "\u8BF7\u81EA\u52A8\u8BC6\u522B\u5546\u54C1\u5E95\u56FE\u4E2D\u7528\u4E8E\u627F\u8F7D\u56FE\u6848\u7684\u8868\u9762\u53CA\u5176\u8FB9\u754C\uFF0C\u5C06\u7D20\u6750\u56FE\u76F4\u63A5\u8D34\u6EE1\u8BE5\u533A\u57DF\uFF0C\u8D34\u5408\u539F\u6709\u900F\u89C6\uFF0C\u4E0D\u989D\u5916\u7559\u767D\u8FB9\uFF0C\u4E0D\u8D85\u51FA\u8FB9\u754C\u3002\u76F4\u63A5\u4F7F\u7528\u539F\u7D20\u6750\uFF0C\u4E0D\u91CD\u7ED8\uFF0C\u4E0D\u4FEE\u6539\u6587\u5B57\u3001\u56FE\u6848\u548C\u6392\u7248\u3002\u5E95\u56FE\u7684\u5546\u54C1\u5916\u5F62\u3001\u6BD4\u4F8B\u3001\u89D2\u5EA6\u3001\u6750\u8D28\u3001\u5149\u5F71\u3001\u80CC\u666F\u3001\u6784\u56FE\u53CA\u56FE\u7247\u5C3A\u5BF8\u4FDD\u6301\u4E0D\u53D8\uFF0C\u53EA\u5B8C\u6210\u8D34\u56FE\uFF0C\u4E0D\u505A\u5176\u4ED6\u6539\u52A8\u3002";
 function initialLibrary() {
   return {
-    version: 1,
+    version: LIBRARY_VERSION,
     defaults: { extractPrompt: DEFAULT_EXTRACT_PROMPT, pastePrompt: DEFAULT_PASTE_PROMPT },
     categories: []
   };
@@ -58294,8 +58345,10 @@ function initialLibrary() {
 function referencedHashes(lib) {
   const s = /* @__PURE__ */ new Set();
   for (const c of lib.categories) {
-    for (const st of c.styles) if (st.whiteImage) s.add(st.whiteImage);
-    for (const t of c.templates) for (const h of Object.values(t.images)) s.add(h);
+    for (const st of c.styles) {
+      if (st.whiteImage) s.add(st.whiteImage);
+      for (const t of st.templates) if (t.image) s.add(t.image);
+    }
   }
   return s;
 }
@@ -58309,13 +58362,38 @@ function validateIntegrity(lib) {
     ids.add(c.id);
     const sids = new Set(c.styles.map((s) => s.id));
     if (sids.size !== c.styles.length) return `\u300C${c.name}\u300D\u91CC\u6709\u91CD\u590D\u7684\u6B3E\u5F0F id`;
-    const tids = new Set(c.templates.map((t) => t.id));
-    if (tids.size !== c.templates.length || tids.has("default")) return `\u300C${c.name}\u300D\u91CC\u6709\u91CD\u590D\u7684\u6A21\u7248 id`;
-    for (const t of c.templates) {
-      for (const sid of Object.keys(t.images)) if (!sids.has(sid)) return `\u6A21\u7248\u300C${t.name}\u300D\u7684\u53C2\u8003\u56FE\u6302\u5728\u4E0D\u5B58\u5728\u7684\u6B3E\u5F0F\u4E0A`;
+    for (const s of c.styles) {
+      const tids = new Set(s.templates.map((t) => t.id));
+      if (tids.size !== s.templates.length || tids.has("default")) return `\u300C${c.name}\u300D\u7684\u6B3E\u5F0F\u300C${s.name}\u300D\u91CC\u6709\u91CD\u590D\u7684\u6A21\u7248 id`;
+      if (s.activeTemplate !== "default" && !tids.has(s.activeTemplate)) return `\u300C${c.name}\u300D\u7684\u6B3E\u5F0F\u300C${s.name}\u300D\u6B63\u5728\u4F7F\u7528\u7684\u6A21\u7248\u4E0D\u5B58\u5728`;
     }
   }
   return null;
+}
+function migrateLibrary(raw) {
+  const lib = raw;
+  if (!lib || typeof lib !== "object" || lib.version !== 1 || !Array.isArray(lib.categories)) return raw;
+  return {
+    ...lib,
+    version: LIBRARY_VERSION,
+    categories: lib.categories.map((c) => {
+      const { templates = [], activeTemplate = "default", ...rest } = c;
+      return {
+        ...rest,
+        styles: (c.styles ?? []).map((s) => ({
+          ...s,
+          activeTemplate,
+          templates: templates.map((t) => ({
+            id: t.id,
+            name: t.name,
+            prompt: t.stylePrompts?.[s.id] ?? t.prompt,
+            image: t.images?.[s.id] ?? null,
+            canvasRatio: t.canvasRatio ?? null
+          }))
+        }))
+      };
+    })
+  };
 }
 
 // server/src/library/images.ts
@@ -58434,7 +58512,8 @@ var LibraryStore = class {
       this.value = initialLibrary();
       import_node_fs7.default.writeFileSync(p.file, JSON.stringify(this.value, null, 2));
     } else {
-      const r = LibrarySchema.safeParse(raw);
+      const migrated = migrateLibrary(raw);
+      const r = LibrarySchema.safeParse(migrated);
       if (!r.success) {
         const bad = import_node_path8.default.join(import_node_path8.default.dirname(p.file), `library.broken-${Date.now()}.json`);
         import_node_fs7.default.copyFileSync(p.file, bad);
@@ -58442,6 +58521,12 @@ var LibraryStore = class {
         this.value = initialLibrary();
       } else {
         this.value = r.data;
+        if (migrated !== raw) {
+          const old = import_node_path8.default.join(import_node_path8.default.dirname(p.file), `library.v1-${Date.now()}.json`);
+          import_node_fs7.default.copyFileSync(p.file, old);
+          writeFileAtomicSync(p.file, JSON.stringify(this.value, null, 2));
+          log.info(`\u6A21\u7248\u5E93\u5DF2\u5347\u7EA7\uFF1A\u81EA\u5B9A\u4E49\u6A21\u7248\u6539\u4E3A\u6BCF\u4E2A\u6B3E\u5F0F\u5404\u4E00\u5957\uFF08\u65E7\u6587\u4EF6\u53E6\u5B58\u4E3A ${old}\uFF09`);
+        }
       }
     }
   }
@@ -58499,6 +58584,16 @@ function findCat(lib, cid) {
   if (!c) throw new HttpError(404, "\u54C1\u7C7B\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
   return c;
 }
+function findStyle(lib, cid, sid) {
+  const s = findCat(lib, cid).styles.find((x2) => x2.id === sid);
+  if (!s) throw new HttpError(404, "\u6B3E\u5F0F\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
+  return s;
+}
+function findTemplate(lib, cid, sid, tid) {
+  const t = findStyle(lib, cid, sid).templates.find((x2) => x2.id === tid);
+  if (!t) throw new HttpError(404, "\u6A21\u7248\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
+  return t;
+}
 function checkCategoryName(lib, name, exceptId) {
   const n = name.trim();
   if (n.length < 1 || n.length > 20) throw new HttpError(400, "\u54C1\u7C7B\u540D\u79F0\u8981 1\uFF5E20 \u4E2A\u5B57");
@@ -58520,9 +58615,7 @@ var ops = {
       name: checkCategoryName(lib, name),
       hint: "",
       extractPrompt: null,
-      activeTemplate: "default",
-      styles: [{ id: newStyleId(), name: "", ratio: "1:1", whiteImage: null }],
-      templates: []
+      styles: [{ id: newStyleId(), name: "", ratio: "1:1", whiteImage: null, activeTemplate: "default", templates: [] }]
     };
     lib.categories.push(c);
     return c;
@@ -58532,12 +58625,6 @@ var ops = {
     if (p.name !== void 0) c.name = checkCategoryName(lib, p.name, cid);
     if (p.hint !== void 0) c.hint = p.hint;
     if (p.extractPrompt !== void 0) c.extractPrompt = p.extractPrompt;
-    if (p.activeTemplate !== void 0) {
-      if (p.activeTemplate !== "default" && !c.templates.some((t) => t.id === p.activeTemplate)) {
-        throw new HttpError(400, "\u8981\u4F7F\u7528\u7684\u6A21\u7248\u4E0D\u5B58\u5728");
-      }
-      c.activeTemplate = p.activeTemplate;
-    }
     return c;
   },
   deleteCategory(lib, cid) {
@@ -58558,7 +58645,7 @@ var ops = {
     if (n.length > 20) throw new HttpError(400, "\u6B3E\u5F0F\u540D\u79F0\u4E0D\u80FD\u8D85\u8FC7 20 \u4E2A\u5B57");
     if (c.styles.some((s) => s.name === n)) throw new HttpError(400, `\u300C${c.name}\u300D\u5DF2\u7ECF\u6709\u53EB\u300C${n}\u300D\u7684\u6B3E\u5F0F\u4E86`);
     for (const s of c.styles) if (!s.name) s.name = n === "\u9ED8\u8BA4" ? "\u539F\u6B3E\u5F0F" : "\u9ED8\u8BA4";
-    const st = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null };
+    const st = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: "default", templates: [] };
     c.styles.push(st);
     return st;
   },
@@ -58574,6 +58661,10 @@ var ops = {
       s.name = n;
     }
     if (p.ratio !== void 0) s.ratio = checkRatio(p.ratio);
+    if (p.activeTemplate !== void 0) {
+      if (p.activeTemplate !== "default" && !s.templates.some((t) => t.id === p.activeTemplate)) throw new HttpError(400, "\u8981\u4F7F\u7528\u7684\u6A21\u7248\u4E0D\u5B58\u5728");
+      s.activeTemplate = p.activeTemplate;
+    }
     return s;
   },
   deleteStyle(lib, cid, sid) {
@@ -58581,7 +58672,6 @@ var ops = {
     if (!c.styles.some((s) => s.id === sid)) throw new HttpError(404, "\u6B3E\u5F0F\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
     if (c.styles.length <= 1) throw new HttpError(400, "\u6BCF\u4E2A\u54C1\u7C7B\u81F3\u5C11\u8981\u4FDD\u7559\u4E00\u4E2A\u6B3E\u5F0F");
     c.styles = c.styles.filter((s) => s.id !== sid);
-    for (const t of c.templates) delete t.images[sid];
   },
   setWhite(lib, cid, sid, hash2) {
     const c = findCat(lib, cid);
@@ -58589,18 +58679,16 @@ var ops = {
     if (!s) throw new HttpError(404, "\u6B3E\u5F0F\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
     s.whiteImage = hash2;
   },
-  addTemplate(lib, cid, name, prompt) {
-    const c = findCat(lib, cid);
-    const n = name.trim() || `\u81EA\u5B9A\u4E49 ${c.templates.length + 1}`;
+  addTemplate(lib, cid, sid, name, prompt) {
+    const s = findStyle(lib, cid, sid);
+    const n = name.trim() || `\u81EA\u5B9A\u4E49 ${s.templates.length + 1}`;
     if (n.length > 30) throw new HttpError(400, "\u6A21\u7248\u540D\u79F0\u4E0D\u80FD\u8D85\u8FC7 30 \u4E2A\u5B57");
-    const t = { id: newTemplateId(), name: n, prompt, images: {}, canvasRatio: null };
-    c.templates.push(t);
+    const t = { id: newTemplateId(), name: n, prompt, image: null, canvasRatio: null };
+    s.templates.push(t);
     return t;
   },
-  patchTemplate(lib, cid, tid, p) {
-    const c = findCat(lib, cid);
-    const t = c.templates.find((x2) => x2.id === tid);
-    if (!t) throw new HttpError(404, "\u6A21\u7248\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
+  patchTemplate(lib, cid, sid, tid, p) {
+    const t = findTemplate(lib, cid, sid, tid);
     if (p.name !== void 0) {
       const n = p.name.trim();
       if (!n || n.length > 30) throw new HttpError(400, "\u6A21\u7248\u540D\u79F0\u8981 1\uFF5E30 \u4E2A\u5B57");
@@ -58610,19 +58698,14 @@ var ops = {
     if (p.canvasRatio !== void 0) t.canvasRatio = p.canvasRatio?.trim() ? checkRatio(p.canvasRatio) : null;
     return t;
   },
-  deleteTemplate(lib, cid, tid) {
-    const c = findCat(lib, cid);
-    if (!c.templates.some((t) => t.id === tid)) throw new HttpError(404, "\u6A21\u7248\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
-    c.templates = c.templates.filter((t) => t.id !== tid);
-    if (c.activeTemplate === tid) c.activeTemplate = "default";
+  deleteTemplate(lib, cid, sid, tid) {
+    const s = findStyle(lib, cid, sid);
+    findTemplate(lib, cid, sid, tid);
+    s.templates = s.templates.filter((t) => t.id !== tid);
+    if (s.activeTemplate === tid) s.activeTemplate = "default";
   },
-  setTemplateImage(lib, cid, tid, sid, hash2) {
-    const c = findCat(lib, cid);
-    const t = c.templates.find((x2) => x2.id === tid);
-    if (!t) throw new HttpError(404, "\u6A21\u7248\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
-    if (!c.styles.some((s) => s.id === sid)) throw new HttpError(404, "\u6B3E\u5F0F\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
-    if (hash2) t.images[sid] = hash2;
-    else delete t.images[sid];
+  setTemplateImage(lib, cid, sid, tid, hash2) {
+    findTemplate(lib, cid, sid, tid).image = hash2;
   }
 };
 
@@ -58643,8 +58726,8 @@ function labelOf(category, style) {
 // server/src/prompts/main.ts
 var DEFAULT_TEMPLATE_NAME = "\u9ED8\u8BA4 \xB7 \u8D34\u56FE";
 var CN_NUM = ["\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94"];
-function mainPlanFor(lib, cat, style, templateId = cat.activeTemplate) {
-  const tpl = templateId === "default" ? void 0 : cat.templates.find((t) => t.id === templateId);
+function mainPlanFor(lib, cat, style, templateId = style.activeTemplate) {
+  const tpl = templateId === "default" ? void 0 : style.templates.find((t) => t.id === templateId);
   const values = { category: cat.name, style: style.name, ratio: style.ratio };
   if (!tpl) {
     return {
@@ -58658,17 +58741,16 @@ function mainPlanFor(lib, cat, style, templateId = cat.activeTemplate) {
       scope: "\u5168\u5C40\u5171\u7528 \xB7 \u6240\u6709\u54C1\u7C7B"
     };
   }
-  const ref = tpl.images[style.id];
   return {
     main: {
       templateId: tpl.id,
       templateName: tpl.name,
       prompt: fillPlaceholders(tpl.prompt, values),
-      image: ref ? { role: "\u53C2\u8003\u56FE", hash: ref } : null,
+      image: tpl.image ? { role: "\u53C2\u8003\u56FE", hash: tpl.image } : null,
       canvasRatio: tpl.canvasRatio ?? null
     },
     missingWhite: false,
-    scope: `\u300C${cat.name}\u300D\u6240\u6709\u6B3E\u5F0F\u5171\u7528`
+    scope: `\u53EA\u7ED9\u300C${labelOf(cat.name, style.name)}\u300D\u7528`
   };
 }
 function roleSentence(roles) {
@@ -58759,8 +58841,8 @@ async function recipeFor(lib, images, cid, sid, tid) {
   if (!cat) throw new HttpError(404, "\u54C1\u7C7B\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
   const style = cat.styles.find((s) => s.id === sid);
   if (!style) throw new HttpError(404, "\u6B3E\u5F0F\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
-  const templateId = tid ?? cat.activeTemplate;
-  if (templateId !== "default" && !cat.templates.some((t) => t.id === templateId)) throw new HttpError(404, "\u6A21\u7248\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
+  const templateId = tid ?? style.activeTemplate;
+  if (templateId !== "default" && !style.templates.some((t) => t.id === templateId)) throw new HttpError(404, "\u6A21\u7248\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
   const { main: main2, missingWhite, scope } = mainPlanFor(lib, cat, style, templateId);
   const req = await buildMainRequest(main2, style.ratio, (h) => images.dims(h));
   const warnings = [];
@@ -59794,7 +59876,7 @@ async function parseZip(buf) {
   } catch {
     throw new HttpError(400, "library.json \u4E0D\u662F\u5408\u6CD5\u7684 JSON");
   }
-  const r = LibrarySchema.safeParse(raw);
+  const r = LibrarySchema.safeParse(migrateLibrary(raw));
   if (!r.success) {
     const i2 = r.error.issues[0];
     throw new HttpError(400, `library.json \u683C\u5F0F\u4E0D\u5BF9\uFF1A${i2.path.join(".")} ${i2.message}`);
@@ -59844,26 +59926,13 @@ function mergeLibraries(local, incoming) {
 function remapCategory(inc, local) {
   const c = structuredClone(inc);
   c.id = local.id;
-  const styleMap = /* @__PURE__ */ new Map();
   const usedS = /* @__PURE__ */ new Set();
   for (const s of c.styles) {
     const match = local.styles.find((ls) => ls.name === s.name && !usedS.has(ls.id));
     const id = match ? match.id : usedS.has(s.id) || local.styles.some((ls) => ls.id === s.id) ? newStyleId() : s.id;
-    styleMap.set(s.id, id);
     usedS.add(id);
     s.id = id;
   }
-  const tplMap = /* @__PURE__ */ new Map();
-  const usedT = /* @__PURE__ */ new Set();
-  for (const t of c.templates) {
-    const match = local.templates.find((lt) => lt.name === t.name && !usedT.has(lt.id));
-    const id = match ? match.id : usedT.has(t.id) || local.templates.some((lt) => lt.id === t.id) ? newTemplateId() : t.id;
-    tplMap.set(t.id, id);
-    usedT.add(id);
-    t.id = id;
-    t.images = Object.fromEntries(Object.entries(t.images).map(([sid, h]) => [styleMap.get(sid) ?? sid, h]));
-  }
-  if (c.activeTemplate !== "default") c.activeTemplate = tplMap.get(c.activeTemplate) ?? "default";
   return c;
 }
 async function importZip(store, buf, mode) {
@@ -59891,6 +59960,35 @@ function buildExtractRequest(prompt, ratio) {
   const [w, h] = ratioToWH(ratio);
   const c = canvasFor(w, h);
   return { prefix: c.prefix + roleSentence(["\u7ADE\u54C1\u5546\u54C1\u56FE"]) + "\n", prompt, size: c.size };
+}
+
+// server/src/prompts/ratio.ts
+var RATIO_SYSTEM = "\u4F60\u662F\u7535\u5546\u5546\u54C1\u56FE\u7684\u6D4B\u91CF\u52A9\u624B\uFF0C\u53EA\u8F93\u51FA JSON \u5BF9\u8C61\uFF0C\u4E0D\u8F93\u51FA\u5176\u4ED6\u6587\u5B57\u3002";
+function ratioUser(label, hint) {
+  return [
+    `\u8FD9\u662F\u300C${label}\u300D\u7684\u5546\u54C1\u56FE${hint ? `\uFF08${hint}\uFF09` : ""}\u3002`,
+    "\u627E\u51FA\u5546\u54C1\u4E0A\u7528\u6765\u5370\u5B9A\u5236\u56FE\u6848\u7684\u90A3\u4E00\u5757\u8868\u9762\uFF08\u4F8B\u5982\u753B\u9762\u3001\u6BEF\u9762\u3001\u6807\u724C\u6B63\u9762\u3001\u706F\u7F69\u4E0A\u900F\u5149\u7684\u9762\u677F\uFF09\uFF0C\u56FE\u6848\u8BBE\u8BA1\u7A3F\u5C31\u8981\u505A\u6210\u5B83\u7684\u5F62\u72B6\u3002",
+    "\u5982\u679C\u8FD9\u5757\u8868\u9762\u662F\u659C\u7740\u62CD\u7684\uFF0C\u6309\u5B83\u6B63\u5BF9\u7740\u770B\u65F6\u7684\u771F\u5B9E\u5F62\u72B6\u4F30\u8BA1\u3002",
+    '\u8F93\u51FA JSON\uFF1A{"found": true \u6216 false, "box": [\u5DE6, \u4E0A, \u53F3, \u4E0B], "width_to_height": \u6570\u5B57, "shape": "\u957F\u65B9\u5F62" \u6216 "\u5706\u5F62" \u6216 "\u5176\u4ED6", "surface": "\u8FD9\u5757\u8868\u9762\u662F\u4EC0\u4E48\uFF0C\u51E0\u4E2A\u5B57", "reason": "\u4E00\u53E5\u8BDD\u8BF4\u660E"}',
+    "box \u662F\u8FD9\u5757\u8868\u9762\u5728\u56FE\u91CC\u7684\u8303\u56F4\uFF0C\u7528 0\uFF5E1000 \u7684\u76F8\u5BF9\u5750\u6807\uFF08\u6A2A\u5411\u6309\u56FE\u5BBD\u3001\u7EB5\u5411\u6309\u56FE\u9AD8\uFF09\uFF1Bwidth_to_height \u662F\u6B63\u5BF9\u65F6\u7684\u5BBD\xF7\u9AD8\u3002"
+  ].join("\n");
+}
+var RatioAnswerSchema = external_exports.object({
+  found: external_exports.boolean(),
+  box: external_exports.array(external_exports.number()).length(4).nullable().optional(),
+  width_to_height: external_exports.number().positive().nullable().optional(),
+  shape: external_exports.string().optional().default(""),
+  surface: external_exports.string().optional().default(""),
+  reason: external_exports.string().optional().default("")
+});
+var MAX_TERM = 12;
+var TOLERANCE2 = 0.03;
+function snapRatio(r) {
+  const cands = [];
+  for (let a = 1; a <= MAX_TERM; a++) for (let b = 1; b <= MAX_TERM; b++) cands.push({ a, b, err: Math.abs(a / b - r) / r });
+  cands.sort((x2, y) => x2.a + x2.b - (y.a + y.b) || x2.err - y.err);
+  const pick2 = cands.find((c) => c.err <= TOLERANCE2) ?? cands.reduce((m, c) => c.err < m.err ? c : m);
+  return `${pick2.a}:${pick2.b}`;
 }
 
 // server/src/api/library.ts
@@ -59938,7 +60036,7 @@ function registerLibrary(r, ctx) {
   });
   r.patch("/library/categories/:cid", async (req, res) => {
     const b = parseBody(
-      external_exports.object({ name: external_exports.string().optional(), hint: external_exports.string().max(500).optional(), extractPrompt: external_exports.string().nullable().optional(), activeTemplate: external_exports.string().optional() }),
+      external_exports.object({ name: external_exports.string().optional(), hint: external_exports.string().max(500).optional(), extractPrompt: external_exports.string().nullable().optional() }),
       req.body
     );
     await store.mutate((d) => ops.patchCategory(d, p(req, "cid"), b));
@@ -59954,7 +60052,7 @@ function registerLibrary(r, ctx) {
     res.json({ style: s, ...libraryPayload(ctx) });
   });
   r.patch("/library/categories/:cid/styles/:sid", async (req, res) => {
-    const b = parseBody(external_exports.object({ name: external_exports.string().optional(), ratio: external_exports.string().optional() }), req.body);
+    const b = parseBody(external_exports.object({ name: external_exports.string().optional(), ratio: external_exports.string().optional(), activeTemplate: external_exports.string().optional() }), req.body);
     await store.mutate((d) => ops.patchStyle(d, p(req, "cid"), p(req, "sid"), b));
     res.json(libraryPayload(ctx));
   });
@@ -59971,27 +60069,62 @@ function registerLibrary(r, ctx) {
     await store.mutate((d) => ops.setWhite(d, p(req, "cid"), p(req, "sid"), null));
     res.json(libraryPayload(ctx));
   });
-  r.post("/library/categories/:cid/templates", async (req, res) => {
+  r.post("/library/categories/:cid/styles/:sid/estimate-ratio", async (req, res) => {
+    const b = parseBody(external_exports.object({ templateId: external_exports.string().optional() }), req.body ?? {});
+    const lib = store.get();
+    const cat = lib.categories.find((c) => c.id === p(req, "cid"));
+    if (!cat) throw new HttpError(404, "\u54C1\u7C7B\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
+    const style = cat.styles.find((s) => s.id === p(req, "sid"));
+    if (!style) throw new HttpError(404, "\u6B3E\u5F0F\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
+    const tpl = style.templates.find((t) => t.id === (b.templateId ?? style.activeTemplate));
+    const hash2 = style.whiteImage ?? tpl?.image ?? null;
+    const found = hash2 ? store.images.find(hash2) : null;
+    if (!found) throw new HttpError(400, "\u5148\u4E0A\u4F20\u8FD9\u4E2A\u6B3E\u5F0F\u7684\u767D\u5E95\u56FE\uFF08\u6216\u53C2\u8003\u56FE\uFF09\uFF0CAI \u624D\u80FD\u770B\u56FE\u4F30\u7B97");
+    const api = ctx.settings.get().analysis;
+    if (!api.baseUrl || !api.apiKey) throw new HttpError(400, "\u8FD8\u6CA1\u6709\u8BBE\u7F6E\u5206\u6790\u63A5\u53E3\uFF0C\u8BF7\u5148\u5728\u8BBE\u7F6E\u91CC\u586B\u5199");
+    const buf = await import_promises3.default.readFile(found.file);
+    const { width, height } = await readSize(buf);
+    let data;
+    try {
+      ;
+      ({ data } = await chatJson(
+        api,
+        { system: RATIO_SYSTEM, user: ratioUser(labelOf(cat.name, style.name), cat.hint), imageJpeg: await shrinkForAnalysis(buf) },
+        RatioAnswerSchema
+      ));
+    } catch (e) {
+      if (e instanceof AiError) throw new HttpError(502, `AI \u4F30\u7B97\u5931\u8D25\uFF1A${ERROR_LABEL[e.type]}\uFF0C${e.message}`);
+      throw e;
+    }
+    const box = data.box ?? null;
+    const boxRatio = box && box[2] > box[0] && box[3] > box[1] ? (box[2] - box[0]) * width / ((box[3] - box[1]) * height) : null;
+    const value = data.width_to_height ?? boxRatio;
+    if (!data.found || !value) throw new HttpError(422, `AI \u6CA1\u5728\u56FE\u91CC\u627E\u5230\u5370\u56FE\u6848\u7684\u8868\u9762${data.reason ? `\uFF1A${data.reason}` : ""}`);
+    res.json({ ratio: snapRatio(value), value, shape: data.shape, surface: data.surface, reason: data.reason, source: style.whiteImage ? "\u767D\u5E95\u56FE" : "\u53C2\u8003\u56FE" });
+  });
+  const T = "/library/categories/:cid/styles/:sid/templates";
+  const ids = (req) => [p(req, "cid"), p(req, "sid")];
+  r.post(T, async (req, res) => {
     const b = parseBody(external_exports.object({ name: external_exports.string().default(""), prompt: external_exports.string().default("") }), req.body);
-    const t = await store.mutate((d) => ops.addTemplate(d, p(req, "cid"), b.name, b.prompt));
+    const t = await store.mutate((d) => ops.addTemplate(d, ...ids(req), b.name, b.prompt));
     res.json({ template: t, ...libraryPayload(ctx) });
   });
-  r.patch("/library/categories/:cid/templates/:tid", async (req, res) => {
+  r.patch(`${T}/:tid`, async (req, res) => {
     const b = parseBody(external_exports.object({ name: external_exports.string().optional(), prompt: external_exports.string().optional(), canvasRatio: external_exports.string().nullable().optional() }), req.body);
-    await store.mutate((d) => ops.patchTemplate(d, p(req, "cid"), p(req, "tid"), b));
+    await store.mutate((d) => ops.patchTemplate(d, ...ids(req), p(req, "tid"), b));
     res.json(libraryPayload(ctx));
   });
-  r.delete("/library/categories/:cid/templates/:tid", async (req, res) => {
-    await store.mutate((d) => ops.deleteTemplate(d, p(req, "cid"), p(req, "tid")));
+  r.delete(`${T}/:tid`, async (req, res) => {
+    await store.mutate((d) => ops.deleteTemplate(d, ...ids(req), p(req, "tid")));
     res.json(libraryPayload(ctx));
   });
-  r.put("/library/categories/:cid/templates/:tid/images/:sid", upload.single("file"), async (req, res) => {
+  r.put(`${T}/:tid/image`, upload.single("file"), async (req, res) => {
     const buf = fileOf(req);
-    await store.mutate(async (d) => ops.setTemplateImage(d, p(req, "cid"), p(req, "tid"), p(req, "sid"), await addImage(buf)));
+    await store.mutate(async (d) => ops.setTemplateImage(d, ...ids(req), p(req, "tid"), await addImage(buf)));
     res.json(libraryPayload(ctx));
   });
-  r.delete("/library/categories/:cid/templates/:tid/images/:sid", async (req, res) => {
-    await store.mutate((d) => ops.setTemplateImage(d, p(req, "cid"), p(req, "tid"), p(req, "sid"), null));
+  r.delete(`${T}/:tid/image`, async (req, res) => {
+    await store.mutate((d) => ops.setTemplateImage(d, ...ids(req), p(req, "tid"), null));
     res.json(libraryPayload(ctx));
   });
   r.get("/library/recipe", async (req, res) => {
@@ -60032,7 +60165,7 @@ function registerLibrary(r, ctx) {
 
 // server/src/store/jobs.ts
 var import_node_fs8 = __toESM(require("node:fs"), 1);
-var import_promises3 = __toESM(require("node:fs/promises"), 1);
+var import_promises4 = __toESM(require("node:fs/promises"), 1);
 var import_node_path9 = __toESM(require("node:path"), 1);
 var STEP_COUNT = 5;
 var STEP_NAMES = ["\u8BC6\u522B\u54C1\u7C7B", "\u63D0\u53D6\u7D20\u6750", "\u751F\u6210\u4E3B\u56FE", "\u4FE1\u606F\u8BC6\u522B", "\u7A7A\u767D\u56FE"];
@@ -60067,6 +60200,8 @@ var JobSchema = external_exports.object({
   order: external_exports.number(),
   source: external_exports.object({ file: external_exports.string(), originalName: external_exports.string(), width: external_exports.number(), height: external_exports.number(), sha256: external_exports.string() }),
   outputDay: external_exports.string(),
+  /** 这张图的输出文件夹名（保存位置下的一级文件夹），同一批图共用；旧任务读入时按日期补上 */
+  outputFolder: external_exports.string().default(""),
   outputBase: external_exports.string(),
   route: external_exports.object({
     categoryId: external_exports.string(),
@@ -60200,6 +60335,7 @@ var JobStore = class {
           log.warn(`\u4EFB\u52A1\u8BB0\u5F55 ${ent.name} \u683C\u5F0F\u4E0D\u5BF9\uFF0C\u5DF2\u8DF3\u8FC7`);
           continue;
         }
+        if (!r.data.outputFolder) r.data.outputFolder = `\u4E3B\u56FE\u751F\u6210-${r.data.outputDay}`;
         this.jobs.set(r.data.id, r.data);
       } catch (e) {
         log.warn(`\u4EFB\u52A1\u8BB0\u5F55 ${ent.name} \u8BFB\u53D6\u5931\u8D25\uFF0C\u5DF2\u8DF3\u8FC7\uFF1A${e.message}`);
@@ -60246,7 +60382,7 @@ var JobStore = class {
   }
   async remove(id) {
     this.jobs.delete(id);
-    await import_promises3.default.rm(import_node_path9.default.join(this.dir, id), { recursive: true, force: true });
+    await import_promises4.default.rm(import_node_path9.default.join(this.dir, id), { recursive: true, force: true });
   }
 };
 
@@ -60254,7 +60390,7 @@ var JobStore = class {
 var import_node_path17 = __toESM(require("node:path"), 1);
 
 // server/src/pipeline/step0Route.ts
-var import_promises4 = __toESM(require("node:fs/promises"), 1);
+var import_promises5 = __toESM(require("node:fs/promises"), 1);
 var import_node_path10 = __toESM(require("node:path"), 1);
 
 // server/src/prompts/route.ts
@@ -60292,7 +60428,7 @@ var step0Route = async (ctx) => {
   }
   const settings = ctx.env.settings();
   const system = routeSystem(lib);
-  const src = await import_promises4.default.readFile(import_node_path10.default.join(ctx.dir, ctx.job.source.file));
+  const src = await import_promises5.default.readFile(import_node_path10.default.join(ctx.dir, ctx.job.source.file));
   const jpeg = await shrinkForAnalysis(src);
   ctx.setSnapshot({
     images: [{ no: 1, role: "\u7ADE\u54C1\u56FE", sha256: ctx.job.source.sha256 }],
@@ -60490,7 +60626,7 @@ async function parseImageResponse(body, contentType, signal) {
 }
 
 // server/src/pipeline/files.ts
-var import_promises5 = __toESM(require("node:fs/promises"), 1);
+var import_promises6 = __toESM(require("node:fs/promises"), 1);
 var import_node_path12 = __toESM(require("node:path"), 1);
 var JOB_FILES = { pattern: "pattern.png", main: "main.png", blank: "blank.png" };
 var MIME_BY_EXT2 = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
@@ -60498,15 +60634,15 @@ function mimeOf(file2) {
   return MIME_BY_EXT2[import_node_path12.default.extname(file2).toLowerCase()] ?? "image/png";
 }
 async function readInput(file2, name) {
-  return { buffer: await import_promises5.default.readFile(file2), mime: mimeOf(file2), filename: name + import_node_path12.default.extname(file2) };
+  return { buffer: await import_promises6.default.readFile(file2), mime: mimeOf(file2), filename: name + import_node_path12.default.extname(file2) };
 }
 async function writeJobImage(dir, kind, file2, buf) {
   await writeFileAtomic(import_node_path12.default.join(dir, file2), buf);
   await writeFileAtomic(import_node_path12.default.join(dir, "thumbs", `${kind}.webp`), await thumb(buf));
 }
 async function removeJobImage(dir, kind) {
-  await import_promises5.default.rm(import_node_path12.default.join(dir, JOB_FILES[kind]), { force: true });
-  await import_promises5.default.rm(import_node_path12.default.join(dir, "thumbs", `${kind}.webp`), { force: true });
+  await import_promises6.default.rm(import_node_path12.default.join(dir, JOB_FILES[kind]), { force: true });
+  await import_promises6.default.rm(import_node_path12.default.join(dir, "thumbs", `${kind}.webp`), { force: true });
 }
 
 // server/src/pipeline/params.ts
@@ -60564,7 +60700,7 @@ var step1Extract = async (ctx) => {
 };
 
 // server/src/pipeline/step2Main.ts
-var import_promises6 = __toESM(require("node:fs/promises"), 1);
+var import_promises7 = __toESM(require("node:fs/promises"), 1);
 var import_node_path14 = __toESM(require("node:path"), 1);
 var step2Main = async (ctx) => {
   const plan = ctx.job.plan;
@@ -60580,7 +60716,7 @@ var step2Main = async (ctx) => {
       return { kind: "attention", state: "failed", attention: { kind: "failed", step: 2, message: `${main2.image.role}\u6587\u4EF6\u4E22\u5931\u4E86\uFF0C\u8BF7\u4ECE\u8FD9\u4E00\u6B65\u91CD\u505A` } };
     }
   }
-  const req = await buildMainRequest(main2, route.ratio, async () => readSize(await import_promises6.default.readFile(planFile)));
+  const req = await buildMainRequest(main2, route.ratio, async () => readSize(await import_promises7.default.readFile(planFile)));
   const useOverride = ctx.job.override?.step === 2;
   const prompt = useOverride ? ctx.job.override.prompt : req.prompt;
   const patternInput = await readInput(import_node_path14.default.join(ctx.dir, JOB_FILES.pattern), "pattern");
@@ -60619,7 +60755,7 @@ var step2Main = async (ctx) => {
 };
 
 // server/src/pipeline/step3Info.ts
-var import_promises7 = __toESM(require("node:fs/promises"), 1);
+var import_promises8 = __toESM(require("node:fs/promises"), 1);
 var import_node_path15 = __toESM(require("node:path"), 1);
 
 // server/src/prompts/info.ts
@@ -60683,7 +60819,7 @@ function decideBlankItems(customizable, blankItems) {
 
 // server/src/pipeline/step3Info.ts
 var step3Info = async (ctx) => {
-  const mainBuf = await import_promises7.default.readFile(import_node_path15.default.join(ctx.dir, JOB_FILES.main)).catch(() => null);
+  const mainBuf = await import_promises8.default.readFile(import_node_path15.default.join(ctx.dir, JOB_FILES.main)).catch(() => null);
   if (!mainBuf) {
     return { kind: "attention", state: "failed", attention: { kind: "failed", step: 3, message: "\u4E3B\u56FE\u6587\u4EF6\u4E0D\u5B58\u5728\uFF0C\u8BF7\u4ECE\u300C\u751F\u6210\u4E3B\u56FE\u300D\u91CD\u505A" } };
   }
@@ -60961,11 +61097,11 @@ var Scheduler = class {
         log.warn(`\u300C${j.source.originalName}\u300D\u9700\u5904\u7406\uFF1A${r.attention.message}`);
       }
     });
-    if (r.kind === "done" && i2 === 3) void this.rewriteCsv(this.d.jobs.get(jobId).outputDay);
+    if (r.kind === "done" && i2 === 3) void this.rewriteCsv(this.d.jobs.get(jobId).outputFolder);
   }
-  /** 同一天的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
-  rewriteCsv(day) {
-    return this.csvLock.run(day, () => writeDayCsv(this.env.outputDir(), this.d.jobs.list(), day)).catch((e) => log.error(`\u5199\u8BC6\u522B\u4FE1\u606F CSV \u5931\u8D25\uFF1A${e.message}`));
+  /** 同一批的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
+  rewriteCsv(folder) {
+    return this.csvLock.run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder)).catch((e) => log.error(`\u5199\u8BC6\u522B\u4FE1\u606F CSV \u5931\u8D25\uFF1A${e.message}`));
   }
   applyError(jobId, i2, e) {
     const name = STEP_NAMES[i2];
@@ -61171,6 +61307,12 @@ var Scheduler = class {
     for (const j of done) await this.remove(j.id);
     return done.length;
   }
+  /** 整个队列清空：正在生成的先中止；已经写到输出文件夹的图不删 */
+  async clearAll() {
+    const all = this.d.jobs.list();
+    for (const j of all) await this.remove(j.id);
+    return all.length;
+  }
   jobDir(jobId) {
     return import_node_path17.default.join(this.d.jobs.dirOf(jobId));
   }
@@ -61178,9 +61320,34 @@ var Scheduler = class {
 
 // server/src/api/jobs.ts
 var import_node_fs10 = __toESM(require("node:fs"), 1);
+var import_promises9 = __toESM(require("node:fs/promises"), 1);
 var import_node_path18 = __toESM(require("node:path"), 1);
 var import_sharp4 = __toESM(require("sharp"), 1);
 var MAX_FILES = 500;
+var MAX_BYTES = 50 * 1024 * 1024;
+var IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|tiff?|heic|heif|avif)$/i;
+async function expandPaths(paths) {
+  const out = [];
+  const walk = async (p) => {
+    if (import_node_path18.default.basename(p).startsWith(".")) return;
+    const st = await import_promises9.default.stat(p).catch(() => null);
+    if (!st) return;
+    if (st.isDirectory()) {
+      for (const c of (await import_promises9.default.readdir(p)).sort()) await walk(import_node_path18.default.join(p, c));
+    } else if (st.isFile()) out.push(p);
+  };
+  for (const p of paths) await walk(p);
+  return out;
+}
+function sameOrigin(req) {
+  const o = req.headers.origin;
+  if (!o) return true;
+  try {
+    return new URL(o).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
 async function normalizeSource(buf) {
   if (sniffImageType(buf)) {
     const n = await normalizeLibraryImage(buf);
@@ -61202,12 +61369,37 @@ function registerJobs(r, ctx) {
   r.post("/jobs", upload.array("files", MAX_FILES), async (req, res) => {
     const files = req.files ?? [];
     if (!files.length) throw new HttpError(400, "\u6CA1\u6709\u6536\u5230\u56FE\u7247\uFF08\u8868\u5355\u5B57\u6BB5\u540D\u5E94\u4E3A files\uFF09");
+    res.json(await addSources(files.map((f) => ({ name: import_node_path18.default.basename(f.originalname || "image"), read: async () => f.buffer }))));
+  });
+  r.post("/jobs/from-clipboard", async (req, res) => {
+    if (!sameOrigin(req)) throw new HttpError(403, "\u53EA\u80FD\u4ECE\u672C\u5DE5\u5177\u7684\u9875\u9762\u7C98\u8D34");
+    let paths;
+    try {
+      paths = await readClipboardFiles();
+    } catch (e) {
+      log.warn(`\u8BFB\u53D6\u526A\u8D34\u677F\u5931\u8D25\uFF1A${e.message}`);
+      paths = null;
+    }
+    if (!paths) return res.json({ supported: false, copied: 0, jobs: [], errors: [] });
+    const images = (await expandPaths(paths)).filter((p) => IMAGE_EXT.test(p)).slice(0, MAX_FILES);
+    const added = images.length ? await addSources(
+      images.map((p) => ({
+        name: import_node_path18.default.basename(p),
+        read: async () => {
+          if ((await import_promises9.default.stat(p)).size > MAX_BYTES) throw new Error("\u6587\u4EF6\u8D85\u8FC7 50 MB");
+          return import_promises9.default.readFile(p);
+        }
+      }))
+    ) : { jobs: [], errors: [] };
+    res.json({ supported: true, copied: paths.length, ...added });
+  });
+  async function addSources(sources) {
     const created = [];
     const errors = [];
-    for (const f of files) {
-      const name = import_node_path18.default.basename(f.originalname || "image");
+    const folder = folderForNewJobs(jobs.list(), resolveOutputDir(ctx.settings.get()), isFinished);
+    for (const { name, read } of sources) {
       try {
-        const { buffer, ext } = await normalizeSource(f.buffer);
+        const { buffer, ext } = await normalizeSource(await read());
         const { width, height } = await readSize(buffer);
         const jobId = newJobId();
         const dir = jobs.dirOf(jobId);
@@ -61219,6 +61411,7 @@ function registerJobs(r, ctx) {
           order: jobs.maxOrder() + 1,
           source: { file: file2, originalName: name, width, height, sha256: sha256(buffer) },
           outputDay: localDay(),
+          outputFolder: folder,
           outputBase: baseNameOf(name),
           route: null,
           plan: null,
@@ -61236,10 +61429,15 @@ function registerJobs(r, ctx) {
     }
     if (created.length) log.info(`\u52A0\u5165\u961F\u5217 ${created.length} \u5F20\u56FE`);
     scheduler.tick();
-    res.json({ jobs: created, errors });
-  });
+    return { jobs: created, errors };
+  }
   r.post("/jobs/clear-done", async (_req, res) => {
     res.json({ removed: await scheduler.clearDone() });
+  });
+  r.post("/jobs/clear-all", async (_req, res) => {
+    const removed = await scheduler.clearAll();
+    if (removed) log.info(`\u6E05\u7A7A\u961F\u5217\uFF0C\u79FB\u9664 ${removed} \u5F20\u56FE`);
+    res.json({ removed });
   });
   r.delete("/jobs/:id", async (req, res) => {
     await scheduler.remove(id(req));

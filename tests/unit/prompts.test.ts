@@ -37,21 +37,23 @@ describe('引用检查', () => {
   })
 })
 
+const room = (image: string | null) => ({ id: 't_room', name: '客厅场景', prompt: '把第二张图片贴到第一张图片的{品类}·{款式}画面上', image, canvasRatio: null })
+
 function sampleLib(): Library {
   const lib = initialLibrary()
   lib.categories.push(
     {
-      id: 'c_frame', name: '相框', hint: '', extractPrompt: null, activeTemplate: 'default',
+      id: 'c_frame', name: '相框', hint: '', extractPrompt: null,
       styles: [
-        { id: 's_h', name: '横版', ratio: '3:2', whiteImage: H1 },
-        { id: 's_v', name: '竖版', ratio: '2:3', whiteImage: null },
+        { id: 's_h', name: '横版', ratio: '3:2', whiteImage: H1, activeTemplate: 'default', templates: [room(H2)] },
+        { id: 's_v', name: '竖版', ratio: '2:3', whiteImage: null, activeTemplate: 'default', templates: [room(null)] },
       ],
-      templates: [{ id: 't_room', name: '客厅场景', prompt: '把第二张图片贴到第一张图片的{品类}·{款式}画面上', images: { s_h: H2 }, canvasRatio: null }],
     },
     {
-      id: 'c_mug', name: '杯子', hint: '', extractPrompt: '只提取{品类}杯身图案，比例 {比例}', activeTemplate: 't_x',
-      styles: [{ id: 's_m', name: '', ratio: '1:1', whiteImage: null }],
-      templates: [{ id: 't_x', name: '无图模版', prompt: '把第二张图片印到杯子上', images: {}, canvasRatio: null }],
+      id: 'c_mug', name: '杯子', hint: '', extractPrompt: '只提取{品类}杯身图案，比例 {比例}',
+      styles: [
+        { id: 's_m', name: '', ratio: '1:1', whiteImage: null, activeTemplate: 't_x', templates: [{ id: 't_x', name: '无图模版', prompt: '把第二张图片印到杯子上', image: null, canvasRatio: null }] },
+      ],
     },
   )
   return lib
@@ -87,7 +89,7 @@ describe('buildMainRequest', () => {
     expect(r.prefix).toBe('[Canvas: 4:5 portrait format] 第一张图片是参考图，第二张图片是素材图。\n')
     expect(r.size).toBe('1024x1024')
     expect(r.prompt).toBe('把第二张图片贴到第一张图片的相框·横版画面上')
-    expect(scope).toBe('「相框」所有款式共用')
+    expect(scope).toBe('只给「相框·横版」用')
   })
 
   it('自定义模版没有参考图：只发素材图，画布按款式比例', async () => {
@@ -106,7 +108,7 @@ describe('buildMainRequest', () => {
   it('自定义模版指定了主图比例：没有参考图时画布和 size 按它算，有参考图时仍按参考图', async () => {
     const lib = sampleLib()
     const cat = lib.categories[0]!
-    cat.templates[0]!.canvasRatio = '1:1'
+    for (const s of cat.styles) s.templates[0]!.canvasRatio = '1:1'
     const noRef = await buildMainRequest(mainPlanFor(lib, cat, cat.styles[1]!, 't_room').main, '2:3', dims)
     expect(noRef.prefix).toBe('[Canvas: 1:1 square format] 第一张图片是素材图。\n')
     expect(noRef.size).toBe('1024x1024')
@@ -154,13 +156,13 @@ describe('computeChecks', () => {
 
   it('模版提示词为空为 error', () => {
     const lib = sampleLib()
-    lib.categories[1]!.templates[0]!.prompt = '  '
+    lib.categories[1]!.styles[0]!.templates[0]!.prompt = '  '
     expect(computeChecks(lib).c_mug!.styles.s_m).toMatchObject({ level: 'error', messages: ['模版提示词为空'] })
   })
 
   it('使用中的模版被删掉时回退默认模版', () => {
     const lib = sampleLib()
-    lib.categories[1]!.activeTemplate = 't_gone'
+    lib.categories[1]!.styles[0]!.activeTemplate = 't_gone'
     expect(computeChecks(lib).c_mug!.styles.s_m!.messages).toEqual(['缺白底图'])
   })
 })

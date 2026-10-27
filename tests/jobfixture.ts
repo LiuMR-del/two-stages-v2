@@ -7,6 +7,7 @@ export function fakeJob(id = 'j1', order = 1): Job {
     order,
     source: { file: 'source.png', originalName: `${id}.png`, width: 100, height: 100, sha256: 'x' },
     outputDay: '2026-10-26',
+    outputFolder: '主图生成-2026-10-26-0900',
     outputBase: id,
     route: null,
     plan: null,

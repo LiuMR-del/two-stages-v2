@@ -6,7 +6,9 @@ import { Mutex } from '../util/mutex'
 import { expandHome } from '../paths'
 import { registerSecret } from '../util/log'
 
-export const DEFAULT_OUTPUT_DIR = path.join('~', 'Downloads', '主图生成')
+export const DEFAULT_OUTPUT_DIR = path.join('~', 'Downloads')
+/** 旧版默认值多套了一层「主图生成」，现在日期文件夹自己带这个名字 */
+const OLD_DEFAULT_OUTPUT_DIR = path.join('~', 'Downloads', '主图生成')
 
 const imageFields = {
   baseUrl: z.string(),
@@ -101,6 +103,7 @@ export class SettingsStore {
     const raw = readJsonSync(file)
     const parsed = SettingsSchema.safeParse(raw ?? {})
     this.value = parsed.success ? parsed.data : SettingsSchema.parse({})
+    if (this.value.outputDir === OLD_DEFAULT_OUTPUT_DIR) this.value.outputDir = DEFAULT_OUTPUT_DIR
     registerSecret(this.value.image.apiKey)
     registerSecret(this.value.analysis.apiKey)
   }

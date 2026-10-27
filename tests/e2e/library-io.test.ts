@@ -54,8 +54,12 @@ describe('e2e 12：模版库导出导入', () => {
       ['横版', '3:2'],
       ['竖版', '2:3'],
     ])
-    expect(frame.templates[0].name).toBe('客厅')
-    expect(frame.activeTemplate).toBe(frame.templates[0].id)
+    for (const s of frame.styles) {
+      expect(s.templates[0].name).toBe('客厅')
+      expect(s.activeTemplate).toBe(s.templates[0].id)
+    }
+    expect(frame.styles[0].templates[0].image).toBeTruthy()
+    expect(frame.styles[1].templates[0].image).toBeNull()
     expect(lib.defaults.extractPrompt).not.toBe('导出前改过的提取提示词 {品类}')
   })
 })

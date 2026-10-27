@@ -30,7 +30,7 @@ describe('SettingsStore', () => {
     expect(s.routeThreshold).toBe(0.7)
     expect(s.padSquare).toBe(true)
     expect(s.blankImage).toBe(true)
-    expect(resolveOutputDir(s)).toMatch(/Downloads[\\/]主图生成$/)
+    expect(resolveOutputDir(s)).toMatch(/Downloads$/)
   })
 
   it('Key 打码；收到打码格式时保留原值；baseUrl 去掉末尾斜杠且不补 /v1', async () => {

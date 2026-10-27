@@ -1,7 +1,15 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from '../api'
-import type { Checks, ExtractRecipe, Library, Recipe } from '../types'
+import type { Checks, ExtractRecipe, Library, Recipe, Style } from '../types'
+
+export const DEFAULT_TEMPLATE_NAME = '默认 · 贴图'
+
+/** 这个款式正在使用的主图模版名称 */
+export function activeTemplateName(s: Style | undefined): string {
+  if (!s || s.activeTemplate === 'default') return DEFAULT_TEMPLATE_NAME
+  return s.templates.find((t) => t.id === s.activeTemplate)?.name ?? DEFAULT_TEMPLATE_NAME
+}
 
 type Payload = { library: Library; checks: Checks }
 

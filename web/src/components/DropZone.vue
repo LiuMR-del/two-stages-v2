@@ -21,12 +21,15 @@ async function send(files: File[]) {
     return
   }
   const r = await ui.act(() => jobs.upload(imgs))
-  if (!r) return
+  if (r) report(r.added, r.errors, skipped)
+}
+
+function report(added: number, errors: { name: string; error: string }[], skipped = 0) {
   ui.workTab = 'queue'
-  let msg = `已加入 ${r.added} 张，排在队尾`
-  if (r.errors.length) msg += `；${r.errors.length} 张没加进去：${r.errors.map((e) => `${e.name}（${e.error}）`).join('、')}`
+  let msg = `已加入 ${added} 张，排在队尾`
+  if (errors.length) msg += `；${errors.length} 张没加进去：${errors.map((e) => `${e.name}（${e.error}）`).join('、')}`
   if (skipped) msg += `；跳过 ${skipped} 个非图片文件`
-  ui.toast(msg, r.errors.length ? 'warn' : 'info')
+  ui.toast(msg, errors.length ? 'warn' : 'info')
 }
 
 /** 拖进来的可能是文件夹，逐层展开 */
@@ -65,15 +68,37 @@ function onPicked(e: Event) {
   void send(files)
 }
 
-/** 焦点在输入框里时不拦截粘贴，否则提示词框里粘贴文字会被吃掉 */
+/** 剪贴板里的图片：截图、网页上「复制图片」得到的是图片本身 */
+function clipboardImages(cd: DataTransfer): File[] {
+  const files = Array.from(cd.files)
+  if (!files.length) for (const it of Array.from(cd.items)) if (it.kind === 'file') files.push(it.getAsFile()!)
+  return files.filter((f) => f && isImage(f))
+}
+
+/**
+ * 焦点在输入框里时不拦截粘贴，否则提示词框里粘贴文字会被吃掉。
+ * 在访达里复制的文件，浏览器只给得到文件图标，所以先让本机服务读剪贴板里的文件路径，读不到再用浏览器给的图片。
+ */
 function onPaste(e: ClipboardEvent) {
   const el = document.activeElement as HTMLElement | null
   if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
-  const files = Array.from(e.clipboardData?.files ?? []).filter(isImage)
-  if (!files.length) return
+  const cd = e.clipboardData
+  if (!cd) return
   e.preventDefault()
-  const named = files.map((f, i) => (f.name && f.name !== 'image.png' ? f : new File([f], `粘贴-${Date.now()}-${i + 1}.${(f.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`, { type: f.type })))
-  void send(named)
+  const stamp = Date.now()
+  const browserFiles = clipboardImages(cd).map((f, i) =>
+    f.name && f.name !== 'image.png' ? f : new File([f], `粘贴-${stamp}-${i + 1}.${(f.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`, { type: f.type }),
+  )
+  void pasteFlow(browserFiles)
+}
+
+async function pasteFlow(browserFiles: File[]) {
+  if (jobs.uploading) return
+  const r = await jobs.fromClipboard().catch(() => null)
+  if (r?.jobs.length || r?.errors.length) return report(r.jobs.length, r.errors)
+  if (r?.copied) return ui.toast('复制的文件里没有图片', 'warn')
+  if (browserFiles.length) return send(browserFiles)
+  ui.toast('剪贴板里没有图片。在访达里选中图片按 ⌘C（Windows 按 Ctrl+C），或截图、复制网页上的图片后，回到这里按 ⌘V / Ctrl+V', 'warn')
 }
 
 onMounted(() => document.addEventListener('paste', onPaste))
@@ -86,7 +111,7 @@ onBeforeUnmount(() => document.removeEventListener('paste', onPaste))
     <div class="t">
       <b>拖入或粘贴竞品图</b>
       <span v-if="jobs.uploading" class="muted small">上传中 {{ Math.round(jobs.uploading.ratio * 100) }}%（共 {{ jobs.uploading.total }} 张）</span>
-      <span v-else class="muted small">任意品类混在一起都行，运行中也能继续加；也可以拖入整个文件夹</span>
+      <span v-else class="muted small">在访达里选中图片或文件夹按 ⌘C，回到这里按 ⌘V（Windows 用 Ctrl+C / Ctrl+V）；任意品类混在一起都行，运行中也能继续加</span>
     </div>
     <button type="button" class="btn" :disabled="!!jobs.uploading" @click="filePicker?.click()">选择图片</button>
     <button type="button" class="btn" :disabled="!!jobs.uploading" @click="dirPicker?.click()">选择文件夹</button>

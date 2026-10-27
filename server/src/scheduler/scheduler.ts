@@ -25,7 +25,7 @@ import { step3Info } from '../pipeline/step3Info'
 import { step4Blank } from '../pipeline/step4Blank'
 import { resolvePlan } from '../pipeline/plan'
 import { assignOutputBase } from '../pipeline/output'
-import { writeDayCsv } from '../pipeline/csv'
+import { writeBatchCsv } from '../pipeline/csv'
 import { removeJobImage } from '../pipeline/files'
 import { withRetry, MAX_ATTEMPTS } from '../ai/retry'
 import { AiError, CancelledError, ERROR_LABEL, RETRYABLE } from '../ai/errors'
@@ -33,6 +33,7 @@ import { HttpError } from '../util/errors'
 import { log } from '../util/log'
 import { ops } from '../library/store'
 import { KeyedMutex } from '../util/mutex'
+import { readJsonSync, writeFileAtomicSync } from '../store/atomic'
 
 export const kindOf = (step: number): ApiKind => (step === 0 || step === 3 ? 'analysis' : 'image')
 
@@ -54,6 +55,8 @@ export type SchedulerDeps = {
   limiter: Limiter
   bus: Bus
   handlers?: StepHandler[]
+  /** 记住「暂停队列」，重启后仍然暂停；不给就只记在内存里 */
+  stateFile?: string
 }
 
 export class Scheduler {
@@ -71,6 +74,7 @@ export class Scheduler {
 
   constructor(private d: SchedulerDeps) {
     this.handlers = d.handlers ?? DEFAULT_HANDLERS
+    if (d.stateFile) this.userPaused = readJsonSync<{ paused?: boolean }>(d.stateFile)?.paused === true
     this.env = {
       settings: () => d.settings.get(),
       library: d.library,
@@ -119,13 +123,24 @@ export class Scheduler {
     this.d.bus.emit('queue', this.queueState())
   }
 
+  private savePaused(): void {
+    if (!this.d.stateFile) return
+    try {
+      writeFileAtomicSync(this.d.stateFile, JSON.stringify({ paused: this.userPaused }))
+    } catch (e) {
+      log.warn(`保存暂停状态失败：${(e as Error).message}`)
+    }
+  }
+
   pause(): void {
     this.userPaused = true
+    this.savePaused()
     this.emitQueue()
   }
 
   resume(): void {
     this.userPaused = false
+    this.savePaused()
     this.authPaused = {}
     this.emitQueue()
     this.tick()
@@ -275,13 +290,13 @@ export class Scheduler {
         log.warn(`「${j.source.originalName}」需处理：${r.attention.message}`)
       }
     })
-    if (r.kind === 'done' && i === 3) void this.rewriteCsv(this.d.jobs.get(jobId)!.outputDay)
+    if (r.kind === 'done' && i === 3) void this.rewriteCsv(this.d.jobs.get(jobId)!.outputFolder)
   }
 
-  /** 同一天的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
-  rewriteCsv(day: string): Promise<void> {
+  /** 同一批的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
+  rewriteCsv(folder: string): Promise<void> {
     return this.csvLock
-      .run(day, () => writeDayCsv(this.env.outputDir(), this.d.jobs.list(), day))
+      .run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder))
       .catch((e) => log.error(`写识别信息 CSV 失败：${(e as Error).message}`))
   }
 
@@ -502,6 +517,13 @@ export class Scheduler {
     const done = this.d.jobs.list().filter((j) => isFinished(j) && !this.running.has(j.id))
     for (const j of done) await this.remove(j.id)
     return done.length
+  }
+
+  /** 整个队列清空：正在生成的先中止；已经写到输出文件夹的图不删 */
+  async clearAll(): Promise<number> {
+    const all = this.d.jobs.list()
+    for (const j of all) await this.remove(j.id)
+    return all.length
   }
 
   jobDir(jobId: string): string {

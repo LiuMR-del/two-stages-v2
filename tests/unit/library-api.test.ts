@@ -25,6 +25,8 @@ describe('模版库接口', () => {
   let sH = ''
   let sV = ''
   let tid = ''
+  let tidV = ''
+  const tpath = (sid: string, t = '') => `/library/categories/${cid}/styles/${sid}/templates${t ? '/' + t : ''}`
 
   it('初始内容只有两段默认提示词', async () => {
     const r = await api.json('GET', '/library')
@@ -99,13 +101,18 @@ describe('模版库接口', () => {
     expect(rc.body.warnings).toContain(MISSING_WHITE_WARNING)
   })
 
-  it('自定义模版：按款式上传参考图，切换使用中，引用检查', async () => {
-    const t = await api.json('POST', `/library/categories/${cid}/templates`, { name: '客厅场景', prompt: '把第二张图片贴到第一张图片里{款式}挂画上' })
-    tid = t.body.template.id
+  it('自定义模版：每个款式各有一套，各自上传参考图、各自切换使用中，引用检查', async () => {
+    const prompt = '把第二张图片贴到第一张图片里{款式}挂画上'
+    tid = (await api.json('POST', tpath(sH), { name: '客厅场景', prompt })).body.template.id
+    tidV = (await api.json('POST', tpath(sV), { name: '客厅场景', prompt })).body.template.id
     const ref = await jpeg(800, 1000)
-    await api.upload('PUT', `/library/categories/${cid}/templates/${tid}/images/${sH}`, 'file', [{ name: 'r.jpg', buffer: ref, type: 'image/jpeg' }])
-    const act = await api.json('PATCH', `/library/categories/${cid}`, { activeTemplate: tid })
-    expect(act.body.library.categories[0].activeTemplate).toBe(tid)
+    await api.upload('PUT', tpath(sH, tid) + '/image', 'file', [{ name: 'r.jpg', buffer: ref, type: 'image/jpeg' }])
+    const one = await api.json('PATCH', `/library/categories/${cid}/styles/${sH}`, { activeTemplate: tid })
+    expect(one.body.library.categories[0].styles.map((s: any) => s.activeTemplate)).toEqual([tid, 'default'])
+    const act = await api.json('PATCH', `/library/categories/${cid}/styles/${sV}`, { activeTemplate: tidV })
+    expect(act.body.library.categories[0].styles.map((s: any) => s.activeTemplate)).toEqual([tid, tidV])
+    const other = await api.json('PATCH', `/library/categories/${cid}/styles/${sV}`, { activeTemplate: tid })
+    expect(other.status).toBe(400)
     expect(act.body.checks[cid].styles[sH].level).toBe('ok')
     expect(act.body.checks[cid].styles[sV]).toEqual({ level: 'warn', messages: ['提示词里提到「第 2 张」图片，但这里只会发送 1 张'] })
 
@@ -116,10 +123,10 @@ describe('模版库接口', () => {
     ])
     expect(rh.body.prefix).toBe('[Canvas: 4:5 portrait format] 第一张图片是参考图，第二张图片是素材图。\n')
     expect(rh.body.prompt).toBe('把第二张图片贴到第一张图片里横版挂画上')
-    expect(rh.body.scope).toBe('「相框」所有款式共用')
+    expect(rh.body.scope).toBe('只给「相框·横版」用')
     expect(rh.body.size).toBe('1024x1024')
 
-    const rv = await api.json('GET', `/library/recipe?cid=${cid}&sid=${sV}&tid=${tid}`)
+    const rv = await api.json('GET', `/library/recipe?cid=${cid}&sid=${sV}&tid=${tidV}`)
     expect(rv.body.images.map((i: any) => [i.no, i.role, i.hash])).toEqual([
       [null, '参考图', null],
       [1, '素材图', null],
@@ -127,25 +134,34 @@ describe('模版库接口', () => {
     expect(rv.body.warnings[0]).toContain('提示词里提到「第 2 张」图片，但这里只会发送 1 张')
   })
 
-  it('自定义模版可以设主图比例：格式校验、清空回到跟款式比例、配方预览同步', async () => {
-    const bad = await api.json('PATCH', `/library/categories/${cid}/templates/${tid}`, { canvasRatio: '1x1' })
-    expect(bad.status).toBe(400)
-    const ok = await api.json('PATCH', `/library/categories/${cid}/templates/${tid}`, { canvasRatio: ' 1 : 1 ' })
-    expect(ok.body.library.categories[0].templates[0].canvasRatio).toBe('1:1')
-    const rv = await api.json('GET', `/library/recipe?cid=${cid}&sid=${sV}&tid=${tid}`)
-    expect(rv.body.prefix).toBe('[Canvas: 1:1 square format] 第一张图片是素材图。\n')
-    expect(rv.body.size).toBe('1024x1024')
-    const clr = await api.json('PATCH', `/library/categories/${cid}/templates/${tid}`, { canvasRatio: '' })
-    expect(clr.body.library.categories[0].templates[0].canvasRatio).toBeNull()
+  it('改一个款式的模版不影响另一个款式；新加的款式没有自定义模版', async () => {
+    await api.json('PATCH', tpath(sV, tidV), { prompt: '竖版专用：{款式}' })
+    expect((await api.json('GET', `/library/recipe?cid=${cid}&sid=${sV}`)).body.prompt).toBe('竖版专用：竖版')
+    expect((await api.json('GET', `/library/recipe?cid=${cid}&sid=${sH}`)).body.prompt).toBe('把第二张图片贴到第一张图片里横版挂画上')
+    const s = await api.json('POST', `/library/categories/${cid}/styles`, { name: '方形', ratio: '1:1' })
+    expect(s.body.style).toMatchObject({ activeTemplate: 'default', templates: [] })
+    await api.json('DELETE', `/library/categories/${cid}/styles/${s.body.style.id}`)
+    await api.json('PATCH', tpath(sV, tidV), { prompt: '把第二张图片贴到第一张图片里{款式}挂画上' })
   })
 
-  it('删除使用中的模版，回到默认模版；删除款式会去掉它的参考图', async () => {
-    const t2 = await api.json('POST', `/library/categories/${cid}/templates`, { name: '临时', prompt: 'x' })
-    const id2 = t2.body.template.id
-    await api.json('PATCH', `/library/categories/${cid}`, { activeTemplate: id2 })
-    const d = await api.json('DELETE', `/library/categories/${cid}/templates/${id2}`)
-    expect(d.body.library.categories[0].activeTemplate).toBe('default')
-    await api.json('PATCH', `/library/categories/${cid}`, { activeTemplate: tid })
+  it('自定义模版可以设主图比例：格式校验、清空回到跟款式比例、配方预览同步', async () => {
+    const bad = await api.json('PATCH', tpath(sV, tidV), { canvasRatio: '1x1' })
+    expect(bad.status).toBe(400)
+    const ok = await api.json('PATCH', tpath(sV, tidV), { canvasRatio: ' 1 : 1 ' })
+    expect(ok.body.library.categories[0].styles[1].templates[0].canvasRatio).toBe('1:1')
+    const rv = await api.json('GET', `/library/recipe?cid=${cid}&sid=${sV}&tid=${tidV}`)
+    expect(rv.body.prefix).toBe('[Canvas: 1:1 square format] 第一张图片是素材图。\n')
+    expect(rv.body.size).toBe('1024x1024')
+    const clr = await api.json('PATCH', tpath(sV, tidV), { canvasRatio: '' })
+    expect(clr.body.library.categories[0].styles[1].templates[0].canvasRatio).toBeNull()
+  })
+
+  it('删除使用中的模版，这个款式回到默认模版', async () => {
+    const id2 = (await api.json('POST', tpath(sH), { name: '临时', prompt: 'x' })).body.template.id
+    await api.json('PATCH', `/library/categories/${cid}/styles/${sH}`, { activeTemplate: id2 })
+    const d = await api.json('DELETE', tpath(sH, id2))
+    expect(d.body.library.categories[0].styles.map((s: any) => s.activeTemplate)).toEqual(['default', tidV])
+    await api.json('PATCH', `/library/categories/${cid}/styles/${sH}`, { activeTemplate: tid })
   })
 
   it('不能删除最后一个款式', async () => {
@@ -187,7 +203,7 @@ describe('模版库接口', () => {
       expect(imp.status).toBe(200)
       expect(imp.body.library.categories).toEqual(before.categories)
       const r = await other.api.json('GET', `/library/recipe?cid=${cid}&sid=${sH}&tid=${tid}`)
-      expect(r.body.images[0].hash).toBe(before.categories.find((c: any) => c.id === cid).templates[0].images[sH])
+      expect(r.body.images[0].hash).toBe(before.categories.find((c: any) => c.id === cid).styles[0].templates[0].image)
 
       // 本地先有一个同名但内容不同的「相框」
       await other.api.json('DELETE', `/library/categories/${cid}`)
@@ -199,7 +215,7 @@ describe('模版库接口', () => {
       expect(frame.id).toBe(localId)
       expect(frame.hint).toBe(before.categories.find((c: any) => c.id === cid).hint)
       expect(frame.styles.map((s: any) => s.name)).toEqual(['横版', '竖版'])
-      expect(frame.activeTemplate).toBe(frame.templates[0].id)
+      expect(frame.styles.map((s: any) => s.activeTemplate)).toEqual(frame.styles.map((s: any) => s.templates[0].id))
       expect(merged.body.library.categories.filter((c: any) => c.name === '相框')).toHaveLength(1)
       expect(merged.body.library.categories.some((c: any) => c.name === '毛毯')).toBe(true)
 

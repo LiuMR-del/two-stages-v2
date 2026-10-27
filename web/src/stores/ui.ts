@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import type { ToastLevel } from '../types'
 
 export type WorkTab = 'queue' | 'attention' | 'info'
+/** 看大图：给了 step 的图，大图里可以跳到这一步的详情 */
+export type ViewerItem = { src: string; label: string; step?: number }
 
 export const useUi = defineStore('ui', () => {
   const workTab = ref<WorkTab>('queue')
@@ -12,6 +14,12 @@ export const useUi = defineStore('ui', () => {
   const libSel = ref<string>('__global')
   const libStyle = ref<string>('')
   const libTpl = ref<string>('default')
+  const viewer = ref<null | { items: ViewerItem[]; index: number; title?: string; jobId?: string }>(null)
+
+  function view(items: ViewerItem[], index = 0, extra: { title?: string; jobId?: string } = {}) {
+    if (!items.length) return
+    viewer.value = { items, index: Math.min(Math.max(index, 0), items.length - 1), ...extra }
+  }
 
   const toasts = ref<{ id: number; level: ToastLevel; message: string }[]>([])
   let seq = 0
@@ -33,5 +41,5 @@ export const useUi = defineStore('ui', () => {
     }
   }
 
-  return { workTab, sheet, settingsOpen, libSel, libStyle, libTpl, toasts, toast, act }
+  return { workTab, sheet, settingsOpen, libSel, libStyle, libTpl, viewer, view, toasts, toast, act }
 })

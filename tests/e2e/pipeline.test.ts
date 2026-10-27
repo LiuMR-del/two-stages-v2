@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
-import { startWorld, makeCategory, uploadJobs, waitJob, isDone, imageRequests, getJobs, type World } from './harness'
+import { startWorld, makeCategory, uploadJobs, waitJob, isDone, imageRequests, getJobs, type World, onlyBatch } from './harness'
 import { DEFAULT_EXTRACT_PROMPT, DEFAULT_PASTE_PROMPT } from '../../server/src/library/schema'
 import { localDay } from '../../server/src/util/ids'
 import { waitFor } from '../helpers'
@@ -118,15 +118,15 @@ describe('e2e 1：混合品类走完全程', () => {
 
     // 输出文件
     const day = localDay()
-    const frameDir = path.join(w.outDir, day, '相框')
-    for (const f of ['frame_h_素材.png', 'frame_h_主图.png', 'frame_h_空白.png', 'frame_v_素材.png', 'frame_v_主图.png', 'frame_v_空白.png']) {
+    const frameDir = path.join(onlyBatch(w), '相框')
+    for (const f of ['素材图/frame_h.png', '主图/frame_h.png', '空白图/frame_h.png', '素材图/frame_v.png', '主图/frame_v.png', '空白图/frame_v.png']) {
       expect(fs.existsSync(path.join(frameDir, f)), f).toBe(true)
     }
-    expect(await dims(path.join(frameDir, 'frame_h_主图.png'))).toEqual([1536, 1536])
-    expect(await dims(path.join(frameDir, 'frame_h_空白.png'))).toEqual([1536, 1536])
-    expect(fs.existsSync(path.join(w.outDir, day, '毛毯', 'blanket_主图.png'))).toBe(true)
-    expect(fs.existsSync(path.join(w.outDir, day, '毛毯', 'blanket_空白.png'))).toBe(false)
-    const csvFile = path.join(w.outDir, day, '识别信息.csv')
+    expect(await dims(path.join(frameDir, '主图', 'frame_h.png'))).toEqual([1536, 1536])
+    expect(await dims(path.join(frameDir, '空白图', 'frame_h.png'))).toEqual([1536, 1536])
+    expect(fs.existsSync(path.join(onlyBatch(w), '毛毯', '主图', 'blanket.png'))).toBe(true)
+    expect(fs.existsSync(path.join(onlyBatch(w), '毛毯', '空白图', 'blanket.png'))).toBe(false)
+    const csvFile = path.join(onlyBatch(w), '识别信息.csv')
     await waitFor(() => fs.existsSync(csvFile) && fs.readFileSync(csvFile, 'utf8').trim().split('\r\n').length === 5, { label: 'CSV 写完 4 行' })
     const csv = fs.readFileSync(csvFile, 'utf8')
     expect(csv.charCodeAt(0)).toBe(0xfeff)

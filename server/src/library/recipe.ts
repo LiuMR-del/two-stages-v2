@@ -22,8 +22,8 @@ export async function recipeFor(lib: Library, images: ImageStore, cid: string, s
   if (!cat) throw new HttpError(404, '品类不存在，可能已被删除')
   const style = cat.styles.find((s) => s.id === sid)
   if (!style) throw new HttpError(404, '款式不存在，可能已被删除')
-  const templateId = tid ?? cat.activeTemplate
-  if (templateId !== 'default' && !cat.templates.some((t) => t.id === templateId)) throw new HttpError(404, '模版不存在，可能已被删除')
+  const templateId = tid ?? style.activeTemplate
+  if (templateId !== 'default' && !style.templates.some((t) => t.id === templateId)) throw new HttpError(404, '模版不存在，可能已被删除')
 
   const { main, missingWhite, scope } = mainPlanFor(lib, cat, style, templateId)
   const req = await buildMainRequest(main, style.ratio, (h) => images.dims(h))

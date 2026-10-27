@@ -4,9 +4,15 @@ import { Copy, Download } from '@lucide/vue'
 import ImageSlot from './ImageSlot.vue'
 import { useJobs } from '../stores/jobs'
 import { useUi } from '../stores/ui'
+import type { Job } from '../types'
 
 const jobs = useJobs()
 const ui = useUi()
+
+function viewMain(j: Job) {
+  const items = jobs.viewItems(j)
+  ui.view(items, items.findIndex((i) => i.kind === 'main'), { title: j.source.originalName, jobId: j.id })
+}
 
 function today() {
   const d = new Date()
@@ -45,7 +51,7 @@ async function copy(text: string) {
           <tr v-if="!jobs.withInfo.length"><td colspan="4" class="none">主图生成后，这里汇总每张图的场景、关键词和可定制项</td></tr>
           <tr v-for="j in jobs.withInfo" :key="j.id">
             <td>
-              <button type="button" class="tile" :aria-label="'查看 ' + j.source.originalName" @click="ui.sheet = { jobId: j.id, step: 3 }">
+              <button type="button" class="tile" :aria-label="'查看 ' + j.source.originalName + ' 的主图大图'" title="点击看大图" @click="viewMain(j)">
                 <ImageSlot state="image" :img="jobs.fileUrl(j, 'main')" :size="44" white />
               </button>
             </td>

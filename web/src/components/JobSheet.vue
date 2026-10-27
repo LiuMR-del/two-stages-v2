@@ -4,7 +4,7 @@ import { FolderOpen, RotateCcw, TriangleAlert, X } from '@lucide/vue'
 import ImageSlot, { type SlotState } from './ImageSlot.vue'
 import RecipeCard, { type RecipeSlot } from './RecipeCard.vue'
 import { useJobs, STEP_NAMES, type FileKind } from '../stores/jobs'
-import { useLibrary } from '../stores/library'
+import { activeTemplateName, useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import { imageUrl } from '../api'
 import type { Job } from '../types'
@@ -31,11 +31,11 @@ watch(
 const DOT: Record<string, string> = { done: 'dot', running: 'dot bl', failed: 'dot rd', skipped: 'dot gr', pending: 'dot gr' }
 const OUT_KIND: Record<number, FileKind> = { 1: 'pattern', 2: 'main', 4: 'blank' }
 
-function imgFor(j: Job, role: string, sha: string): string {
-  if (role === '竞品图') return jobs.fileUrl(j, 'source')
-  if (role === '素材图') return jobs.fileUrl(j, 'pattern')
-  if (role === '主图') return jobs.fileUrl(j, 'main')
-  return imageUrl(sha)
+function imgFor(j: Job, role: string, sha: string, thumb = true): string {
+  if (role === '竞品图') return jobs.fileUrl(j, 'source', thumb)
+  if (role === '素材图') return jobs.fileUrl(j, 'pattern', thumb)
+  if (role === '主图') return jobs.fileUrl(j, 'main', thumb)
+  return imageUrl(sha, thumb)
 }
 
 const recipe = computed(() => {
@@ -49,11 +49,12 @@ const recipe = computed(() => {
     sub: im.role === '素材图' ? '第 ② 步的结果' : im.role === '主图' ? '第 ③ 步的结果' : im.role === '竞品图' ? j.source.originalName : '开始生成时记录',
     state: 'image',
     img: imgFor(j, im.role, im.sha256),
+    full: imgFor(j, im.role, im.sha256, false),
     white: im.role !== '竞品图',
   }))
   const kind = OUT_KIND[step.value]!
-  let out: { label: string; state: SlotState; img?: string | null; text?: string; white?: boolean }
-  if (r.state === 'done') out = { label: STEP_NAMES[step.value]!.replace('生成', '').replace('提取', ''), state: 'image', img: jobs.fileUrl(j, kind), white: true }
+  let out: { label: string; state: SlotState; img?: string | null; text?: string; white?: boolean; full?: string }
+  if (r.state === 'done') out = { label: '', state: 'image', img: jobs.fileUrl(j, kind), full: jobs.fileUrl(j, kind, false), white: true }
   else if (r.state === 'running') out = { label: '生成中', state: 'run' }
   else if (r.state === 'failed') out = { label: '失败', state: 'err', text: '失败' }
   else out = { label: '等待', state: 'empty' }
@@ -120,7 +121,7 @@ const nextTemplate = computed(() => {
   if (j.plan) return j.plan.main.templateName
   const c = lib.category(j.route.categoryId)
   if (!c) return ''
-  return c.activeTemplate === 'default' ? '默认 · 贴图' : (c.templates.find((t) => t.id === c.activeTemplate)?.name ?? '默认 · 贴图')
+  return activeTemplateName(c.styles.find((s) => s.id === j.route!.styleId))
 })
 
 async function openFolder() {
@@ -133,7 +134,9 @@ async function openFolder() {
     <div class="mask" @click="ui.sheet = null"></div>
     <aside class="sheet" aria-label="图片详情">
       <div class="sh-h">
-        <ImageSlot state="image" :img="jobs.fileUrl(job, 'source')" :size="40" />
+        <button type="button" class="tile" aria-label="查看竞品图大图" title="点击看大图" @click="ui.view(jobs.viewItems(job), 0, { title: job.source.originalName, jobId: job.id })">
+          <ImageSlot state="image" :img="jobs.fileUrl(job, 'source')" :size="40" />
+        </button>
         <div style="min-width: 0">
           <b style="font-weight: 500; word-break: break-all">{{ job.source.originalName }}</b>
           <div class="muted small">{{ label }}</div>

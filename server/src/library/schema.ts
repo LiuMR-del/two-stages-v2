@@ -6,20 +6,25 @@ export const HASH_RE = /^[a-f0-9]{64}$/
 const Hash = z.string().regex(HASH_RE, '图片指纹格式不对')
 const Ratio = z.string().refine(isValidRatio, '比例要写成「3:2」这样的两个正整数')
 
+/** 自定义模版属于某一个款式，款式之间互不影响 */
+export const TemplateSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(30),
+  prompt: z.string(),
+  /** 参考图，可不配 */
+  image: Hash.nullable(),
+  /** 没有参考图时主图画布用的比例；null 表示跟款式比例 */
+  canvasRatio: Ratio.nullable().default(null),
+})
+
 export const StyleSchema = z.object({
   id: z.string().min(1),
   name: z.string().max(20),
   ratio: Ratio,
   whiteImage: Hash.nullable(),
-})
-
-export const TemplateSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1).max(30),
-  prompt: z.string(),
-  images: z.record(z.string(), Hash),
-  /** 没有参考图时主图画布用的比例；null 表示跟款式比例 */
-  canvasRatio: Ratio.nullable().default(null),
+  /** 'default' 或本款式某个模版的 id */
+  activeTemplate: z.string().min(1),
+  templates: z.array(TemplateSchema),
 })
 
 export const CategorySchema = z.object({
@@ -27,13 +32,13 @@ export const CategorySchema = z.object({
   name: z.string().min(1).max(20),
   hint: z.string(),
   extractPrompt: z.string().nullable(),
-  activeTemplate: z.string().min(1),
   styles: z.array(StyleSchema).min(1),
-  templates: z.array(TemplateSchema),
 })
 
+export const LIBRARY_VERSION = 2
+
 export const LibrarySchema = z.object({
-  version: z.literal(1),
+  version: z.literal(LIBRARY_VERSION),
   defaults: z.object({
     extractPrompt: z.string(),
     pastePrompt: z.string(),
@@ -54,7 +59,7 @@ export const DEFAULT_PASTE_PROMPT =
 
 export function initialLibrary(): Library {
   return {
-    version: 1,
+    version: LIBRARY_VERSION,
     defaults: { extractPrompt: DEFAULT_EXTRACT_PROMPT, pastePrompt: DEFAULT_PASTE_PROMPT },
     categories: [],
   }
@@ -64,8 +69,10 @@ export function initialLibrary(): Library {
 export function referencedHashes(lib: Library): Set<string> {
   const s = new Set<string>()
   for (const c of lib.categories) {
-    for (const st of c.styles) if (st.whiteImage) s.add(st.whiteImage)
-    for (const t of c.templates) for (const h of Object.values(t.images)) s.add(h)
+    for (const st of c.styles) {
+      if (st.whiteImage) s.add(st.whiteImage)
+      for (const t of st.templates) if (t.image) s.add(t.image)
+    }
   }
   return s
 }
@@ -81,11 +88,41 @@ export function validateIntegrity(lib: Library): string | null {
     ids.add(c.id)
     const sids = new Set(c.styles.map((s) => s.id))
     if (sids.size !== c.styles.length) return `「${c.name}」里有重复的款式 id`
-    const tids = new Set(c.templates.map((t) => t.id))
-    if (tids.size !== c.templates.length || tids.has('default')) return `「${c.name}」里有重复的模版 id`
-    for (const t of c.templates) {
-      for (const sid of Object.keys(t.images)) if (!sids.has(sid)) return `模版「${t.name}」的参考图挂在不存在的款式上`
+    for (const s of c.styles) {
+      const tids = new Set(s.templates.map((t) => t.id))
+      if (tids.size !== s.templates.length || tids.has('default')) return `「${c.name}」的款式「${s.name}」里有重复的模版 id`
+      if (s.activeTemplate !== 'default' && !tids.has(s.activeTemplate)) return `「${c.name}」的款式「${s.name}」正在使用的模版不存在`
     }
   }
   return null
+}
+
+/**
+ * 第 1 版的自定义模版挂在品类上、各款式共用；第 2 版每个款式有自己的一套。
+ * 升级时把旧模版复制给每个款式（带上该款式的参考图），正在使用的模版也一样。
+ */
+export function migrateLibrary(raw: unknown): unknown {
+  const lib = raw as any
+  if (!lib || typeof lib !== 'object' || lib.version !== 1 || !Array.isArray(lib.categories)) return raw
+  return {
+    ...lib,
+    version: LIBRARY_VERSION,
+    categories: lib.categories.map((c: any) => {
+      const { templates = [], activeTemplate = 'default', ...rest } = c
+      return {
+        ...rest,
+        styles: (c.styles ?? []).map((s: any) => ({
+          ...s,
+          activeTemplate,
+          templates: templates.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            prompt: t.stylePrompts?.[s.id] ?? t.prompt,
+            image: t.images?.[s.id] ?? null,
+            canvasRatio: t.canvasRatio ?? null,
+          })),
+        })),
+      }
+    }),
+  }
 }

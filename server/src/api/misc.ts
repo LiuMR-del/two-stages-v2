@@ -5,7 +5,7 @@ import type { AppContext } from '../context'
 import { resolveOutputDir } from '../store/settings'
 import { openFolder } from '../util/platform'
 import { HttpError, parseBody } from './util'
-import { categoryDir } from '../pipeline/output'
+import { batchDir, categoryDir } from '../pipeline/output'
 import { csvForDay } from '../pipeline/csv'
 import { localDay } from '../util/ids'
 
@@ -17,7 +17,8 @@ export function registerMisc(r: Router, ctx: AppContext): void {
   r.post('/open-output', (req, res) => {
     const b = parseBody(z.object({ jobId: z.string().optional() }), req.body)
     const root = resolveOutputDir(ctx.settings.get())
-    let dir = root
+    const latest = ctx.jobs.list().at(-1)
+    let dir = latest ? batchDir(root, latest.outputFolder) : root
     if (b.jobId) {
       const job = ctx.jobs.get(b.jobId)
       if (!job) throw new HttpError(404, '这张图已经不在队列里了')

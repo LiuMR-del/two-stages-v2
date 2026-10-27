@@ -25,14 +25,14 @@ async function renameWithRetry(from: string, to: string): Promise<void> {
 export async function writeFileAtomic(file: string, data: string | Buffer): Promise<void> {
   await fsp.mkdir(path.dirname(file), { recursive: true })
   const tmp = `${file}.tmp-${randomBytes(4).toString('hex')}`
-  const fh = await fsp.open(tmp, 'w')
   try {
-    await fh.writeFile(data)
-    await fh.sync()
-  } finally {
-    await fh.close()
-  }
-  try {
+    const fh = await fsp.open(tmp, 'w')
+    try {
+      await fh.writeFile(data)
+      await fh.sync()
+    } finally {
+      await fh.close()
+    }
     await renameWithRetry(tmp, file)
   } catch (e) {
     await fsp.rm(tmp, { force: true })

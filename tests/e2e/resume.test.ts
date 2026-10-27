@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { startWorld, makeCategory, uploadJobs, waitJob, isDone, imageRequests, type World } from './harness'
+import { startWorld, makeCategory, uploadJobs, waitJob, isDone, imageRequests, onlyBatch, type World } from './harness'
 import { DEFAULT_PASTE_PROMPT } from '../../server/src/library/schema'
 import { localDay } from '../../server/src/util/ids'
 import { waitFor } from '../helpers'
@@ -12,7 +12,12 @@ afterEach(async () => {
   w = null
 })
 
-const outFiles = (w: World, cat: string) => fs.readdirSync(path.join(w.outDir, localDay(), cat)).sort()
+const outFiles = (w: World, cat: string) =>
+  fs
+    .readdirSync(path.join(onlyBatch(w), cat), { recursive: true, encoding: 'utf8' })
+    .filter((f) => f.endsWith('.png'))
+    .map((f) => f.split(path.sep).join('/'))
+    .sort()
 
 describe('e2e 9：运行中杀掉进程再启动', () => {
   it('正在跑的步骤从断点继续，没有重复的输出文件', async () => {
@@ -28,7 +33,7 @@ describe('e2e 9：运行中杀掉进程再启动', () => {
     expect(done.steps.map((s: any) => s.state)).toEqual(['done', 'done', 'done', 'done', 'done'])
     expect(done.steps[1].attempts).toBe(1)
     expect(done.steps[2].attempts).toBe(1)
-    expect(outFiles(w, '地垫')).toEqual(['a_主图.png', 'a_空白.png', 'a_素材.png'])
+    expect(outFiles(w, '地垫')).toEqual(['主图/a.png', '空白图/a.png', '素材图/a.png'])
     // 被杀时那次请求算一次，重启后又发一次
     expect(imageRequests(w.mock).filter((r) => r.images.length === 2)).toHaveLength(2)
   })
@@ -41,7 +46,7 @@ describe('e2e 10：从 ③ 重做并改提示词', () => {
     await makeCategory(api, '地垫', [{ name: '', ratio: '3:2', white: [1200, 800] }])
     const [a] = await uploadJobs(api, ['a.png'])
     const first = await waitJob(api, a.id, isDone)
-    const mainFile = path.join(w.outDir, localDay(), '地垫', 'a_主图.png')
+    const mainFile = path.join(onlyBatch(w), '地垫', '主图', 'a.png')
     const before = fs.readFileSync(mainFile)
 
     const r = await api.json('POST', `/jobs/${a.id}/redo`, { step: 2, prompt: '新的贴图提示词' })
@@ -59,7 +64,7 @@ describe('e2e 10：从 ③ 重做并改提示词', () => {
     expect(imageRequests(w.mock).filter((q) => q.prompt!.includes('竞品商品图'))).toHaveLength(1)
     expect(imageRequests(w.mock).filter((q) => q.prompt!.includes('Recreate'))).toHaveLength(2)
     expect(fs.readFileSync(mainFile).equals(before)).toBe(false)
-    expect(outFiles(w, '地垫')).toEqual(['a_主图.png', 'a_空白.png', 'a_素材.png'])
+    expect(outFiles(w, '地垫')).toEqual(['主图/a.png', '空白图/a.png', '素材图/a.png'])
 
     await api.json('POST', `/jobs/${a.id}/redo`, { step: 2 })
     const third = await waitJob(api, a.id, isDone)
@@ -78,7 +83,7 @@ describe('e2e 11：运行中修改当前使用的模版', () => {
     w.mock.setDefaultDelay(300)
     const [a] = await uploadJobs(api, ['a.png'])
     await waitJob(api, a.id, (j) => !!j.plan && j.steps[1].state === 'running', 'a 进入 ②')
-    await api.json('PATCH', `/library/categories/${c.cid}/templates/${c.tid}`, { prompt: '新模版：{品类}换个场景' })
+    await api.json('PATCH', `/library/categories/${c.cid}/styles/${Object.values(c.styles)[0]}/templates/${c.tid}`, { prompt: '新模版：{品类}换个场景' })
     const [b] = await uploadJobs(api, ['b.png'])
     w.mock.setDefaultDelay(0)
     const aDone = await waitJob(api, a.id, isDone)

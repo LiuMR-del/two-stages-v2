@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { Download, Plus, Sparkles, Upload } from '@lucide/vue'
 import { api, imageUrl } from '../api'
-import { useLibrary } from '../stores/library'
+import { activeTemplateName, useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import ImageSlot from './ImageSlot.vue'
 import type { Category } from '../types'
@@ -23,12 +23,11 @@ function select(c: Category | null) {
   }
   ui.libSel = c.id
   ui.libStyle = c.styles[0]!.id
-  ui.libTpl = c.activeTemplate
+  ui.libTpl = c.styles[0]!.activeTemplate
 }
 
 function templateName(c: Category) {
-  if (c.activeTemplate === 'default') return '默认 · 贴图'
-  return c.templates.find((t) => t.id === c.activeTemplate)?.name ?? '默认 · 贴图'
+  return [...new Set(c.styles.map(activeTemplateName))].join(' / ')
 }
 
 function dot(c: Category) {

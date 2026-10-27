@@ -14,6 +14,7 @@ beforeAll(async () => {
   mock = await startMockRelay()
   dir = tmpDir()
   const ctx = await createContext(resolvePaths({ libraryDir: `${dir}/library`, dataDir: `${dir}/data` }))
+  await ctx.settings.update({ outputDir: `${dir}/out` })
   const r = await listen(createApp(ctx), [0])
   server = r.server
   base = `http://127.0.0.1:${r.port}/api`

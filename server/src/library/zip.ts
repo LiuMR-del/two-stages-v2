@@ -1,9 +1,9 @@
 import { strToU8, strFromU8, unzipSync, zipSync, type Zippable } from 'fflate'
-import { LibrarySchema, referencedHashes, validateIntegrity, type Category, type Library } from './schema'
+import { LibrarySchema, migrateLibrary, referencedHashes, validateIntegrity, type Category, type Library } from './schema'
 import { sha256, normalizeLibraryImage, type ImageStore } from './images'
 import type { LibraryStore } from './store'
 import { HttpError } from '../util/errors'
-import { newCategoryId, newStyleId, newTemplateId } from '../util/ids'
+import { newCategoryId, newStyleId } from '../util/ids'
 import { sniffImageType, EXT_OF } from '../image/process'
 
 export async function exportZip(lib: Library, images: ImageStore): Promise<Buffer> {
@@ -36,7 +36,7 @@ export async function parseZip(buf: Buffer): Promise<Parsed> {
   } catch {
     throw new HttpError(400, 'library.json 不是合法的 JSON')
   }
-  const r = LibrarySchema.safeParse(raw)
+  const r = LibrarySchema.safeParse(migrateLibrary(raw))
   if (!r.success) {
     const i = r.error.issues[0]!
     throw new HttpError(400, `library.json 格式不对：${i.path.join('.')} ${i.message}`)
@@ -71,7 +71,7 @@ function escapeRe(s: string): string {
 }
 
 /**
- * 同名品类整个覆盖但保留本地 id；款式、模版按名称对上的也沿用本地 id，
+ * 同名品类整个覆盖但保留本地 id；款式按名称对上的也沿用本地 id（模版跟着款式走），
  * 这样队列里引用它们的任务不会因为导入而变成「品类或款式已被删除」。
  */
 export function mergeLibraries(local: Library, incoming: Library): Library {
@@ -94,26 +94,13 @@ export function mergeLibraries(local: Library, incoming: Library): Library {
 function remapCategory(inc: Category, local: Category): Category {
   const c = structuredClone(inc)
   c.id = local.id
-  const styleMap = new Map<string, string>()
   const usedS = new Set<string>()
   for (const s of c.styles) {
     const match = local.styles.find((ls) => ls.name === s.name && !usedS.has(ls.id))
     const id = match ? match.id : usedS.has(s.id) || local.styles.some((ls) => ls.id === s.id) ? newStyleId() : s.id
-    styleMap.set(s.id, id)
     usedS.add(id)
     s.id = id
   }
-  const tplMap = new Map<string, string>()
-  const usedT = new Set<string>()
-  for (const t of c.templates) {
-    const match = local.templates.find((lt) => lt.name === t.name && !usedT.has(lt.id))
-    const id = match ? match.id : usedT.has(t.id) || local.templates.some((lt) => lt.id === t.id) ? newTemplateId() : t.id
-    tplMap.set(t.id, id)
-    usedT.add(id)
-    t.id = id
-    t.images = Object.fromEntries(Object.entries(t.images).map(([sid, h]) => [styleMap.get(sid) ?? sid, h]))
-  }
-  if (c.activeTemplate !== 'default') c.activeTemplate = tplMap.get(c.activeTemplate) ?? 'default'
   return c
 }
 

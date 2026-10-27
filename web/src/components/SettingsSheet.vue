@@ -118,6 +118,7 @@ function authDot(kind: 'image' | 'analysis') {
           <div class="fld">
             <label>保存到</label>
             <AutoText :value="st.settings.outputDir" :save="saver((v) => ({ outputDir: v.trim() }))" label="保存位置" />
+            <div class="muted tiny">每批图一个「主图生成-日期-时间」文件夹放在这里</div>
           </div>
           <div class="fld">
             <label>品类识别把握低于多少时交给你处理（0～1）</label>

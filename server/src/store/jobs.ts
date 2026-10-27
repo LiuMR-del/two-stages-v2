@@ -46,6 +46,8 @@ export const JobSchema = z.object({
   order: z.number(),
   source: z.object({ file: z.string(), originalName: z.string(), width: z.number(), height: z.number(), sha256: z.string() }),
   outputDay: z.string(),
+  /** 这张图的输出文件夹名（保存位置下的一级文件夹），同一批图共用；旧任务读入时按日期补上 */
+  outputFolder: z.string().default(''),
   outputBase: z.string(),
   route: z
     .object({
@@ -215,6 +217,7 @@ export class JobStore {
           log.warn(`任务记录 ${ent.name} 格式不对，已跳过`)
           continue
         }
+        if (!r.data.outputFolder) r.data.outputFolder = `主图生成-${r.data.outputDay}`
         this.jobs.set(r.data.id, r.data)
       } catch (e) {
         log.warn(`任务记录 ${ent.name} 读取失败，已跳过：${(e as Error).message}`)

@@ -2,10 +2,17 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from '../api'
 import type { Job, QueueState } from '../types'
+import type { ViewerItem } from './ui'
 
 export const STEP_NAMES = ['识别品类', '提取素材', '生成主图', '信息识别', '空白图'] as const
 export type FileKind = 'source' | 'pattern' | 'main' | 'blank'
 const STEP_OF_KIND: Record<FileKind, number> = { source: -1, pattern: 1, main: 2, blank: 4 }
+const VIEW_KINDS: { kind: FileKind; label: string; step: number }[] = [
+  { kind: 'source', label: '竞品图', step: 0 },
+  { kind: 'pattern', label: '素材图', step: 1 },
+  { kind: 'main', label: '主图', step: 2 },
+  { kind: 'blank', label: '空白图', step: 4 },
+]
 
 const UPLOAD_BATCH = 20
 
@@ -43,6 +50,16 @@ export const useJobs = defineStore('jobs', () => {
     return `/api/jobs/${job.id}/files/${kind}?${thumb ? 'size=thumb&' : ''}v=${encodeURIComponent(v)}`
   }
 
+  /** 这张图已有的原图，按 竞品图 → 素材图 → 主图 → 空白图 排，给看大图用 */
+  function viewItems(job: Job): (ViewerItem & { kind: FileKind })[] {
+    return VIEW_KINDS.filter((k) => k.kind === 'source' || job.steps[STEP_OF_KIND[k.kind]]!.state === 'done').map((k) => ({
+      kind: k.kind,
+      label: k.label,
+      step: k.step,
+      src: fileUrl(job, k.kind, false),
+    }))
+  }
+
   async function upload(files: File[]): Promise<{ added: number; errors: { name: string; error: string }[] }> {
     const errors: { name: string; error: string }[] = []
     let added = 0
@@ -76,13 +93,18 @@ export const useJobs = defineStore('jobs', () => {
     load,
     onEvent,
     fileUrl,
+    viewItems,
     upload,
+    /** 读系统剪贴板里复制的文件；supported 为 false 表示这台电脑不支持，copied 是复制的文件数（不一定是图片） */
+    fromClipboard: () =>
+      api.post<{ supported: boolean; copied: number; jobs: Job[]; errors: { name: string; error: string }[] }>('/jobs/from-clipboard'),
     remove: (id: string) => api.del(`/jobs/${id}`),
     redo: (id: string, body: { step: number; prompt?: string; categoryId?: string; styleId?: string }) => post(`/jobs/${id}/redo`, body),
     resolve: (id: string, categoryId: string, styleId: string) => post(`/jobs/${id}/resolve`, { categoryId, styleId }),
     createCategory: (id: string) => post(`/jobs/${id}/create-category`),
     retry: (id: string) => post(`/jobs/${id}/retry`),
     clearDone: () => post('/jobs/clear-done'),
+    clearAll: () => post('/jobs/clear-all'),
     pause: () => post('/queue/pause'),
     resume: () => post('/queue/resume'),
     openFolder: (jobId?: string) => post('/open-output', jobId ? { jobId } : {}),

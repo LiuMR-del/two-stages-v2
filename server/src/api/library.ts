@@ -1,3 +1,4 @@
+import fsp from 'node:fs/promises'
 import type { Router, Request } from 'express'
 import multer from 'multer'
 import { z } from 'zod'
@@ -9,6 +10,11 @@ import { recipeFor } from '../library/recipe'
 import { exportZip, importZip } from '../library/zip'
 import { UnsupportedImageError } from '../library/images'
 import { buildExtractRequest, extractPromptFor } from '../prompts/extract'
+import { RATIO_SYSTEM, RatioAnswerSchema, ratioUser, snapRatio } from '../prompts/ratio'
+import { labelOf } from '../prompts/placeholders'
+import { chatJson } from '../ai/chatClient'
+import { AiError, ERROR_LABEL } from '../ai/errors'
+import { readSize, shrinkForAnalysis } from '../image/process'
 
 export const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 }, defParamCharset: 'utf8' })
 
@@ -63,7 +69,7 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
 
   r.patch('/library/categories/:cid', async (req, res) => {
     const b = parseBody(
-      z.object({ name: z.string().optional(), hint: z.string().max(500).optional(), extractPrompt: z.string().nullable().optional(), activeTemplate: z.string().optional() }),
+      z.object({ name: z.string().optional(), hint: z.string().max(500).optional(), extractPrompt: z.string().nullable().optional() }),
       req.body,
     )
     await store.mutate((d) => ops.patchCategory(d, p(req, 'cid'), b))
@@ -82,7 +88,7 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
   })
 
   r.patch('/library/categories/:cid/styles/:sid', async (req, res) => {
-    const b = parseBody(z.object({ name: z.string().optional(), ratio: z.string().optional() }), req.body)
+    const b = parseBody(z.object({ name: z.string().optional(), ratio: z.string().optional(), activeTemplate: z.string().optional() }), req.body)
     await store.mutate((d) => ops.patchStyle(d, p(req, 'cid'), p(req, 'sid'), b))
     res.json(libraryPayload(ctx))
   })
@@ -103,31 +109,68 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
     res.json(libraryPayload(ctx))
   })
 
-  r.post('/library/categories/:cid/templates', async (req, res) => {
+  /** 让分析模型看白底图（没有就看参考图），估计印图案那块表面的比例；只给建议，不保存 */
+  r.post('/library/categories/:cid/styles/:sid/estimate-ratio', async (req, res) => {
+    const b = parseBody(z.object({ templateId: z.string().optional() }), req.body ?? {})
+    const lib = store.get()
+    const cat = lib.categories.find((c) => c.id === p(req, 'cid'))
+    if (!cat) throw new HttpError(404, '品类不存在，可能已被删除')
+    const style = cat.styles.find((s) => s.id === p(req, 'sid'))
+    if (!style) throw new HttpError(404, '款式不存在，可能已被删除')
+    const tpl = style.templates.find((t) => t.id === (b.templateId ?? style.activeTemplate))
+    const hash = style.whiteImage ?? tpl?.image ?? null
+    const found = hash ? store.images.find(hash) : null
+    if (!found) throw new HttpError(400, '先上传这个款式的白底图（或参考图），AI 才能看图估算')
+    const api = ctx.settings.get().analysis
+    if (!api.baseUrl || !api.apiKey) throw new HttpError(400, '还没有设置分析接口，请先在设置里填写')
+    const buf = await fsp.readFile(found.file)
+    const { width, height } = await readSize(buf)
+    let data
+    try {
+      ;({ data } = await chatJson(
+        api,
+        { system: RATIO_SYSTEM, user: ratioUser(labelOf(cat.name, style.name), cat.hint), imageJpeg: await shrinkForAnalysis(buf) },
+        RatioAnswerSchema,
+      ))
+    } catch (e) {
+      if (e instanceof AiError) throw new HttpError(502, `AI 估算失败：${ERROR_LABEL[e.type]}，${e.message}`)
+      throw e
+    }
+    const box = data.box ?? null
+    const boxRatio = box && box[2] > box[0] && box[3] > box[1] ? ((box[2] - box[0]) * width) / ((box[3] - box[1]) * height) : null
+    const value = data.width_to_height ?? boxRatio
+    if (!data.found || !value) throw new HttpError(422, `AI 没在图里找到印图案的表面${data.reason ? `：${data.reason}` : ''}`)
+    res.json({ ratio: snapRatio(value), value, shape: data.shape, surface: data.surface, reason: data.reason, source: style.whiteImage ? '白底图' : '参考图' })
+  })
+
+  const T = '/library/categories/:cid/styles/:sid/templates'
+  const ids = (req: Request) => [p(req, 'cid'), p(req, 'sid')] as const
+
+  r.post(T, async (req, res) => {
     const b = parseBody(z.object({ name: z.string().default(''), prompt: z.string().default('') }), req.body)
-    const t = await store.mutate((d) => ops.addTemplate(d, p(req, 'cid'), b.name, b.prompt))
+    const t = await store.mutate((d) => ops.addTemplate(d, ...ids(req), b.name, b.prompt))
     res.json({ template: t, ...libraryPayload(ctx) })
   })
 
-  r.patch('/library/categories/:cid/templates/:tid', async (req, res) => {
+  r.patch(`${T}/:tid`, async (req, res) => {
     const b = parseBody(z.object({ name: z.string().optional(), prompt: z.string().optional(), canvasRatio: z.string().nullable().optional() }), req.body)
-    await store.mutate((d) => ops.patchTemplate(d, p(req, 'cid'), p(req, 'tid'), b))
+    await store.mutate((d) => ops.patchTemplate(d, ...ids(req), p(req, 'tid'), b))
     res.json(libraryPayload(ctx))
   })
 
-  r.delete('/library/categories/:cid/templates/:tid', async (req, res) => {
-    await store.mutate((d) => ops.deleteTemplate(d, p(req, 'cid'), p(req, 'tid')))
+  r.delete(`${T}/:tid`, async (req, res) => {
+    await store.mutate((d) => ops.deleteTemplate(d, ...ids(req), p(req, 'tid')))
     res.json(libraryPayload(ctx))
   })
 
-  r.put('/library/categories/:cid/templates/:tid/images/:sid', upload.single('file'), async (req, res) => {
+  r.put(`${T}/:tid/image`, upload.single('file'), async (req, res) => {
     const buf = fileOf(req)
-    await store.mutate(async (d) => ops.setTemplateImage(d, p(req, 'cid'), p(req, 'tid'), p(req, 'sid'), await addImage(buf)))
+    await store.mutate(async (d) => ops.setTemplateImage(d, ...ids(req), p(req, 'tid'), await addImage(buf)))
     res.json(libraryPayload(ctx))
   })
 
-  r.delete('/library/categories/:cid/templates/:tid/images/:sid', async (req, res) => {
-    await store.mutate((d) => ops.setTemplateImage(d, p(req, 'cid'), p(req, 'tid'), p(req, 'sid'), null))
+  r.delete(`${T}/:tid/image`, async (req, res) => {
+    await store.mutate((d) => ops.setTemplateImage(d, ...ids(req), p(req, 'tid'), null))
     res.json(libraryPayload(ctx))
   })
 
