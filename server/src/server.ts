@@ -7,6 +7,10 @@ import { ensureDirs, type Paths } from './paths'
 import { Bus } from './events/bus'
 import { resolveOutputDir, SettingsStore } from './store/settings'
 import { BatchFolders } from './pipeline/output'
+import { FeishuSheets } from './parent/feishu'
+import { SpapiClient } from './parent/spapi'
+import { FeishuOAuth } from './parent/oauth'
+import { registerParent } from './api/parent'
 import { Limiter } from './ai/limiter'
 import { registerSettings } from './api/settings'
 import { registerMisc } from './api/misc'
@@ -18,7 +22,7 @@ import { JobStore, withView } from './store/jobs'
 import { Scheduler } from './scheduler/scheduler'
 import { registerJobs } from './api/jobs'
 import { log } from './util/log'
-import { errorHandler, HttpError } from './api/util'
+import { errorHandler, HttpError, sameOriginGuard } from './api/util'
 
 export function readVersion(toolDir: string): string {
   try {
@@ -55,6 +59,11 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     jobs,
     scheduler: sched,
     batch: new BatchFolders(path.join(paths.dataDir, 'batch.json'), () => resolveOutputDir(settings.get())),
+    parent: {
+      sheets: new FeishuSheets(settings),
+      spapi: new SpapiClient(settings),
+      oauth: new FeishuOAuth(settings, () => ctx.onSettingsSaved()),
+    },
     sse: { clients: 0 },
     onSettingsSaved: () => {},
     start: async () => {
@@ -67,6 +76,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     },
     stop: async () => {
       sched.stop()
+      ctx.parent.oauth.closeLark()
       limiter.dispose()
       await jobs.flush()
     },
@@ -92,11 +102,13 @@ export function createApp(ctx: AppContext): express.Express {
   app.use(express.json({ limit: '2mb' }))
 
   const api = express.Router()
+  api.use(sameOriginGuard)
   registerMisc(api, ctx)
   registerSettings(api, ctx)
   registerEvents(api, ctx)
   registerLibrary(api, ctx)
   registerJobs(api, ctx)
+  registerParent(api, ctx)
   api.use(() => {
     throw new HttpError(404, '接口不存在')
   })

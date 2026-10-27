@@ -6,6 +6,23 @@ import { HttpError } from '../util/errors'
 
 export { HttpError }
 
+/** 浏览器跨站发来的请求一律不认：别的网页不能借用户的浏览器提交表单改设置、换凭证、读剪贴板 */
+export function sameOrigin(req: Request): boolean {
+  const o = req.headers.origin
+  if (!o) return true
+  try {
+    return new URL(o).host === req.headers.host
+  } catch {
+    return false
+  }
+}
+
+/** POST / PUT / PATCH / DELETE 都要同源；GET 不改东西 */
+export function sameOriginGuard(req: Request, _res: Response, next: NextFunction): void {
+  if (req.method === 'GET' || req.method === 'HEAD' || sameOrigin(req)) return next()
+  next(new HttpError(403, '只能从本工具的页面操作'))
+}
+
 export function parseBody<S extends z.ZodType>(schema: S, body: unknown): z.infer<S> {
   const r = schema.safeParse(body ?? {})
   if (!r.success) {

@@ -6,6 +6,9 @@ import type { LibraryStore } from './library/store'
 import type { JobStore } from './store/jobs'
 import type { Scheduler } from './scheduler/scheduler'
 import type { BatchFolders } from './pipeline/output'
+import type { FeishuSheets } from './parent/feishu'
+import type { SpapiClient } from './parent/spapi'
+import type { FeishuOAuth } from './parent/oauth'
 
 export type AppContext = {
   version: string
@@ -18,6 +21,8 @@ export type AppContext = {
   scheduler: Scheduler
   /** 当前批次的输出文件夹 */
   batch: BatchFolders
+  /** 父体匹配：飞书读表、SP-API、飞书授权 */
+  parent: { sheets: FeishuSheets; spapi: SpapiClient; oauth: FeishuOAuth }
   sse: { clients: number }
   onSettingsSaved: () => void
   /** 监听成功后调用：加载模版库、复位任务、开始调度 */

@@ -65,6 +65,27 @@ export type Settings = {
   patternQcThreshold: number
   patternQcDeltaE: number
   mainQc: boolean
+  /** 父体匹配；密钥、token 都是打码后的（••••末 4 位） */
+  parent: {
+    enabled: boolean
+    sheetUrl: string
+    recentUrls: { url: string; title: string; usedAt: string }[]
+    tabs: string[]
+    threshold: number
+    creatorMark: string
+    feishu: {
+      appId: string
+      appSecret: string
+      user: string | null
+      authAppId: string
+      accessToken: string
+      accessExpiresAt: string
+      refreshToken: string
+      refreshExpiresAt: string
+      redirect: 'lark3000' | 'self'
+    }
+    spapi: { sellerId: string; clientId: string; clientSecret: string; refreshToken: string; marketplaceId: string }
+  }
 }
 
 export type StepState = 'pending' | 'running' | 'done' | 'skipped' | 'failed'

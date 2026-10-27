@@ -16891,10 +16891,10 @@ var require_get_proto = __commonJS({
 var require_hasown = __commonJS({
   "node_modules/hasown/index.js"(exports2, module2) {
     "use strict";
-    var call = Function.prototype.call;
+    var call2 = Function.prototype.call;
     var $hasOwn = Object.prototype.hasOwnProperty;
     var bind = require_function_bind();
-    module2.exports = bind.call(call, $hasOwn);
+    module2.exports = bind.call(call2, $hasOwn);
   }
 });
 
@@ -21197,7 +21197,7 @@ var require_application = __commonJS({
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
     var View = require_view();
-    var http2 = require("node:http");
+    var http3 = require("node:http");
     var methods = require_utils3().methods;
     var compileETag = require_utils3().compileETag;
     var compileQueryParser = require_utils3().compileQueryParser;
@@ -21430,7 +21430,7 @@ var require_application = __commonJS({
       tryRender(view, renderOptions, done);
     };
     app.listen = function listen2() {
-      var server = http2.createServer(this);
+      var server = http3.createServer(this);
       var args = slice.call(arguments);
       if (typeof args[args.length - 1] === "function") {
         var done = args[args.length - 1] = once(args[args.length - 1]);
@@ -22141,12 +22141,12 @@ var require_request = __commonJS({
     var accepts = require_accepts();
     var isIP = require("node:net").isIP;
     var typeis = require_type_is();
-    var http2 = require("node:http");
+    var http3 = require("node:http");
     var fresh = require_fresh();
     var parseRange = require_range_parser();
     var parse3 = require_parseurl();
     var proxyaddr = require_proxy_addr();
-    var req = Object.create(http2.IncomingMessage.prototype);
+    var req = Object.create(http3.IncomingMessage.prototype);
     module2.exports = req;
     req.get = req.header = function header(name) {
       if (!name) {
@@ -23320,7 +23320,7 @@ var require_response = __commonJS({
     var deprecate = require_depd()("express");
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
-    var http2 = require("node:http");
+    var http3 = require("node:http");
     var onFinished = require_on_finished();
     var mime = require_mime_types();
     var path20 = require("node:path");
@@ -23337,7 +23337,7 @@ var require_response = __commonJS({
     var basename = path20.basename;
     var vary = require_vary();
     var { Buffer: Buffer2 } = require("node:buffer");
-    var res = Object.create(http2.ServerResponse.prototype);
+    var res = Object.create(http3.ServerResponse.prototype);
     module2.exports = res;
     res.status = function status(code) {
       if (!Number.isInteger(code)) {
@@ -37635,7 +37635,7 @@ function readJsonSync(file2) {
 // server/src/server.ts
 var import_node_fs13 = __toESM(require("node:fs"), 1);
 var import_node_path19 = __toESM(require("node:path"), 1);
-var import_node_http = __toESM(require("node:http"), 1);
+var import_node_http2 = __toESM(require("node:http"), 1);
 var import_express = __toESM(require_express2(), 1);
 
 // server/src/events/bus.ts
@@ -53129,13 +53129,13 @@ function _promise(Class2, innerType) {
 }
 // @__NO_SIDE_EFFECTS__
 function _custom(Class2, fn, _params) {
-  const norm = normalizeParams(_params);
-  norm.abort ?? (norm.abort = true);
+  const norm2 = normalizeParams(_params);
+  norm2.abort ?? (norm2.abort = true);
   const schema = new Class2({
     type: "custom",
     check: "custom",
     fn,
-    ...norm
+    ...norm2
   });
   return schema;
 }
@@ -57440,6 +57440,48 @@ var AnalysisApiSchema = external_exports.object({
   concurrency: analysisFields.concurrency.default(3),
   timeoutSec: analysisFields.timeoutSec.default(60)
 });
+var FeishuSchema = external_exports.object({
+  appId: external_exports.string().default(""),
+  appSecret: external_exports.string().default(""),
+  /** 授权人的飞书名字，显示用 */
+  user: external_exports.string().nullable().default(null),
+  /** 授权时用的 App ID；和现在的不一样说明换过应用，要重新授权 */
+  authAppId: external_exports.string().default(""),
+  accessToken: external_exports.string().default(""),
+  accessExpiresAt: external_exports.string().default(""),
+  refreshToken: external_exports.string().default(""),
+  refreshExpiresAt: external_exports.string().default(""),
+  /** 授权回调：lark3000 = 借用 lark-mcp 在后台登记的 http://localhost:3000/callback（2026-10-27 用户确认）；self = 回调进本服务 */
+  redirect: external_exports.enum(["lark3000", "self"]).default("lark3000"),
+  /** 接口地址，测试时由程序内部指向模拟服务；设置接口不能改（否则能把 token 发到别处） */
+  baseUrl: external_exports.string().default("https://open.feishu.cn"),
+  accountsUrl: external_exports.string().default("https://accounts.feishu.cn")
+});
+var SpapiSchema = external_exports.object({
+  sellerId: external_exports.string().default(""),
+  clientId: external_exports.string().default(""),
+  clientSecret: external_exports.string().default(""),
+  refreshToken: external_exports.string().default(""),
+  /** 美国站 */
+  marketplaceId: external_exports.string().default("ATVPDKIKX0DER"),
+  endpoint: external_exports.string().default("https://sellingpartnerapi-na.amazon.com"),
+  /** LWA 换 token 的地址，同上，设置接口不能改 */
+  tokenUrl: external_exports.string().default("https://api.amazon.com/auth/o2/token")
+});
+var MAX_RECENT_URLS = 10;
+var ParentSchema = external_exports.object({
+  /** 「识别父体」开关，默认关闭：关着时第 6 步直接跳过，不读飞书、不调 SP-API */
+  enabled: external_exports.boolean().default(false),
+  sheetUrl: external_exports.string().default(""),
+  recentUrls: external_exports.array(external_exports.object({ url: external_exports.string(), title: external_exports.string(), usedAt: external_exports.string() })).default([]),
+  /** 最近一次读表读到的标签页名，模版库「对应标签页」下拉用 */
+  tabs: external_exports.array(external_exports.string()).default([]),
+  threshold: external_exports.number().min(0).max(1).default(0.7),
+  /** 建议新建父体 SKU 时的创建人标识 */
+  creatorMark: external_exports.string().default("5"),
+  feishu: FeishuSchema.prefault({}),
+  spapi: SpapiSchema.prefault({})
+});
 var SettingsSchema = external_exports.object({
   image: ImageApiSchema.prefault({}),
   analysis: AnalysisApiSchema.prefault({}),
@@ -57454,7 +57496,8 @@ var SettingsSchema = external_exports.object({
   /** 主图生成后和素材图对比验收（本地合成在本地核对，AI 贴图发一次分析请求） */
   mainQc: external_exports.boolean().default(true),
   /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
-  patternQcDeltaE: external_exports.number().min(1).max(100).default(5)
+  patternQcDeltaE: external_exports.number().min(1).max(100).default(5),
+  parent: ParentSchema.prefault({})
 });
 var SettingsPatchSchema = external_exports.object({
   image: external_exports.object(imageFields).partial().optional(),
@@ -57466,7 +57509,25 @@ var SettingsPatchSchema = external_exports.object({
   patternQc: external_exports.boolean().optional(),
   patternQcThreshold: external_exports.number().min(0).max(1).optional(),
   patternQcDeltaE: external_exports.number().min(1).max(100).optional(),
-  mainQc: external_exports.boolean().optional()
+  mainQc: external_exports.boolean().optional(),
+  parent: external_exports.object({
+    enabled: external_exports.boolean().optional(),
+    sheetUrl: external_exports.string().max(2e3).optional(),
+    threshold: external_exports.number().min(0).max(1).optional(),
+    creatorMark: external_exports.string().max(10).optional(),
+    feishu: external_exports.object({
+      appId: external_exports.string().max(200),
+      appSecret: external_exports.string().max(500),
+      redirect: external_exports.enum(["lark3000", "self"])
+    }).partial().optional(),
+    spapi: external_exports.object({
+      sellerId: external_exports.string().max(100),
+      clientId: external_exports.string().max(500),
+      clientSecret: external_exports.string().max(500),
+      refreshToken: external_exports.string().max(4e3),
+      marketplaceId: external_exports.string().max(50)
+    }).partial().optional()
+  }).optional()
 });
 function normalizeBaseUrl(u) {
   return u.trim().replace(/\/+$/, "");
@@ -57478,12 +57539,43 @@ function maskKey(key) {
 function isMaskedKey(key) {
   return /^sk-….{0,4}$/.test(key);
 }
+function maskSecret(v) {
+  if (!v) return "";
+  return `\u2022\u2022\u2022\u2022${v.slice(-4)}`;
+}
+function isMaskedSecret(v) {
+  return v.startsWith("\u2022\u2022\u2022\u2022");
+}
 function maskSettings(s) {
+  const f2 = s.parent.feishu;
+  const sp = s.parent.spapi;
   return {
     ...s,
     image: { ...s.image, apiKey: maskKey(s.image.apiKey) },
-    analysis: { ...s.analysis, apiKey: maskKey(s.analysis.apiKey) }
+    analysis: { ...s.analysis, apiKey: maskKey(s.analysis.apiKey) },
+    parent: {
+      ...s.parent,
+      feishu: { ...f2, appSecret: maskSecret(f2.appSecret), accessToken: maskSecret(f2.accessToken), refreshToken: maskSecret(f2.refreshToken) },
+      spapi: {
+        ...sp,
+        sellerId: maskSecret(sp.sellerId),
+        clientId: maskSecret(sp.clientId),
+        clientSecret: maskSecret(sp.clientSecret),
+        refreshToken: maskSecret(sp.refreshToken)
+      }
+    }
   };
+}
+function registerParentSecrets(p) {
+  for (const v of [p.feishu.appSecret, p.feishu.accessToken, p.feishu.refreshToken, p.spapi.clientId, p.spapi.clientSecret, p.spapi.refreshToken, p.spapi.sellerId]) {
+    registerSecret(v);
+  }
+}
+function stripMasked(p) {
+  if (!p) return {};
+  return Object.fromEntries(
+    Object.entries(p).filter(([, v]) => v !== void 0 && !(typeof v === "string" && isMaskedSecret(v))).map(([k, v]) => [k, typeof v === "string" ? v.trim() : v])
+  );
 }
 function resolveOutputDir(s) {
   const raw2 = s.outputDir.trim() || DEFAULT_OUTPUT_DIR;
@@ -57498,6 +57590,7 @@ var SettingsStore = class {
     if (this.value.outputDir === OLD_DEFAULT_OUTPUT_DIR) this.value.outputDir = DEFAULT_OUTPUT_DIR;
     registerSecret(this.value.image.apiKey);
     registerSecret(this.value.analysis.apiKey);
+    registerParentSecrets(this.value.parent);
   }
   file;
   value;
@@ -57515,6 +57608,13 @@ var SettingsStore = class {
       image.apiKey = image.apiKey.trim();
       analysis.apiKey = analysis.apiKey.trim();
       if (patch.image?.sendFidelity === true) image.fidelityAutoDisabled = false;
+      const pp = patch.parent;
+      const parent = {
+        ...cur.parent,
+        ...stripUndefined({ enabled: pp?.enabled, sheetUrl: pp?.sheetUrl?.trim(), threshold: pp?.threshold, creatorMark: pp?.creatorMark?.trim() }),
+        feishu: { ...cur.parent.feishu, ...stripMasked(pp?.feishu) },
+        spapi: { ...cur.parent.spapi, ...stripMasked(pp?.spapi) }
+      };
       const next = SettingsSchema.parse({
         ...cur,
         ...stripUndefined({
@@ -57528,10 +57628,24 @@ var SettingsStore = class {
           mainQc: patch.mainQc
         }),
         image,
-        analysis
+        analysis,
+        parent
       });
       registerSecret(next.image.apiKey);
       registerSecret(next.analysis.apiKey);
+      registerParentSecrets(next.parent);
+      await writeJsonAtomic(this.file, next);
+      this.value = next;
+      return next;
+    });
+  }
+  /** 程序内部改父体设置（授权换到的 token、用过的链接），不经过接口校验 */
+  async updateParent(fn) {
+    return this.mutex.run(async () => {
+      const draft = structuredClone(this.value);
+      fn(draft.parent);
+      const next = SettingsSchema.parse(draft);
+      registerParentSecrets(next.parent);
       await writeJsonAtomic(this.file, next);
       this.value = next;
       return next;
@@ -57644,194 +57758,335 @@ async function writeOutput(outputDir, job, kind, buf) {
   return file2;
 }
 
-// server/src/ai/errors.ts
-var AiError = class extends Error {
-  constructor(type, message, status, retryAfterSec) {
-    super(cleanMessage(message));
-    this.type = type;
+// server/src/parent/feishu.ts
+var FEISHU_SCOPE = "wiki:wiki:readonly sheets:spreadsheet:readonly offline_access";
+var TIMEOUT_MS = 2e4;
+var REFRESH_AHEAD_MS = 6e4;
+var SHEET_CACHE_MS = 5 * 6e4;
+var READ_RANGE = "A1:Z1000";
+var HEADER_ROWS = 5;
+var FeishuAuthError = class extends Error {
+};
+var FeishuError = class extends Error {
+};
+var TOKEN_ERRORS = /* @__PURE__ */ new Set([99991663, 99991664, 99991668, 99991677, 20005, 20026, 20037, 20064, 20073, 20074]);
+async function call(url2, init) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  let resp;
+  try {
+    resp = await fetch(url2, { ...init, signal: ctrl.signal });
+  } catch (e) {
+    throw new FeishuError(ctrl.signal.aborted ? "\u98DE\u4E66\u63A5\u53E3\u8D85\u65F6" : `\u8FDE\u4E0D\u4E0A\u98DE\u4E66\uFF1A${e.message}`);
+  } finally {
+    clearTimeout(timer);
+  }
+  let body;
+  try {
+    body = await resp.json();
+  } catch {
+    throw new FeishuError(`\u98DE\u4E66\u8FD4\u56DE\u7684\u4E0D\u662F JSON\uFF08HTTP ${resp.status}\uFF09`);
+  }
+  const code = Number(body.code ?? 0);
+  if (resp.status === 401 || TOKEN_ERRORS.has(code)) throw new FeishuAuthError(`\u98DE\u4E66\u6388\u6743\u5DF2\u5931\u6548\uFF08${body.msg ?? body.error_description ?? code}\uFF09`);
+  if (!resp.ok || code !== 0) throw new FeishuError(String(body.msg ?? body.error_description ?? body.error ?? `HTTP ${resp.status}`) + (code ? `\uFF08${code}\uFF09` : ""));
+  return body;
+}
+var isoIn = (sec) => sec ? new Date(Date.now() + sec * 1e3).toISOString() : "";
+function authorizeUrl(f2, redirectUri, state) {
+  const q = new URLSearchParams({ client_id: f2.appId, response_type: "code", redirect_uri: redirectUri, scope: FEISHU_SCOPE, state });
+  return `${f2.accountsUrl.replace(/\/+$/, "")}/open-apis/authen/v1/authorize?${q}`;
+}
+async function tokenRequest(f2, body) {
+  const r = await call(`${f2.baseUrl.replace(/\/+$/, "")}/open-apis/authen/v2/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    body: JSON.stringify({ client_id: f2.appId, client_secret: f2.appSecret, ...body })
+  });
+  if (!r.access_token) throw new FeishuError("\u98DE\u4E66\u6CA1\u6709\u8FD4\u56DE access_token");
+  return r;
+}
+async function exchangeCode(settings, code, redirectUri) {
+  const f2 = settings.get().parent.feishu;
+  const t = await tokenRequest(f2, { grant_type: "authorization_code", code, redirect_uri: redirectUri });
+  let user = null;
+  try {
+    const info = await call(`${f2.baseUrl.replace(/\/+$/, "")}/open-apis/authen/v1/user_info`, { headers: { Authorization: `Bearer ${t.access_token}` } });
+    user = info.data?.name || null;
+  } catch (e) {
+    log.warn(`\u53D6\u98DE\u4E66\u6388\u6743\u4EBA\u540D\u5B57\u5931\u8D25\uFF1A${e.message}`);
+  }
+  await settings.updateParent((p) => {
+    Object.assign(p.feishu, {
+      authAppId: f2.appId,
+      user,
+      accessToken: t.access_token,
+      accessExpiresAt: isoIn(t.expires_in),
+      refreshToken: t.refresh_token ?? "",
+      refreshExpiresAt: isoIn(t.refresh_token_expires_in)
+    });
+  });
+  return user;
+}
+async function logout(settings) {
+  await settings.updateParent((p) => Object.assign(p.feishu, { authAppId: "", user: null, accessToken: "", accessExpiresAt: "", refreshToken: "", refreshExpiresAt: "" }));
+}
+var expired = (iso, aheadMs = 0) => !iso || new Date(iso).getTime() - aheadMs <= Date.now();
+var refreshing = null;
+var otherApp = (f2) => !!f2.authAppId && f2.authAppId !== f2.appId;
+async function userToken(settings, force = false) {
+  const f2 = settings.get().parent.feishu;
+  if (!f2.accessToken && !f2.refreshToken) throw new FeishuAuthError("\u8FD8\u6CA1\u6709\u6388\u6743\u98DE\u4E66");
+  if (otherApp(f2)) throw new FeishuAuthError("\u98DE\u4E66\u5E94\u7528\u6362\u8FC7\u4E86\uFF0C\u53BB\u8BBE\u7F6E\u91CD\u65B0\u6388\u6743");
+  if (!force && f2.accessToken && !expired(f2.accessExpiresAt, REFRESH_AHEAD_MS)) return f2.accessToken;
+  if (!f2.refreshToken || f2.refreshExpiresAt && expired(f2.refreshExpiresAt)) throw new FeishuAuthError("\u98DE\u4E66\u6388\u6743\u5DF2\u8FC7\u671F\uFF0C\u53BB\u8BBE\u7F6E\u91CD\u65B0\u6388\u6743");
+  refreshing ??= (async () => {
+    const used = f2.refreshToken;
+    try {
+      const t = await tokenRequest(f2, { grant_type: "refresh_token", refresh_token: used });
+      await settings.updateParent((p) => {
+        if (p.feishu.refreshToken !== used) return;
+        p.feishu.accessToken = t.access_token;
+        p.feishu.accessExpiresAt = isoIn(t.expires_in);
+        if (t.refresh_token) {
+          p.feishu.refreshToken = t.refresh_token;
+          p.feishu.refreshExpiresAt = isoIn(t.refresh_token_expires_in);
+        }
+      });
+      return t.access_token;
+    } catch (e) {
+      if (e instanceof FeishuAuthError) {
+        await settings.updateParent((p) => {
+          if (p.feishu.refreshToken !== used) return;
+          p.feishu.accessToken = "";
+          p.feishu.refreshExpiresAt = (/* @__PURE__ */ new Date()).toISOString();
+        });
+        throw new FeishuAuthError("\u98DE\u4E66\u6388\u6743\u5DF2\u8FC7\u671F\uFF0C\u53BB\u8BBE\u7F6E\u91CD\u65B0\u6388\u6743");
+      }
+      throw e;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+function parseSheetLink(url2) {
+  let u;
+  try {
+    u = new URL(url2.trim());
+  } catch {
+    return null;
+  }
+  const m = /\/(wiki|sheets)\/([A-Za-z0-9]+)/.exec(u.pathname);
+  return m ? { kind: m[1], token: m[2] } : null;
+}
+function cellText(v) {
+  if (v === null || v === void 0) return "";
+  if (typeof v === "string") return v.trim();
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (Array.isArray(v)) return v.map(cellText).join("").trim();
+  if (typeof v === "object") {
+    const o = v;
+    return cellText(o.text ?? o.value ?? o.link ?? "");
+  }
+  return "";
+}
+var norm = (s) => s.replace(/\s+/g, "").toLowerCase();
+function parseParentRows(values) {
+  const rows = values.map((r) => Array.isArray(r) ? r.map(cellText) : []);
+  const h = rows.slice(0, HEADER_ROWS).findIndex((r) => r.some((c) => norm(c) === norm("\u7236\u4F53SKU")));
+  if (h < 0) return null;
+  const col = (name) => rows[h].findIndex((c) => norm(c) === norm(name));
+  const ci = { theme: col("\u4E3B\u9898"), sku: col("\u7236\u4F53SKU"), asin: col("\u7236\u4F53ASIN") };
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (let i2 = h + 1; i2 < rows.length; i2++) {
+    const r = rows[i2];
+    const sku = r[ci.sku] ?? "";
+    if (!sku || seen.has(sku.toLowerCase())) continue;
+    seen.add(sku.toLowerCase());
+    out.push({ theme: ci.theme >= 0 ? r[ci.theme] ?? "" : "", sku, asin: ci.asin >= 0 ? r[ci.asin] ?? "" : "", row: i2 + 1 });
+  }
+  return out;
+}
+var FeishuSheets = class {
+  constructor(settings) {
+    this.settings = settings;
+  }
+  settings;
+  cache = /* @__PURE__ */ new Map();
+  base() {
+    return this.settings.get().parent.feishu.baseUrl.replace(/\/+$/, "");
+  }
+  async get(path20) {
+    const token = await userToken(this.settings);
+    try {
+      return await call(this.base() + path20, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (e) {
+      if (!(e instanceof FeishuAuthError)) throw e;
+      const fresh = await userToken(this.settings, true);
+      return call(this.base() + path20, { headers: { Authorization: `Bearer ${fresh}` } });
+    }
+  }
+  cached(key, fn, fresh) {
+    const c = this.cache.get(key);
+    if (!fresh && c && Date.now() - c.at < SHEET_CACHE_MS) return c.value;
+    const value = fn();
+    this.cache.set(key, { at: Date.now(), value });
+    value.catch(() => this.cache.delete(key));
+    return value;
+  }
+  clear() {
+    this.cache.clear();
+  }
+  /** 表格名和所有标签页 */
+  info(url2, fresh = false) {
+    return this.cached(`info|${url2}`, async () => {
+      const link = parseSheetLink(url2);
+      if (!link) throw new FeishuError("\u8FD9\u4E2A\u94FE\u63A5\u8BFB\u4E0D\u4E86\uFF1A\u4E0D\u662F\u98DE\u4E66\u8868\u683C\u6216\u77E5\u8BC6\u5E93\u94FE\u63A5");
+      let token = link.token;
+      let title = "";
+      if (link.kind === "wiki") {
+        const node2 = (await this.get(`/open-apis/wiki/v2/spaces/get_node?token=${encodeURIComponent(link.token)}`)).data?.node ?? {};
+        if (node2.obj_type && node2.obj_type !== "sheet") throw new FeishuError(`\u8FD9\u4E2A\u94FE\u63A5\u8BFB\u4E0D\u4E86\uFF1A\u77E5\u8BC6\u5E93\u91CC\u8FD9\u4E00\u9875\u4E0D\u662F\u8868\u683C\uFF08${node2.obj_type}\uFF09`);
+        token = String(node2.obj_token ?? "");
+        title = String(node2.title ?? "");
+        if (!token) throw new FeishuError("\u8FD9\u4E2A\u94FE\u63A5\u8BFB\u4E0D\u4E86\uFF1A\u77E5\u8BC6\u5E93\u91CC\u627E\u4E0D\u5230\u5BF9\u5E94\u7684\u8868\u683C");
+      }
+      if (!title) {
+        title = String((await this.get(`/open-apis/sheets/v3/spreadsheets/${token}`)).data?.spreadsheet?.title ?? "");
+      }
+      const sheets = (await this.get(`/open-apis/sheets/v3/spreadsheets/${token}/sheets/query`)).data?.sheets ?? [];
+      const tabs = sheets.filter((s) => !s.resource_type || s.resource_type === "sheet").sort((a, b) => Number(a.index ?? 0) - Number(b.index ?? 0)).map((s) => ({ sheetId: String(s.sheet_id), title: String(s.title ?? "") }));
+      return { url: url2, token, title: title || "\u672A\u547D\u540D\u8868\u683C", tabs };
+    }, fresh);
+  }
+  /** 读一个标签页里的父体；标签页不存在返回 null。已经拿到 info 时传进来，不再读一遍表信息 */
+  async rows(url2, tabTitle, fresh = false, known) {
+    const info = known ?? await this.info(url2, fresh);
+    const tab = info.tabs.find((t) => t.title === tabTitle) ?? info.tabs.find((t) => norm(t.title) === norm(tabTitle));
+    if (!tab) return null;
+    return this.cached(`rows|${url2}|${tab.sheetId}`, async () => {
+      const range = encodeURIComponent(`${tab.sheetId}!${READ_RANGE}`);
+      const values = (await this.get(`/open-apis/sheets/v2/spreadsheets/${info.token}/values/${range}`)).data?.valueRange?.values ?? [];
+      return { tab, rows: parseParentRows(values), readAt: (/* @__PURE__ */ new Date()).toISOString() };
+    }, fresh);
+  }
+};
+
+// server/src/parent/spapi.ts
+var TIMEOUT_MS2 = 2e4;
+var REFRESH_AHEAD_MS2 = 6e4;
+var SpapiAuthError = class extends Error {
+};
+var SpapiError = class extends Error {
+  constructor(message, status = 0, retryAfterSec = null) {
+    super(message);
     this.status = status;
     this.retryAfterSec = retryAfterSec;
-    this.name = "AiError";
   }
-  type;
   status;
   retryAfterSec;
 };
-var CancelledError = class extends Error {
-  constructor() {
-    super("\u5DF2\u53D6\u6D88");
-    this.name = "CancelledError";
+var SpapiClient = class {
+  constructor(settings) {
+    this.settings = settings;
   }
-};
-var RETRYABLE = /* @__PURE__ */ new Set(["network", "server", "badImage"]);
-function isRetryable(e) {
-  return e instanceof AiError && RETRYABLE.has(e.type);
-}
-function cleanMessage(msg) {
-  const s = redact(String(msg ?? "")).replace(/\s+/g, " ").trim();
-  return s.length > 300 ? s.slice(0, 300) + "\u2026" : s;
-}
-var UNKNOWN_PARAM_WORDS = /unknown|unrecognized|unsupported|not support|invalid|extra/i;
-var PARAM_NAMES = /input_fidelity|quality/;
-var REFUSED_WORDS = /content[_ ]?policy|safety|moderation|rejected|violat|违规|敏感/i;
-function extractErrorText(body) {
-  try {
-    const j = JSON.parse(body);
-    const m = j?.error?.message ?? j?.message ?? j?.error ?? j?.detail;
-    if (typeof m === "string" && m) return m;
-    if (m) return JSON.stringify(m);
-  } catch {
+  settings;
+  cached = null;
+  pending = null;
+  creds() {
+    return this.settings.get().parent.spapi;
   }
-  if (/^\s*<(!doctype|html)/i.test(body)) {
-    return "\u54CD\u5E94\u662F\u7F51\u9875\u800C\u4E0D\u662F\u63A5\u53E3\u6570\u636E\uFF08\u53EF\u80FD\u662F\u8BF7\u6C42\u4F53\u8FC7\u5927\u6216\u5730\u5740\u586B\u9519\uFF0C\u88AB\u7F51\u5173\u62E6\u622A\uFF09";
+  missing() {
+    const s = this.creds();
+    return [
+      ["sellerId", "\u5E97\u94FA ID"],
+      ["clientId", "Client ID"],
+      ["clientSecret", "Client Secret"],
+      ["refreshToken", "Refresh Token"]
+    ].filter(([k]) => !s[k]).map(([, label]) => label);
   }
-  return body;
-}
-function parseRetryAfter(v) {
-  if (!v) return void 0;
-  const n = Number(v);
-  if (Number.isFinite(n) && n >= 0) return n;
-  const t = Date.parse(v);
-  if (!Number.isNaN(t)) return Math.max(0, (t - Date.now()) / 1e3);
-  return void 0;
-}
-function classifyHttp(status, body, retryAfter) {
-  const text = extractErrorText(body);
-  const msg = `HTTP ${status}\uFF1A${text || "(\u65E0\u5185\u5BB9)"}`;
-  if (status === 401 || status === 403) return new AiError("auth", msg, status);
-  if (status === 429) return new AiError("rateLimit", msg, status, parseRetryAfter(retryAfter));
-  if (status >= 500 || status === 408 || status === 425) return new AiError("server", msg, status);
-  if (status === 400 && UNKNOWN_PARAM_WORDS.test(body) && PARAM_NAMES.test(body)) {
-    return new AiError("unknownParam", msg, status);
-  }
-  if ((status === 400 || status === 422) && REFUSED_WORDS.test(body)) return new AiError("refused", msg, status);
-  return new AiError("client", msg, status);
-}
-function classifyThrown(e, timedOut) {
-  if (e instanceof AiError) return e;
-  if (timedOut) return new AiError("network", "\u8BF7\u6C42\u8D85\u65F6");
-  const err2 = e;
-  const detail = err2?.cause?.code || err2?.cause?.message || err2?.message || String(e);
-  return new AiError("network", `\u7F51\u7EDC\u9519\u8BEF\uFF1A${detail}`);
-}
-var ERROR_LABEL = {
-  network: "\u7F51\u7EDC\u9519\u8BEF",
-  server: "\u4E2D\u8F6C\u7AD9\u670D\u52A1\u51FA\u9519",
-  badImage: "\u8FD4\u56DE\u7684\u56FE\u7247\u65E0\u6CD5\u4F7F\u7528",
-  rateLimit: "\u8BF7\u6C42\u592A\u9891\u7E41\u88AB\u9650\u6D41",
-  auth: "Key \u65E0\u6548\u6216\u65E0\u6743\u9650",
-  unknownParam: "\u4E2D\u8F6C\u7AD9\u4E0D\u652F\u6301\u4FDD\u771F\u53C2\u6570",
-  refused: "\u5185\u5BB9\u88AB\u62D2",
-  badOutput: "\u5206\u6790\u7ED3\u679C\u683C\u5F0F\u4E0D\u5BF9",
-  client: "\u8BF7\u6C42\u88AB\u62D2\u7EDD"
-};
-
-// server/src/ai/retry.ts
-var RETRY_DELAYS_SEC = [3, 6, 10, 15];
-var MAX_ATTEMPTS = RETRY_DELAYS_SEC.length + 1;
-function timeScale() {
-  const v = Number(process.env.TS_RETRY_SCALE);
-  return Number.isFinite(v) && v > 0 ? v : 1;
-}
-function scaled(ms) {
-  return Math.max(0, Math.round(ms * timeScale()));
-}
-function sleep2(ms, signal) {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) return reject(new CancelledError());
-    const t = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    const onAbort = () => {
-      clearTimeout(t);
-      reject(new CancelledError());
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
-}
-async function withRetry(fn, opts) {
-  let attempts = opts.attemptsSoFar;
-  for (; ; ) {
-    let result;
+  async fetchJson(url2, init) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS2);
     try {
-      result = await fn();
-    } catch (e) {
-      if (e instanceof CancelledError) throw e;
-      if (e instanceof AiError && e.type === "rateLimit") throw e;
-      attempts++;
-      await opts.onAttempt?.(attempts, e instanceof AiError ? e : void 0);
-      if (isRetryable(e) && attempts < MAX_ATTEMPTS) {
-        const delay = scaled(RETRY_DELAYS_SEC[Math.min(attempts, RETRY_DELAYS_SEC.length) - 1] * 1e3);
-        opts.onRetryWait?.(attempts, delay, e);
-        await sleep2(delay, opts.signal);
-        continue;
+      const resp = await fetch(url2, { ...init, signal: ctrl.signal });
+      const text = await resp.text();
+      let body = null;
+      try {
+        body = text ? JSON.parse(text) : null;
+      } catch {
+        body = { raw: text.slice(0, 200) };
       }
-      throw e;
+      return { status: resp.status, body, headers: resp.headers };
+    } catch (e) {
+      throw new SpapiError(ctrl.signal.aborted ? "SP-API \u8D85\u65F6" : `\u8FDE\u4E0D\u4E0A SP-API\uFF1A${e.message}`);
+    } finally {
+      clearTimeout(timer);
     }
-    attempts++;
-    await opts.onAttempt?.(attempts);
-    return result;
   }
-}
-
-// server/src/ai/limiter.ts
-var RECOVER_MS = 12e4;
-var DEFAULT_WAIT_SEC = 20;
-var MAX_WAIT_SEC = 120;
-var Limiter = class {
-  constructor(onChange = () => {
-  }) {
-    this.onChange = onChange;
+  async accessToken() {
+    const s = this.creds();
+    const miss = this.missing();
+    if (miss.length) throw new SpapiAuthError(`SP-API \u51ED\u8BC1\u4E0D\u5168\uFF0C\u7F3A\uFF1A${miss.join("\u3001")}`);
+    const key = [s.tokenUrl, s.clientId, s.clientSecret, s.refreshToken].join("|");
+    if (this.cached && this.cached.key === key && this.cached.expiresAt - REFRESH_AHEAD_MS2 > Date.now()) return this.cached.token;
+    this.pending ??= (async () => {
+      try {
+        const r = await this.fetchJson(s.tokenUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+          body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: s.refreshToken, client_id: s.clientId, client_secret: s.clientSecret }).toString()
+        });
+        if (r.status === 400 || r.status === 401 || r.status === 403) {
+          throw new SpapiAuthError(`SP-API \u51ED\u8BC1\u4E0D\u5BF9\uFF0C\u6362 token \u5931\u8D25\uFF08${r.body?.error_description ?? r.body?.error ?? r.status}\uFF09`);
+        }
+        if (r.status >= 300 || !r.body?.access_token) throw new SpapiError(`SP-API \u6362 token \u5931\u8D25\uFF08HTTP ${r.status}\uFF09`, r.status);
+        this.cached = { key, token: String(r.body.access_token), expiresAt: Date.now() + Number(r.body.expires_in ?? 3600) * 1e3 };
+        return this.cached.token;
+      } finally {
+        this.pending = null;
+      }
+    })();
+    return this.pending;
   }
-  onChange;
-  s = {
-    image: { configured: 2, current: 2, last429: 0, cooldownUntil: 0 },
-    analysis: { configured: 3, current: 3, last429: 0, cooldownUntil: 0 }
-  };
-  timers = /* @__PURE__ */ new Set();
-  configure(kind, limit) {
-    const st = this.s[kind];
-    const reduced = st.configured - st.current;
-    st.configured = Math.max(1, limit);
-    st.current = Math.max(1, st.configured - Math.max(0, reduced));
-    this.refresh(kind);
+  /** 只允许 GET */
+  async get(path20, query = {}) {
+    const token = await this.accessToken();
+    const s = this.creds();
+    const q = new URLSearchParams(query).toString();
+    const r = await this.fetchJson(`${s.endpoint.replace(/\/+$/, "")}${path20}${q ? `?${q}` : ""}`, {
+      method: "GET",
+      headers: { "x-amz-access-token": token, Accept: "application/json" }
+    });
+    if (r.status === 401 || r.status === 403) {
+      this.cached = null;
+      throw new SpapiAuthError(`SP-API \u6CA1\u6709\u6743\u9650\u6216\u51ED\u8BC1\u4E0D\u5BF9\uFF08HTTP ${r.status}${r.body?.errors?.[0]?.message ? `\uFF1A${r.body.errors[0].message}` : ""}\uFF09`);
+    }
+    if (r.status === 429) {
+      const ra = Number(r.headers.get("retry-after"));
+      throw new SpapiError("SP-API \u9650\u6D41", 429, Number.isFinite(ra) && ra > 0 ? ra : null);
+    }
+    if (r.status >= 500) throw new SpapiError(`SP-API \u51FA\u9519\uFF08HTTP ${r.status}\uFF09`, r.status);
+    return { status: r.status, body: r.body };
   }
-  limit(kind, now = Date.now()) {
-    this.refresh(kind, now);
-    return this.s[kind].current;
-  }
-  inCooldown(kind, now = Date.now()) {
-    return now < this.s[kind].cooldownUntil;
-  }
-  on429(kind, retryAfterSec, now = Date.now()) {
-    const st = this.s[kind];
-    const sec = Math.min(MAX_WAIT_SEC, retryAfterSec ?? DEFAULT_WAIT_SEC);
-    const waitMs = scaled(sec * 1e3);
-    st.current = Math.max(1, st.current - 1);
-    st.last429 = now;
-    st.cooldownUntil = Math.max(st.cooldownUntil, now + waitMs);
-    this.later(waitMs + 1);
-    this.later(scaled(RECOVER_MS) + 1);
-    return waitMs;
-  }
-  dispose() {
-    for (const t of this.timers) clearTimeout(t);
-    this.timers.clear();
-  }
-  refresh(kind, now = Date.now()) {
-    const st = this.s[kind];
-    if (st.current < st.configured && now - st.last429 >= scaled(RECOVER_MS)) st.current = st.configured;
-  }
-  later(ms) {
-    const t = setTimeout(() => {
-      this.timers.delete(t);
-      this.onChange();
-    }, ms);
-    t.unref?.();
-    this.timers.add(t);
+  /** 换 token 并查一次店铺（按卖家搜一条商品） */
+  async test() {
+    const s = this.creds();
+    try {
+      const r = await this.get(`/listings/2021-08-01/items/${encodeURIComponent(s.sellerId)}`, { marketplaceIds: s.marketplaceId, pageSize: "1" });
+      if (r.status >= 400) return { ok: false, message: `\u8FDE\u63A5\u5931\u8D25\uFF1AHTTP ${r.status}${r.body?.errors?.[0]?.message ? `\uFF0C${r.body.errors[0].message}` : ""}` };
+      return { ok: true, message: `\u8FDE\u63A5\u6B63\u5E38${typeof r.body?.numberOfResults === "number" ? `\uFF0C\u5E97\u94FA\u91CC\u6709 ${r.body.numberOfResults} \u4E2A\u5546\u54C1` : ""}` };
+    } catch (e) {
+      return { ok: false, message: `\u8FDE\u63A5\u5931\u8D25\uFF1A${e.message}` };
+    }
   }
 };
+
+// server/src/parent/oauth.ts
+var import_node_http = __toESM(require("node:http"), 1);
+var import_node_crypto3 = require("node:crypto");
 
 // server/src/util/errors.ts
 var HttpError = class extends Error {
@@ -57842,7 +58097,118 @@ var HttpError = class extends Error {
   status;
 };
 
+// server/src/parent/oauth.ts
+var LARK_REDIRECT = "http://localhost:3000/callback";
+var LARK_PORT = 3e3;
+var WAIT_MS = 10 * 6e4;
+var esc2 = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+var page = (title, text) => `<!doctype html><meta charset="utf-8"><title>${esc2(title)}</title><body style="font:16px -apple-system,'PingFang SC',sans-serif;padding:48px;color:#333"><h3>${esc2(title)}</h3><p>${esc2(text)}</p></body>`;
+var FeishuOAuth = class {
+  constructor(settings, onAuthorized) {
+    this.settings = settings;
+    this.onAuthorized = onAuthorized;
+  }
+  settings;
+  onAuthorized;
+  states = /* @__PURE__ */ new Map();
+  temp = [];
+  tempTimer = null;
+  /** selfBase：本服务的地址（如 http://127.0.0.1:3451），回调进本服务时用 */
+  async start(selfBase) {
+    const f2 = this.settings.get().parent.feishu;
+    if (!f2.appId || !f2.appSecret) throw new HttpError(400, "\u5148\u586B\u98DE\u4E66\u5E94\u7528\u7684 App ID \u548C App Secret");
+    const redirectUri = f2.redirect === "lark3000" ? LARK_REDIRECT : `${selfBase}/api/feishu/callback`;
+    if (f2.redirect === "lark3000") await this.listenLark();
+    const state = (0, import_node_crypto3.randomBytes)(16).toString("hex");
+    const now = Date.now();
+    for (const [k, v] of this.states) if (v.expires < now) this.states.delete(k);
+    this.states.set(state, { redirectUri, expires: now + WAIT_MS });
+    return { url: authorizeUrl(f2, redirectUri, state), redirectUri };
+  }
+  /** 回调：返回给浏览器的页面 */
+  async callback(q) {
+    const state = String(q.state ?? "");
+    const entry = this.states.get(state);
+    if (!entry || entry.expires < Date.now()) return { status: 400, html: page("\u6388\u6743\u6CA1\u6709\u5B8C\u6210", "\u8FD9\u4E2A\u6388\u6743\u94FE\u63A5\u5DF2\u7ECF\u5931\u6548\uFF0C\u8BF7\u56DE\u5230\u5DE5\u5177\u7684\u8BBE\u7F6E\u91CC\u91CD\u65B0\u70B9\u300C\u6388\u6743\u98DE\u4E66\u300D\u3002") };
+    if (q.error || !q.code) {
+      this.states.delete(state);
+      return { status: 400, html: page("\u6388\u6743\u6CA1\u6709\u5B8C\u6210", `\u98DE\u4E66\u6CA1\u6709\u7ED9\u51FA\u6388\u6743\uFF08${String(q.error ?? "\u7F3A\u5C11 code")}\uFF09\uFF0C\u8BF7\u56DE\u5230\u8BBE\u7F6E\u91CC\u91CD\u65B0\u6388\u6743\u3002`) };
+    }
+    this.states.delete(state);
+    try {
+      const user = await exchangeCode(this.settings, String(q.code), entry.redirectUri);
+      log.info(`\u98DE\u4E66\u6388\u6743\u6210\u529F${user ? `\uFF08${user}\uFF09` : ""}`);
+      this.onAuthorized();
+      return { status: 200, html: page("\u6388\u6743\u6210\u529F\uFF0C\u53EF\u4EE5\u5173\u95ED\u8FD9\u4E2A\u9875\u9762", `\u5DF2\u7528${user ? `\u300C${user}\u300D\u7684` : "\u4F60\u7684"}\u98DE\u4E66\u8D26\u53F7\u6388\u6743\uFF0C\u56DE\u5230\u5DE5\u5177\u91CC\u5C31\u80FD\u8BFB\u7236\u4F53\u8868\u4E86\u3002`) };
+    } catch (e) {
+      log.warn(`\u98DE\u4E66\u6388\u6743\u6362 token \u5931\u8D25\uFF1A${e.message}`);
+      return { status: 500, html: page("\u6388\u6743\u6CA1\u6709\u5B8C\u6210", `\u6362 token \u5931\u8D25\uFF1A${e.message}\u3002\u8BF7\u56DE\u5230\u8BBE\u7F6E\u91CC\u91CD\u65B0\u6388\u6743\u3002`) };
+    }
+  }
+  /** 临时在 3000 端口接收一次回调；localhost 可能解析成 127.0.0.1 或 ::1，两个都听 */
+  async listenLark() {
+    if (this.temp.length) {
+      this.armTimer();
+      return;
+    }
+    const handler = (req, res) => {
+      const u = new URL(req.url ?? "/", LARK_REDIRECT);
+      if (u.pathname !== "/callback") {
+        res.writeHead(404).end();
+        return;
+      }
+      void this.callback(Object.fromEntries(u.searchParams)).then((r) => {
+        res.writeHead(r.status, { "Content-Type": "text/html; charset=utf-8" }).end(r.html);
+        if (r.status === 200) this.closeLark();
+      });
+    };
+    const listen2 = (host) => new Promise((resolve, reject) => {
+      const s = import_node_http.default.createServer(handler);
+      s.once("error", (e) => host === "::1" && (e.code === "EADDRNOTAVAIL" || e.code === "EAFNOSUPPORT") ? resolve(null) : reject(e));
+      s.listen(LARK_PORT, host, () => resolve(s));
+    });
+    const opened = [];
+    try {
+      opened.push(await listen2("127.0.0.1"));
+      const v6 = await listen2("::1");
+      if (v6) opened.push(v6);
+      this.temp = opened;
+    } catch (e) {
+      for (const s of opened) s.close();
+      const code = e.code;
+      throw new HttpError(409, code === "EADDRINUSE" ? "3000 \u7AEF\u53E3\u88AB\u5360\u7528\uFF08\u53EF\u80FD lark-mcp \u6B63\u5728\u767B\u5F55\uFF09\uFF0C\u5173\u6389\u5B83\u540E\u518D\u70B9\u300C\u6388\u6743\u98DE\u4E66\u300D" : `3000 \u7AEF\u53E3\u6253\u4E0D\u5F00\uFF1A${e.message}`);
+    }
+    this.armTimer();
+  }
+  armTimer() {
+    if (this.tempTimer) clearTimeout(this.tempTimer);
+    this.tempTimer = setTimeout(() => this.closeLark(), WAIT_MS);
+  }
+  closeLark() {
+    if (this.tempTimer) clearTimeout(this.tempTimer);
+    this.tempTimer = null;
+    for (const s of this.temp) {
+      s.closeAllConnections?.();
+      s.close();
+    }
+    this.temp = [];
+  }
+};
+
 // server/src/api/util.ts
+function sameOrigin(req) {
+  const o = req.headers.origin;
+  if (!o) return true;
+  try {
+    return new URL(o).host === req.headers.host;
+  } catch {
+    return false;
+  }
+}
+function sameOriginGuard(req, _res, next) {
+  if (req.method === "GET" || req.method === "HEAD" || sameOrigin(req)) return next();
+  next(new HttpError(403, "\u53EA\u80FD\u4ECE\u672C\u5DE5\u5177\u7684\u9875\u9762\u64CD\u4F5C"));
+}
 function parseBody(schema, body) {
   const r = schema.safeParse(body ?? {});
   if (!r.success) {
@@ -57869,358 +58235,19 @@ function errorHandler(err2, _req, res, _next) {
   res.status(500).json({ error: `\u670D\u52A1\u5185\u90E8\u9519\u8BEF\uFF1A${e?.message ?? String(err2)}` });
 }
 
-// server/src/ai/http.ts
-async function request(url2, init, timeoutMs, signal) {
-  if (signal?.aborted) throw new CancelledError();
-  const ctrl = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    ctrl.abort();
-  }, timeoutMs);
-  const onAbort = () => ctrl.abort();
-  signal?.addEventListener("abort", onAbort);
-  try {
-    const resp = await fetch(url2, { ...init, signal: ctrl.signal });
-    const body = Buffer.from(await resp.arrayBuffer());
-    const contentType = resp.headers.get("content-type") ?? "";
-    if (!resp.ok) throw classifyHttp(resp.status, body.toString("utf8"), resp.headers.get("retry-after"));
-    return { status: resp.status, headers: resp.headers, body, contentType };
-  } catch (e) {
-    if (signal?.aborted) throw new CancelledError();
-    if (e instanceof AiError) throw e;
-    throw classifyThrown(e, timedOut);
-  } finally {
-    clearTimeout(timer);
-    signal?.removeEventListener("abort", onAbort);
-  }
-}
-function authHeaders(apiKey) {
-  return apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
-}
-
-// server/src/ai/json.ts
-function extractFirstJsonObject(text) {
-  const fenced = /```(?:json|JSON)?\s*([\s\S]*?)```/.exec(text);
-  const candidates = fenced ? [fenced[1], text] : [text];
-  let lastErr = new Error("\u56DE\u590D\u91CC\u6CA1\u6709 JSON \u5BF9\u8C61");
-  for (const src of candidates) {
-    let from = src.indexOf("{");
-    while (from !== -1) {
-      const end = matchBrace(src, from);
-      if (end === -1) break;
-      try {
-        return JSON.parse(src.slice(from, end + 1));
-      } catch (e) {
-        lastErr = e;
-      }
-      from = src.indexOf("{", from + 1);
-    }
-  }
-  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
-}
-function matchBrace(s, start) {
-  let depth = 0;
-  let inStr = false;
-  let esc2 = false;
-  for (let i2 = start; i2 < s.length; i2++) {
-    const c = s[i2];
-    if (inStr) {
-      if (esc2) esc2 = false;
-      else if (c === "\\") esc2 = true;
-      else if (c === '"') inStr = false;
-      continue;
-    }
-    if (c === '"') inStr = true;
-    else if (c === "{") depth++;
-    else if (c === "}") {
-      depth--;
-      if (depth === 0) return i2;
-    }
-  }
-  return -1;
-}
-
-// server/src/ai/chatClient.ts
-var REASK_TEXT = "\u53EA\u8F93\u51FA\u7B26\u5408\u683C\u5F0F\u7684 JSON \u5BF9\u8C61\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57";
-async function complete(api, messages, signal, extra = {}) {
-  if (!api.baseUrl) throw new AiError("client", "\u8FD8\u6CA1\u6709\u586B\u5199\u5206\u6790\u63A5\u53E3\u5730\u5740");
-  const res = await request(
-    `${api.baseUrl}/chat/completions`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders(api.apiKey) },
-      body: JSON.stringify({ model: api.model, temperature: 0, messages, ...extra })
-    },
-    api.timeoutSec * 1e3,
-    signal
-  );
-  let json2;
-  try {
-    json2 = JSON.parse(res.body.toString("utf8"));
-  } catch {
-    const text = res.body.toString("utf8");
-    if (/^\s*<(!doctype|html)/i.test(text)) {
-      throw new AiError("server", "\u8FD4\u56DE\u7684\u662F\u7F51\u9875\u800C\u4E0D\u662F\u63A5\u53E3\u6570\u636E\uFF08\u53EF\u80FD\u662F\u8BF7\u6C42\u4F53\u8FC7\u5927\u6216\u5730\u5740\u586B\u9519\uFF0C\u88AB\u7F51\u5173\u62E6\u622A\uFF09");
-    }
-    throw new AiError("badOutput", "\u5206\u6790\u63A5\u53E3\u8FD4\u56DE\u7684\u4E0D\u662F JSON");
-  }
-  const content = json2?.choices?.[0]?.message?.content;
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content.map((p) => typeof p === "string" ? p : p?.text ?? "").join("");
-  }
-  throw new AiError("badOutput", "\u5206\u6790\u63A5\u53E3\u6CA1\u6709\u8FD4\u56DE\u5185\u5BB9");
-}
-async function chatJson(api, req, schema) {
-  const userContent = [{ type: "text", text: req.user }];
-  for (const img of req.images ?? (req.imageJpeg ? [req.imageJpeg] : [])) {
-    userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${img.toString("base64")}` } });
-  }
-  const messages = [
-    { role: "system", content: req.system },
-    { role: "user", content: userContent }
-  ];
-  let lastProblem = "";
-  for (let round = 0; round < 2; round++) {
-    const raw2 = await complete(api, messages, req.signal);
-    let parsed;
-    try {
-      parsed = extractFirstJsonObject(raw2);
-    } catch {
-      lastProblem = "\u56DE\u590D\u91CC\u6CA1\u6709\u5408\u6CD5\u7684 JSON";
-      if (round === 0) messages.push({ role: "user", content: REASK_TEXT });
-      continue;
-    }
-    const v = schema.safeParse(parsed);
-    if (v.success) return { data: v.data, raw: raw2 };
-    lastProblem = "\u5B57\u6BB5\u4E0D\u7B26\u5408\u8981\u6C42\uFF1A" + v.error.issues.map((i2) => `${i2.path.join(".") || "(\u6839)"} ${i2.message}`).join("\uFF1B");
-    if (round === 0) messages.push({ role: "user", content: REASK_TEXT });
-  }
-  throw new AiError("badOutput", `\u5206\u6790\u7ED3\u679C\u683C\u5F0F\u4E0D\u5BF9\uFF0C\u5DF2\u8FFD\u95EE\u4E00\u6B21\u4ECD\u4E0D\u5408\u683C\uFF08${lastProblem}\uFF09`);
-}
-async function pingChat(api, timeoutMs) {
-  const res = await request(
-    `${api.baseUrl}/chat/completions`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders(api.apiKey) },
-      body: JSON.stringify({ model: api.model, max_tokens: 1, messages: [{ role: "user", content: "hi" }] })
-    },
-    timeoutMs
-  );
-  try {
-    return String(JSON.parse(res.body.toString("utf8"))?.model ?? api.model);
-  } catch {
-    return api.model;
-  }
-}
-async function pingModels(api, timeoutMs) {
-  const res = await request(`${api.baseUrl}/models`, { method: "GET", headers: authHeaders(api.apiKey) }, timeoutMs);
-  try {
-    const j = JSON.parse(res.body.toString("utf8"));
-    return Array.isArray(j?.data) ? j.data.length : null;
-  } catch {
-    return null;
-  }
-}
-
-// server/src/api/settings.ts
-var TEST_TIMEOUT_MS = 1e4;
-function registerSettings(r, ctx) {
-  r.get("/settings", (_req, res) => {
-    res.json(maskSettings(ctx.settings.get()));
-  });
-  r.put("/settings", async (req, res) => {
-    const patch = parseBody(SettingsPatchSchema, req.body);
-    const next = await ctx.settings.update(patch);
-    ctx.onSettingsSaved();
-    res.json(maskSettings(next));
-  });
-  r.post("/settings/test", async (req, res) => {
-    const { kind } = parseBody(external_exports.object({ kind: external_exports.enum(["image", "analysis"]) }), req.body);
-    const s = ctx.settings.get();
-    const api = kind === "image" ? s.image : s.analysis;
-    if (!api.baseUrl || !api.apiKey) {
-      res.json({ ok: false, message: "\u8BF7\u5148\u586B\u5199\u5730\u5740\u548C Key" });
-      return;
-    }
-    try {
-      if (kind === "analysis") {
-        const model = await pingChat(s.analysis, TEST_TIMEOUT_MS);
-        res.json({ ok: true, message: `\u8FDE\u63A5\u6210\u529F\uFF0C\u6A21\u578B\uFF1A${model}` });
-      } else {
-        const n = await pingModels(s.image, TEST_TIMEOUT_MS);
-        res.json({ ok: true, message: n === null ? "\u8FDE\u63A5\u6210\u529F" : `\u8FDE\u63A5\u6210\u529F\uFF0C\u53EF\u7528\u6A21\u578B ${n} \u4E2A` });
-      }
-    } catch (e) {
-      if (e instanceof AiError) {
-        const msg = e.message === "\u8BF7\u6C42\u8D85\u65F6" ? "\u8FDE\u63A5\u8D85\u65F6\uFF0810 \u79D2\uFF09\uFF0C\u8BF7\u68C0\u67E5\u5730\u5740\u662F\u5426\u6B63\u786E" : `${ERROR_LABEL[e.type]}\uFF1A${e.message}`;
-        res.json({ ok: false, message: `\u8FDE\u63A5\u5931\u8D25\uFF1A${msg}` });
-      } else {
-        res.json({ ok: false, message: `\u8FDE\u63A5\u5931\u8D25\uFF1A${e.message}` });
-      }
-    }
-  });
-}
-
-// server/src/api/misc.ts
-var import_node_fs5 = __toESM(require("node:fs"), 1);
-
-// server/src/util/platform.ts
-var import_node_child_process = require("node:child_process");
-function launch(cmd, args) {
-  try {
-    const child = (0, import_node_child_process.spawn)(cmd, args, { detached: true, stdio: "ignore", windowsHide: true });
-    child.on("error", (e) => log.warn(`\u65E0\u6CD5\u6267\u884C ${cmd}\uFF1A${e.message}`));
-    child.unref();
-  } catch (e) {
-    log.warn(`\u65E0\u6CD5\u6267\u884C ${cmd}\uFF1A${e.message}`);
-  }
-}
-function openFolder(dir) {
-  if (process.platform === "darwin") launch("open", [dir]);
-  else if (process.platform === "win32") launch("explorer.exe", [dir]);
-  else launch("xdg-open", [dir]);
-}
-function openBrowser(url2) {
-  if (process.platform === "darwin") launch("open", [url2]);
-  else if (process.platform === "win32") launch("cmd", ["/c", "start", '""', url2]);
-  else launch("xdg-open", [url2]);
-}
-var MAC_CLIPBOARD_FILES = `ObjC.import('AppKit')
-const opts = $.NSDictionary.dictionaryWithObjectForKey($.NSNumber.numberWithBool(true), $.NSPasteboardURLReadingFileURLsOnlyKey)
-const urls = $.NSPasteboard.generalPasteboard.readObjectsForClassesOptions($.NSArray.arrayWithObject($.NSURL), opts)
-const out = []
-if (urls) for (let i = 0; i < urls.count; i++) out.push(urls.objectAtIndex(i).path.js)
-JSON.stringify(out)`;
-var WIN_CLIPBOARD_FILES = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-Clipboard -Format FileDropList | ForEach-Object { $_.FullName }";
-function run(cmd, args) {
-  return new Promise((resolve, reject) => {
-    (0, import_node_child_process.execFile)(cmd, args, { timeout: 8e3, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err2, stdout) => err2 ? reject(err2) : resolve(stdout));
-  });
-}
-async function readClipboardFiles() {
-  if (process.platform === "darwin") {
-    const out = await run("osascript", ["-l", "JavaScript", "-e", MAC_CLIPBOARD_FILES]);
-    return JSON.parse(out.trim() || "[]");
-  }
-  if (process.platform === "win32") {
-    const out = await run("powershell.exe", ["-NoProfile", "-STA", "-Command", WIN_CLIPBOARD_FILES]);
-    return out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  }
-  return null;
-}
-
-// server/src/pipeline/csv.ts
-var import_node_path6 = __toESM(require("node:path"), 1);
-var HEADER = ["\u539F\u6587\u4EF6\u540D", "\u54C1\u7C7B", "\u6B3E\u5F0F", "\u573A\u666F", "\u5173\u952E\u8BCD", "\u53EF\u5B9A\u5236\u9879", "\u4E3B\u56FE\u6587\u4EF6"];
-function cell(v) {
-  return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-}
-var hasInfo = (j) => j.steps[3].state === "done" && !!j.info && !!j.route;
-function rowOf(j) {
-  return [
-    j.source.originalName,
-    j.route.categoryName,
-    j.route.styleName,
-    j.info.scene,
-    j.info.keywords.join("; "),
-    j.info.customizable.join("\u3001"),
-    import_node_path6.default.join(safeName(j.route.categoryName), outputRel("main", j.outputBase))
-  ];
-}
-function render(rows) {
-  return "\uFEFF" + [HEADER, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
-}
-function csvOf(jobs) {
-  return render(jobs.filter(hasInfo).map(rowOf));
-}
-var csvForDay = (jobs, day) => csvOf(jobs.filter((j) => j.outputDay === day));
-var CSV_NAME = "\u8BC6\u522B\u4FE1\u606F.csv";
-async function writeBatchCsv(outputDir, jobs, folder, rowsFile) {
-  const inFolder = jobs.filter((j) => j.outputFolder === folder);
-  const saved = /* @__PURE__ */ new Map();
-  for (const r of (rowsFile ? readJsonSync(rowsFile) : null) ?? []) saved.set(r.id, r);
-  for (const j of inFolder) {
-    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j) });
-    else saved.delete(j.id);
-  }
-  const rows = [...saved.values()].sort((a, b) => a.createdAt === b.createdAt ? a.id < b.id ? -1 : 1 : a.createdAt < b.createdAt ? -1 : 1);
-  if (rowsFile) await writeFileAtomic(rowsFile, JSON.stringify(rows));
-  await writeFileAtomic(import_node_path6.default.join(batchDir(outputDir, folder), CSV_NAME), render(rows.map((r) => r.row)));
-}
-
-// server/src/api/misc.ts
-function registerMisc(r, ctx) {
-  r.get("/health", (_req, res) => {
-    res.json({ ok: true, version: ctx.version, pid: process.pid });
-  });
-  r.post("/open-output", (req, res) => {
-    const b = parseBody(external_exports.object({ jobId: external_exports.string().optional() }), req.body);
-    const root = resolveOutputDir(ctx.settings.get());
-    const latest = ctx.jobs.list().at(-1);
-    let dir = latest ? batchDir(root, latest.outputFolder) : root;
-    if (b.jobId) {
-      const job = ctx.jobs.get(b.jobId);
-      if (!job) throw new HttpError(404, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u4E0D\u5728\u961F\u5217\u91CC\u4E86");
-      if (job.route) dir = categoryDir(root, job);
-    }
-    if (!import_node_fs5.default.existsSync(dir)) dir = root;
-    import_node_fs5.default.mkdirSync(dir, { recursive: true });
-    openFolder(dir);
-    res.json({ ok: true, dir });
-  });
-  r.get("/info.csv", (req, res) => {
-    const day = typeof req.query.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.day) ? req.query.day : localDay();
-    const csv = csvForDay(ctx.jobs.list(), day);
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="info-${day}.csv"; filename*=UTF-8''${encodeURIComponent(`\u8BC6\u522B\u4FE1\u606F-${day}.csv`)}`);
-    res.send(csv);
-  });
-}
-
-// server/src/api/events.ts
-var PING_MS = 2e4;
-function registerEvents(r, ctx) {
-  r.get("/events", (req, res) => {
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no"
-    });
-    res.write(": connected\n\n");
-    ctx.sse.clients++;
-    const off = ctx.bus.onAny((name, payload) => {
-      if (name === "settings") return;
-      res.write(`event: ${name}
-data: ${JSON.stringify(payload)}
-
-`);
-    });
-    const ping = setInterval(() => res.write(": ping\n\n"), PING_MS);
-    req.on("close", () => {
-      clearInterval(ping);
-      off();
-      ctx.sse.clients--;
-    });
-  });
-}
-
 // server/src/api/library.ts
 var import_promises3 = __toESM(require("node:fs/promises"), 1);
 var import_multer = __toESM(require_multer(), 1);
 
 // server/src/library/store.ts
-var import_node_fs7 = __toESM(require("node:fs"), 1);
-var import_node_path8 = __toESM(require("node:path"), 1);
+var import_node_fs6 = __toESM(require("node:fs"), 1);
+var import_node_path7 = __toESM(require("node:path"), 1);
 
 // server/src/library/images.ts
-var import_node_fs6 = __toESM(require("node:fs"), 1);
+var import_node_fs5 = __toESM(require("node:fs"), 1);
 var import_promises2 = __toESM(require("node:fs/promises"), 1);
-var import_node_path7 = __toESM(require("node:path"), 1);
-var import_node_crypto3 = require("node:crypto");
+var import_node_path6 = __toESM(require("node:path"), 1);
+var import_node_crypto4 = require("node:crypto");
 var import_sharp2 = __toESM(require("sharp"), 1);
 
 // server/src/image/process.ts
@@ -58499,7 +58526,7 @@ function migrateLibrary(raw2) {
 }
 
 // server/src/library/images.ts
-var sha256 = (b) => (0, import_node_crypto3.createHash)("sha256").update(b).digest("hex");
+var sha256 = (b) => (0, import_node_crypto4.createHash)("sha256").update(b).digest("hex");
 var EXTS = ["png", "jpg", "webp"];
 var MIME_BY_EXT = { png: "image/png", jpg: "image/jpeg", webp: "image/webp" };
 var UnsupportedImageError = class extends Error {
@@ -58536,22 +58563,22 @@ var ImageStore = class {
   async add(buf) {
     const { buffer, ext } = await normalizeLibraryImage(buf);
     const hash2 = sha256(buffer);
-    const file2 = import_node_path7.default.join(this.dir, `${hash2}.${ext}`);
-    if (!import_node_fs6.default.existsSync(file2)) await writeFileAtomic(file2, buffer);
+    const file2 = import_node_path6.default.join(this.dir, `${hash2}.${ext}`);
+    if (!import_node_fs5.default.existsSync(file2)) await writeFileAtomic(file2, buffer);
     await this.ensureThumb(hash2, buffer);
     return hash2;
   }
   /** 导入时用：内容指纹必须和文件名一致 */
   async addExact(hash2, ext, buf) {
-    const file2 = import_node_path7.default.join(this.dir, `${hash2}.${ext}`);
-    if (!import_node_fs6.default.existsSync(file2)) await writeFileAtomic(file2, buf);
+    const file2 = import_node_path6.default.join(this.dir, `${hash2}.${ext}`);
+    if (!import_node_fs5.default.existsSync(file2)) await writeFileAtomic(file2, buf);
     await this.ensureThumb(hash2, buf);
   }
   find(hash2) {
     if (!HASH_RE.test(hash2)) return null;
     for (const ext of EXTS) {
-      const file2 = import_node_path7.default.join(this.dir, `${hash2}.${ext}`);
-      if (import_node_fs6.default.existsSync(file2)) return { file: file2, ext, mime: MIME_BY_EXT[ext] };
+      const file2 = import_node_path6.default.join(this.dir, `${hash2}.${ext}`);
+      if (import_node_fs5.default.existsSync(file2)) return { file: file2, ext, mime: MIME_BY_EXT[ext] };
     }
     return null;
   }
@@ -58564,8 +58591,8 @@ var ImageStore = class {
     return { buffer: await import_promises2.default.readFile(f2.file), ext: f2.ext, mime: f2.mime };
   }
   async thumbFile(hash2) {
-    const t = import_node_path7.default.join(this.thumbsDir, `${hash2}.webp`);
-    if (import_node_fs6.default.existsSync(t)) return t;
+    const t = import_node_path6.default.join(this.thumbsDir, `${hash2}.webp`);
+    if (import_node_fs5.default.existsSync(t)) return t;
     const f2 = this.find(hash2);
     if (!f2) return null;
     await this.ensureThumb(hash2, await import_promises2.default.readFile(f2.file));
@@ -58581,19 +58608,19 @@ var ImageStore = class {
     return d;
   }
   async ensureThumb(hash2, buf) {
-    const t = import_node_path7.default.join(this.thumbsDir, `${hash2}.webp`);
-    if (import_node_fs6.default.existsSync(t)) return;
+    const t = import_node_path6.default.join(this.thumbsDir, `${hash2}.webp`);
+    if (import_node_fs5.default.existsSync(t)) return;
     await writeFileAtomic(t, await thumb(buf));
   }
   cleanOrphans(referenced) {
     let n = 0;
     const sweep = (dir) => {
-      if (!import_node_fs6.default.existsSync(dir)) return;
-      for (const ent of import_node_fs6.default.readdirSync(dir, { withFileTypes: true })) {
+      if (!import_node_fs5.default.existsSync(dir)) return;
+      for (const ent of import_node_fs5.default.readdirSync(dir, { withFileTypes: true })) {
         if (!ent.isFile()) continue;
         const hash2 = ent.name.split(".")[0];
         if (!referenced.has(hash2)) {
-          import_node_fs6.default.rmSync(import_node_path7.default.join(dir, ent.name), { force: true });
+          import_node_fs5.default.rmSync(import_node_path6.default.join(dir, ent.name), { force: true });
           n++;
         }
       }
@@ -58827,26 +58854,26 @@ var MAX_BACKUPS = 10;
 var LibraryStore = class {
   constructor(p) {
     this.p = p;
-    import_node_fs7.default.mkdirSync(p.imagesDir, { recursive: true });
-    import_node_fs7.default.mkdirSync(p.thumbsDir, { recursive: true });
+    import_node_fs6.default.mkdirSync(p.imagesDir, { recursive: true });
+    import_node_fs6.default.mkdirSync(p.thumbsDir, { recursive: true });
     this.images = new ImageStore(p.imagesDir, p.thumbsDir);
     const raw2 = readJsonSync(p.file);
     if (raw2 === null) {
       this.value = initialLibrary();
-      import_node_fs7.default.writeFileSync(p.file, JSON.stringify(this.value, null, 2));
+      import_node_fs6.default.writeFileSync(p.file, JSON.stringify(this.value, null, 2));
     } else {
       const migrated = migrateLibrary(raw2);
       const r = LibrarySchema.safeParse(migrated);
       if (!r.success) {
-        const bad = import_node_path8.default.join(import_node_path8.default.dirname(p.file), `library.broken-${Date.now()}.json`);
-        import_node_fs7.default.copyFileSync(p.file, bad);
+        const bad = import_node_path7.default.join(import_node_path7.default.dirname(p.file), `library.broken-${Date.now()}.json`);
+        import_node_fs6.default.copyFileSync(p.file, bad);
         log.error(`\u6A21\u7248\u5E93\u6587\u4EF6\u683C\u5F0F\u4E0D\u5BF9\uFF0C\u5DF2\u53E6\u5B58\u4E3A ${bad}\uFF0C\u8FD9\u6B21\u7528\u7A7A\u6A21\u7248\u5E93\u542F\u52A8`);
         this.value = initialLibrary();
       } else {
         this.value = r.data;
         if (migrated !== raw2) {
-          const old = import_node_path8.default.join(import_node_path8.default.dirname(p.file), `library.v1-${Date.now()}.json`);
-          import_node_fs7.default.copyFileSync(p.file, old);
+          const old = import_node_path7.default.join(import_node_path7.default.dirname(p.file), `library.v1-${Date.now()}.json`);
+          import_node_fs6.default.copyFileSync(p.file, old);
           writeFileAtomicSync(p.file, JSON.stringify(this.value, null, 2));
           log.info(`\u6A21\u7248\u5E93\u5DF2\u5347\u7EA7\uFF1A\u81EA\u5B9A\u4E49\u6A21\u7248\u6539\u4E3A\u6BCF\u4E2A\u6B3E\u5F0F\u5404\u4E00\u5957\uFF08\u65E7\u6587\u4EF6\u53E6\u5B58\u4E3A ${old}\uFF09`);
         }
@@ -58916,12 +58943,12 @@ var LibraryStore = class {
   }
   /** 只能在 mutate 回调里调用 */
   backupCurrent() {
-    import_node_fs7.default.mkdirSync(this.p.backupsDir, { recursive: true });
+    import_node_fs6.default.mkdirSync(this.p.backupsDir, { recursive: true });
     const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
-    import_node_fs7.default.copyFileSync(this.p.file, import_node_path8.default.join(this.p.backupsDir, `library-${stamp}.json`));
-    const files = import_node_fs7.default.readdirSync(this.p.backupsDir).filter((f2) => /^library-.*\.json$/.test(f2)).sort();
+    import_node_fs6.default.copyFileSync(this.p.file, import_node_path7.default.join(this.p.backupsDir, `library-${stamp}.json`));
+    const files = import_node_fs6.default.readdirSync(this.p.backupsDir).filter((f2) => /^library-.*\.json$/.test(f2)).sort();
     for (const f2 of files.slice(0, Math.max(0, files.length - MAX_BACKUPS))) {
-      import_node_fs7.default.rmSync(import_node_path8.default.join(this.p.backupsDir, f2), { force: true });
+      import_node_fs6.default.rmSync(import_node_path7.default.join(this.p.backupsDir, f2), { force: true });
     }
   }
 };
@@ -60370,6 +60397,244 @@ function snapRatio(r) {
   return `${pick2.a}:${pick2.b}`;
 }
 
+// server/src/ai/errors.ts
+var AiError = class extends Error {
+  constructor(type, message, status, retryAfterSec) {
+    super(cleanMessage(message));
+    this.type = type;
+    this.status = status;
+    this.retryAfterSec = retryAfterSec;
+    this.name = "AiError";
+  }
+  type;
+  status;
+  retryAfterSec;
+};
+var CancelledError = class extends Error {
+  constructor() {
+    super("\u5DF2\u53D6\u6D88");
+    this.name = "CancelledError";
+  }
+};
+var RETRYABLE = /* @__PURE__ */ new Set(["network", "server", "badImage"]);
+function isRetryable(e) {
+  return e instanceof AiError && RETRYABLE.has(e.type);
+}
+function cleanMessage(msg) {
+  const s = redact(String(msg ?? "")).replace(/\s+/g, " ").trim();
+  return s.length > 300 ? s.slice(0, 300) + "\u2026" : s;
+}
+var UNKNOWN_PARAM_WORDS = /unknown|unrecognized|unsupported|not support|invalid|extra/i;
+var PARAM_NAMES = /input_fidelity|quality/;
+var REFUSED_WORDS = /content[_ ]?policy|safety|moderation|rejected|violat|违规|敏感/i;
+function extractErrorText(body) {
+  try {
+    const j = JSON.parse(body);
+    const m = j?.error?.message ?? j?.message ?? j?.error ?? j?.detail;
+    if (typeof m === "string" && m) return m;
+    if (m) return JSON.stringify(m);
+  } catch {
+  }
+  if (/^\s*<(!doctype|html)/i.test(body)) {
+    return "\u54CD\u5E94\u662F\u7F51\u9875\u800C\u4E0D\u662F\u63A5\u53E3\u6570\u636E\uFF08\u53EF\u80FD\u662F\u8BF7\u6C42\u4F53\u8FC7\u5927\u6216\u5730\u5740\u586B\u9519\uFF0C\u88AB\u7F51\u5173\u62E6\u622A\uFF09";
+  }
+  return body;
+}
+function parseRetryAfter(v) {
+  if (!v) return void 0;
+  const n = Number(v);
+  if (Number.isFinite(n) && n >= 0) return n;
+  const t = Date.parse(v);
+  if (!Number.isNaN(t)) return Math.max(0, (t - Date.now()) / 1e3);
+  return void 0;
+}
+function classifyHttp(status, body, retryAfter) {
+  const text = extractErrorText(body);
+  const msg = `HTTP ${status}\uFF1A${text || "(\u65E0\u5185\u5BB9)"}`;
+  if (status === 401 || status === 403) return new AiError("auth", msg, status);
+  if (status === 429) return new AiError("rateLimit", msg, status, parseRetryAfter(retryAfter));
+  if (status >= 500 || status === 408 || status === 425) return new AiError("server", msg, status);
+  if (status === 400 && UNKNOWN_PARAM_WORDS.test(body) && PARAM_NAMES.test(body)) {
+    return new AiError("unknownParam", msg, status);
+  }
+  if ((status === 400 || status === 422) && REFUSED_WORDS.test(body)) return new AiError("refused", msg, status);
+  return new AiError("client", msg, status);
+}
+function classifyThrown(e, timedOut) {
+  if (e instanceof AiError) return e;
+  if (timedOut) return new AiError("network", "\u8BF7\u6C42\u8D85\u65F6");
+  const err2 = e;
+  const detail = err2?.cause?.code || err2?.cause?.message || err2?.message || String(e);
+  return new AiError("network", `\u7F51\u7EDC\u9519\u8BEF\uFF1A${detail}`);
+}
+var ERROR_LABEL = {
+  network: "\u7F51\u7EDC\u9519\u8BEF",
+  server: "\u4E2D\u8F6C\u7AD9\u670D\u52A1\u51FA\u9519",
+  badImage: "\u8FD4\u56DE\u7684\u56FE\u7247\u65E0\u6CD5\u4F7F\u7528",
+  rateLimit: "\u8BF7\u6C42\u592A\u9891\u7E41\u88AB\u9650\u6D41",
+  auth: "Key \u65E0\u6548\u6216\u65E0\u6743\u9650",
+  unknownParam: "\u4E2D\u8F6C\u7AD9\u4E0D\u652F\u6301\u4FDD\u771F\u53C2\u6570",
+  refused: "\u5185\u5BB9\u88AB\u62D2",
+  badOutput: "\u5206\u6790\u7ED3\u679C\u683C\u5F0F\u4E0D\u5BF9",
+  client: "\u8BF7\u6C42\u88AB\u62D2\u7EDD"
+};
+
+// server/src/ai/http.ts
+async function request(url2, init, timeoutMs, signal) {
+  if (signal?.aborted) throw new CancelledError();
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort();
+  }, timeoutMs);
+  const onAbort = () => ctrl.abort();
+  signal?.addEventListener("abort", onAbort);
+  try {
+    const resp = await fetch(url2, { ...init, signal: ctrl.signal });
+    const body = Buffer.from(await resp.arrayBuffer());
+    const contentType = resp.headers.get("content-type") ?? "";
+    if (!resp.ok) throw classifyHttp(resp.status, body.toString("utf8"), resp.headers.get("retry-after"));
+    return { status: resp.status, headers: resp.headers, body, contentType };
+  } catch (e) {
+    if (signal?.aborted) throw new CancelledError();
+    if (e instanceof AiError) throw e;
+    throw classifyThrown(e, timedOut);
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  }
+}
+function authHeaders(apiKey) {
+  return apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+}
+
+// server/src/ai/json.ts
+function extractFirstJsonObject(text) {
+  const fenced = /```(?:json|JSON)?\s*([\s\S]*?)```/.exec(text);
+  const candidates = fenced ? [fenced[1], text] : [text];
+  let lastErr = new Error("\u56DE\u590D\u91CC\u6CA1\u6709 JSON \u5BF9\u8C61");
+  for (const src of candidates) {
+    let from = src.indexOf("{");
+    while (from !== -1) {
+      const end = matchBrace(src, from);
+      if (end === -1) break;
+      try {
+        return JSON.parse(src.slice(from, end + 1));
+      } catch (e) {
+        lastErr = e;
+      }
+      from = src.indexOf("{", from + 1);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+function matchBrace(s, start) {
+  let depth = 0;
+  let inStr = false;
+  let esc3 = false;
+  for (let i2 = start; i2 < s.length; i2++) {
+    const c = s[i2];
+    if (inStr) {
+      if (esc3) esc3 = false;
+      else if (c === "\\") esc3 = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return i2;
+    }
+  }
+  return -1;
+}
+
+// server/src/ai/chatClient.ts
+var REASK_TEXT = "\u53EA\u8F93\u51FA\u7B26\u5408\u683C\u5F0F\u7684 JSON \u5BF9\u8C61\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57";
+async function complete(api, messages, signal, extra = {}) {
+  if (!api.baseUrl) throw new AiError("client", "\u8FD8\u6CA1\u6709\u586B\u5199\u5206\u6790\u63A5\u53E3\u5730\u5740");
+  const res = await request(
+    `${api.baseUrl}/chat/completions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(api.apiKey) },
+      body: JSON.stringify({ model: api.model, temperature: 0, messages, ...extra })
+    },
+    api.timeoutSec * 1e3,
+    signal
+  );
+  let json2;
+  try {
+    json2 = JSON.parse(res.body.toString("utf8"));
+  } catch {
+    const text = res.body.toString("utf8");
+    if (/^\s*<(!doctype|html)/i.test(text)) {
+      throw new AiError("server", "\u8FD4\u56DE\u7684\u662F\u7F51\u9875\u800C\u4E0D\u662F\u63A5\u53E3\u6570\u636E\uFF08\u53EF\u80FD\u662F\u8BF7\u6C42\u4F53\u8FC7\u5927\u6216\u5730\u5740\u586B\u9519\uFF0C\u88AB\u7F51\u5173\u62E6\u622A\uFF09");
+    }
+    throw new AiError("badOutput", "\u5206\u6790\u63A5\u53E3\u8FD4\u56DE\u7684\u4E0D\u662F JSON");
+  }
+  const content = json2?.choices?.[0]?.message?.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content.map((p) => typeof p === "string" ? p : p?.text ?? "").join("");
+  }
+  throw new AiError("badOutput", "\u5206\u6790\u63A5\u53E3\u6CA1\u6709\u8FD4\u56DE\u5185\u5BB9");
+}
+async function chatJson(api, req, schema) {
+  const userContent = [{ type: "text", text: req.user }];
+  for (const img of req.images ?? (req.imageJpeg ? [req.imageJpeg] : [])) {
+    userContent.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${img.toString("base64")}` } });
+  }
+  const messages = [
+    { role: "system", content: req.system },
+    { role: "user", content: userContent }
+  ];
+  let lastProblem = "";
+  for (let round = 0; round < 2; round++) {
+    const raw2 = await complete(api, messages, req.signal);
+    let parsed;
+    try {
+      parsed = extractFirstJsonObject(raw2);
+    } catch {
+      lastProblem = "\u56DE\u590D\u91CC\u6CA1\u6709\u5408\u6CD5\u7684 JSON";
+      if (round === 0) messages.push({ role: "user", content: REASK_TEXT });
+      continue;
+    }
+    const v = schema.safeParse(parsed);
+    if (v.success) return { data: v.data, raw: raw2 };
+    lastProblem = "\u5B57\u6BB5\u4E0D\u7B26\u5408\u8981\u6C42\uFF1A" + v.error.issues.map((i2) => `${i2.path.join(".") || "(\u6839)"} ${i2.message}`).join("\uFF1B");
+    if (round === 0) messages.push({ role: "user", content: REASK_TEXT });
+  }
+  throw new AiError("badOutput", `\u5206\u6790\u7ED3\u679C\u683C\u5F0F\u4E0D\u5BF9\uFF0C\u5DF2\u8FFD\u95EE\u4E00\u6B21\u4ECD\u4E0D\u5408\u683C\uFF08${lastProblem}\uFF09`);
+}
+async function pingChat(api, timeoutMs) {
+  const res = await request(
+    `${api.baseUrl}/chat/completions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(api.apiKey) },
+      body: JSON.stringify({ model: api.model, max_tokens: 1, messages: [{ role: "user", content: "hi" }] })
+    },
+    timeoutMs
+  );
+  try {
+    return String(JSON.parse(res.body.toString("utf8"))?.model ?? api.model);
+  } catch {
+    return api.model;
+  }
+}
+async function pingModels(api, timeoutMs) {
+  const res = await request(`${api.baseUrl}/models`, { method: "GET", headers: authHeaders(api.apiKey) }, timeoutMs);
+  try {
+    const j = JSON.parse(res.body.toString("utf8"));
+    return Array.isArray(j?.data) ? j.data.length : null;
+  } catch {
+    return null;
+  }
+}
+
 // server/src/api/library.ts
 var upload = (0, import_multer.default)({ storage: import_multer.default.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 }, defParamCharset: "utf8" });
 function fileOf(req) {
@@ -60544,6 +60809,451 @@ function registerLibrary(r, ctx) {
     if (!mode) throw new HttpError(400, "\u5BFC\u5165\u65B9\u5F0F\u8981\u9009\u300C\u5408\u5E76\u300D\u6216\u300C\u66FF\u6362\u300D");
     const r2 = await importZip(store, fileOf(req), mode);
     res.json({ imported: r2.categories, ...libraryPayload(ctx) });
+  });
+}
+
+// server/src/parent/credentials.ts
+var import_node_util = require("node:util");
+function rtfToText(rtf) {
+  if (!rtf.trimStart().startsWith("{\\rtf")) return rtf;
+  const cp = /\\ansicpg(\d+)/.exec(rtf)?.[1];
+  const enc = cp === "936" || !cp ? "gbk" : cp === "65001" ? "utf-8" : `windows-${cp}`;
+  let decoder;
+  try {
+    decoder = new import_node_util.TextDecoder(enc);
+  } catch {
+    decoder = new import_node_util.TextDecoder("gbk");
+  }
+  const out = [];
+  let bytes = [];
+  const flush = () => {
+    if (bytes.length) out.push(decoder.decode(new Uint8Array(bytes)));
+    bytes = [];
+  };
+  for (let i2 = 0; i2 < rtf.length; i2++) {
+    const c = rtf[i2];
+    if (c === "\\") {
+      const next = rtf[i2 + 1];
+      if (next === "'") {
+        bytes.push(parseInt(rtf.slice(i2 + 2, i2 + 4), 16));
+        i2 += 3;
+        continue;
+      }
+      flush();
+      if (next === "\\" || next === "{" || next === "}") {
+        out.push(next);
+        i2++;
+        continue;
+      }
+      if (next === "\n" || next === "\r") {
+        out.push("\n");
+        i2++;
+        continue;
+      }
+      const m = /^\\([a-zA-Z]+)(-?\d+)? ?/.exec(rtf.slice(i2));
+      if (m) {
+        if (m[1] === "u" && m[2]) out.push(String.fromCharCode((Number(m[2]) + 65536) % 65536));
+        else if (m[1] === "par" || m[1] === "line" || m[1] === "cell" || m[1] === "row") out.push("\n");
+        i2 += m[0].length - 1;
+        continue;
+      }
+      continue;
+    }
+    flush();
+    if (c === "{" || c === "}" || c === "\r") continue;
+    out.push(c);
+  }
+  flush();
+  return out.join("");
+}
+var MARKETPLACE_IDS = /* @__PURE__ */ new Set([
+  "ATVPDKIKX0DER",
+  "A2EUQ1WTGCTBG2",
+  "A1AM78C64UM0Y8",
+  "A2Q3Y263D00KWC",
+  "A1F83G8C2ARO7P",
+  "A1PA6795UKMFR9",
+  "A13V1IB3VIYZZH",
+  "APJ6JRA9NG5V4",
+  "A1RKKUPIHCS9HS",
+  "A1805IZSGTT6HS",
+  "A2NODRKZP88ZB9",
+  "A1C3SOZRARQ6R3",
+  "A33AVAJ2PDY3EV",
+  "A2VIGQ35RCS4UG",
+  "A21TJRUUN4KGV",
+  "A1VC38T7YXB528",
+  "A39IBJ37TRP1C6",
+  "A19VAU5U5O7RUS",
+  "AMEN7PMS3EDWL",
+  "A17E79C6D8DWNP",
+  "ARBP9OOSHTCHU"
+]);
+function parseSpapiCredentials(input2) {
+  const text = rtfToText(input2);
+  const clientId = /amzn1\.application-oa2-client\.[0-9a-zA-Z]+/.exec(text)?.[0] ?? null;
+  const clientSecret = /amzn1\.oa2-cs\.v1\.[0-9a-zA-Z]+/.exec(text)?.[0] ?? null;
+  const refreshToken = /Atzr\|[A-Za-z0-9_\-|+/=]{20,}/.exec(text)?.[0] ?? null;
+  const labeled = /(?:店铺\s*ID|卖家\s*ID|Seller\s*ID|Merchant\s*(?:Token|ID))\s*[:：]?\s*(A[0-9A-Z]{9,19})\b/i.exec(text)?.[1];
+  const loose = [...new Set(text.match(/\bA[0-9A-Z]{9,19}\b/g) ?? [])].filter((s) => /\d/.test(s) && !MARKETPLACE_IDS.has(s) && !s.startsWith("AKIA") && !s.startsWith("ASIA"));
+  return { sellerId: labeled ?? (loose.length === 1 ? loose[0] : null), clientId, clientSecret, refreshToken };
+}
+
+// server/src/api/parent.ts
+function registerParent(r, ctx) {
+  const { settings } = ctx;
+  const p = ctx.parent;
+  r.post("/settings/feishu/authorize", async (req, res) => {
+    const host = req.headers.host ?? "127.0.0.1";
+    res.json(await p.oauth.start(`http://${host}`));
+  });
+  r.get("/feishu/callback", async (req, res) => {
+    const out = await p.oauth.callback(req.query);
+    res.status(out.status).type("html").send(out.html);
+  });
+  r.post("/settings/feishu/logout", async (_req, res) => {
+    await logout(settings);
+    p.sheets.clear();
+    log.info("\u5DF2\u9000\u51FA\u98DE\u4E66\u6388\u6743");
+    res.json(maskSettings(settings.get()));
+  });
+  r.post("/settings/parent/test", async (req, res) => {
+    const b = parseBody(external_exports.object({ url: external_exports.string().optional() }), req.body ?? {});
+    const url2 = (b.url ?? settings.get().parent.sheetUrl).trim();
+    if (!url2) throw new HttpError(400, "\u5148\u586B\u7236\u4F53\u8868\u94FE\u63A5");
+    try {
+      const info = await p.sheets.info(url2, true);
+      const tabs = [];
+      for (const t of info.tabs) {
+        try {
+          const r2 = await p.sheets.rows(url2, t.title, true, info);
+          tabs.push({ title: t.title, count: r2?.rows?.length ?? 0, header: !!r2?.rows });
+        } catch (e) {
+          if (e instanceof FeishuAuthError) throw e;
+          tabs.push({ title: t.title, count: 0, header: false, error: e.message });
+        }
+      }
+      await settings.updateParent((pp) => {
+        pp.tabs = info.tabs.map((t) => t.title);
+        pp.recentUrls = [{ url: url2, title: info.title, usedAt: (/* @__PURE__ */ new Date()).toISOString() }, ...pp.recentUrls.filter((x2) => x2.url !== url2)].slice(0, MAX_RECENT_URLS);
+      });
+      ctx.onSettingsSaved();
+      res.json({ ok: true, title: info.title, tabs });
+    } catch (e) {
+      if (e instanceof FeishuAuthError) return void res.json({ ok: false, auth: true, message: e.message });
+      if (e instanceof FeishuError) return void res.json({ ok: false, message: e.message.startsWith("\u8FD9\u4E2A\u94FE\u63A5") ? e.message : `\u8FD9\u4E2A\u94FE\u63A5\u8BFB\u4E0D\u4E86\uFF1A${e.message}` });
+      throw e;
+    }
+  });
+  r.post("/settings/spapi/import", upload.single("file"), async (req, res) => {
+    const f2 = req.file;
+    let text;
+    if (f2) {
+      text = f2.buffer.subarray(0, 5).toString("latin1") === "{\\rtf" ? f2.buffer.toString("latin1") : f2.buffer.toString("utf8");
+    } else {
+      text = parseBody(external_exports.object({ text: external_exports.string().max(1e5) }), req.body).text;
+    }
+    const c = parseSpapiCredentials(text);
+    const found = Object.fromEntries(Object.entries(c).map(([k, v]) => [k, !!v]));
+    if (!Object.values(found).some(Boolean)) throw new HttpError(400, "\u6CA1\u5728\u6587\u4EF6\u91CC\u627E\u5230 SP-API \u51ED\u8BC1\uFF08\u5E97\u94FA ID\u3001Client ID\u3001Client Secret\u3001Refresh Token\uFF09");
+    const patch = Object.fromEntries(Object.entries(c).filter(([, v]) => v));
+    await settings.update({ parent: { spapi: patch } });
+    ctx.onSettingsSaved();
+    log.info(`\u5BFC\u5165 SP-API \u51ED\u8BC1\uFF1A${Object.entries(found).filter(([, v]) => v).map(([k]) => k).join("\u3001")}`);
+    res.json({ found, settings: maskSettings(settings.get()) });
+  });
+  r.post("/settings/spapi/test", async (_req, res) => {
+    res.json(await p.spapi.test());
+  });
+}
+
+// server/src/ai/retry.ts
+var RETRY_DELAYS_SEC = [3, 6, 10, 15];
+var MAX_ATTEMPTS = RETRY_DELAYS_SEC.length + 1;
+function timeScale() {
+  const v = Number(process.env.TS_RETRY_SCALE);
+  return Number.isFinite(v) && v > 0 ? v : 1;
+}
+function scaled(ms) {
+  return Math.max(0, Math.round(ms * timeScale()));
+}
+function sleep2(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new CancelledError());
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(new CancelledError());
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+async function withRetry(fn, opts) {
+  let attempts = opts.attemptsSoFar;
+  for (; ; ) {
+    let result;
+    try {
+      result = await fn();
+    } catch (e) {
+      if (e instanceof CancelledError) throw e;
+      if (e instanceof AiError && e.type === "rateLimit") throw e;
+      attempts++;
+      await opts.onAttempt?.(attempts, e instanceof AiError ? e : void 0);
+      if (isRetryable(e) && attempts < MAX_ATTEMPTS) {
+        const delay = scaled(RETRY_DELAYS_SEC[Math.min(attempts, RETRY_DELAYS_SEC.length) - 1] * 1e3);
+        opts.onRetryWait?.(attempts, delay, e);
+        await sleep2(delay, opts.signal);
+        continue;
+      }
+      throw e;
+    }
+    attempts++;
+    await opts.onAttempt?.(attempts);
+    return result;
+  }
+}
+
+// server/src/ai/limiter.ts
+var RECOVER_MS = 12e4;
+var DEFAULT_WAIT_SEC = 20;
+var MAX_WAIT_SEC = 120;
+var Limiter = class {
+  constructor(onChange = () => {
+  }) {
+    this.onChange = onChange;
+  }
+  onChange;
+  s = {
+    image: { configured: 2, current: 2, last429: 0, cooldownUntil: 0 },
+    analysis: { configured: 3, current: 3, last429: 0, cooldownUntil: 0 }
+  };
+  timers = /* @__PURE__ */ new Set();
+  configure(kind, limit) {
+    const st = this.s[kind];
+    const reduced = st.configured - st.current;
+    st.configured = Math.max(1, limit);
+    st.current = Math.max(1, st.configured - Math.max(0, reduced));
+    this.refresh(kind);
+  }
+  limit(kind, now = Date.now()) {
+    this.refresh(kind, now);
+    return this.s[kind].current;
+  }
+  inCooldown(kind, now = Date.now()) {
+    return now < this.s[kind].cooldownUntil;
+  }
+  on429(kind, retryAfterSec, now = Date.now()) {
+    const st = this.s[kind];
+    const sec = Math.min(MAX_WAIT_SEC, retryAfterSec ?? DEFAULT_WAIT_SEC);
+    const waitMs = scaled(sec * 1e3);
+    st.current = Math.max(1, st.current - 1);
+    st.last429 = now;
+    st.cooldownUntil = Math.max(st.cooldownUntil, now + waitMs);
+    this.later(waitMs + 1);
+    this.later(scaled(RECOVER_MS) + 1);
+    return waitMs;
+  }
+  dispose() {
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
+  }
+  refresh(kind, now = Date.now()) {
+    const st = this.s[kind];
+    if (st.current < st.configured && now - st.last429 >= scaled(RECOVER_MS)) st.current = st.configured;
+  }
+  later(ms) {
+    const t = setTimeout(() => {
+      this.timers.delete(t);
+      this.onChange();
+    }, ms);
+    t.unref?.();
+    this.timers.add(t);
+  }
+};
+
+// server/src/api/settings.ts
+var TEST_TIMEOUT_MS = 1e4;
+function registerSettings(r, ctx) {
+  r.get("/settings", (_req, res) => {
+    res.json(maskSettings(ctx.settings.get()));
+  });
+  r.put("/settings", async (req, res) => {
+    const patch = parseBody(SettingsPatchSchema, req.body);
+    const next = await ctx.settings.update(patch);
+    ctx.onSettingsSaved();
+    res.json(maskSettings(next));
+  });
+  r.post("/settings/test", async (req, res) => {
+    const { kind } = parseBody(external_exports.object({ kind: external_exports.enum(["image", "analysis"]) }), req.body);
+    const s = ctx.settings.get();
+    const api = kind === "image" ? s.image : s.analysis;
+    if (!api.baseUrl || !api.apiKey) {
+      res.json({ ok: false, message: "\u8BF7\u5148\u586B\u5199\u5730\u5740\u548C Key" });
+      return;
+    }
+    try {
+      if (kind === "analysis") {
+        const model = await pingChat(s.analysis, TEST_TIMEOUT_MS);
+        res.json({ ok: true, message: `\u8FDE\u63A5\u6210\u529F\uFF0C\u6A21\u578B\uFF1A${model}` });
+      } else {
+        const n = await pingModels(s.image, TEST_TIMEOUT_MS);
+        res.json({ ok: true, message: n === null ? "\u8FDE\u63A5\u6210\u529F" : `\u8FDE\u63A5\u6210\u529F\uFF0C\u53EF\u7528\u6A21\u578B ${n} \u4E2A` });
+      }
+    } catch (e) {
+      if (e instanceof AiError) {
+        const msg = e.message === "\u8BF7\u6C42\u8D85\u65F6" ? "\u8FDE\u63A5\u8D85\u65F6\uFF0810 \u79D2\uFF09\uFF0C\u8BF7\u68C0\u67E5\u5730\u5740\u662F\u5426\u6B63\u786E" : `${ERROR_LABEL[e.type]}\uFF1A${e.message}`;
+        res.json({ ok: false, message: `\u8FDE\u63A5\u5931\u8D25\uFF1A${msg}` });
+      } else {
+        res.json({ ok: false, message: `\u8FDE\u63A5\u5931\u8D25\uFF1A${e.message}` });
+      }
+    }
+  });
+}
+
+// server/src/api/misc.ts
+var import_node_fs7 = __toESM(require("node:fs"), 1);
+
+// server/src/util/platform.ts
+var import_node_child_process = require("node:child_process");
+function launch(cmd, args) {
+  try {
+    const child = (0, import_node_child_process.spawn)(cmd, args, { detached: true, stdio: "ignore", windowsHide: true });
+    child.on("error", (e) => log.warn(`\u65E0\u6CD5\u6267\u884C ${cmd}\uFF1A${e.message}`));
+    child.unref();
+  } catch (e) {
+    log.warn(`\u65E0\u6CD5\u6267\u884C ${cmd}\uFF1A${e.message}`);
+  }
+}
+function openFolder(dir) {
+  if (process.platform === "darwin") launch("open", [dir]);
+  else if (process.platform === "win32") launch("explorer.exe", [dir]);
+  else launch("xdg-open", [dir]);
+}
+function openBrowser(url2) {
+  if (process.platform === "darwin") launch("open", [url2]);
+  else if (process.platform === "win32") launch("cmd", ["/c", "start", '""', url2]);
+  else launch("xdg-open", [url2]);
+}
+var MAC_CLIPBOARD_FILES = `ObjC.import('AppKit')
+const opts = $.NSDictionary.dictionaryWithObjectForKey($.NSNumber.numberWithBool(true), $.NSPasteboardURLReadingFileURLsOnlyKey)
+const urls = $.NSPasteboard.generalPasteboard.readObjectsForClassesOptions($.NSArray.arrayWithObject($.NSURL), opts)
+const out = []
+if (urls) for (let i = 0; i < urls.count; i++) out.push(urls.objectAtIndex(i).path.js)
+JSON.stringify(out)`;
+var WIN_CLIPBOARD_FILES = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-Clipboard -Format FileDropList | ForEach-Object { $_.FullName }";
+function run(cmd, args) {
+  return new Promise((resolve, reject) => {
+    (0, import_node_child_process.execFile)(cmd, args, { timeout: 8e3, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err2, stdout) => err2 ? reject(err2) : resolve(stdout));
+  });
+}
+async function readClipboardFiles() {
+  if (process.platform === "darwin") {
+    const out = await run("osascript", ["-l", "JavaScript", "-e", MAC_CLIPBOARD_FILES]);
+    return JSON.parse(out.trim() || "[]");
+  }
+  if (process.platform === "win32") {
+    const out = await run("powershell.exe", ["-NoProfile", "-STA", "-Command", WIN_CLIPBOARD_FILES]);
+    return out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  }
+  return null;
+}
+
+// server/src/pipeline/csv.ts
+var import_node_path8 = __toESM(require("node:path"), 1);
+var HEADER = ["\u539F\u6587\u4EF6\u540D", "\u54C1\u7C7B", "\u6B3E\u5F0F", "\u573A\u666F", "\u5173\u952E\u8BCD", "\u53EF\u5B9A\u5236\u9879", "\u4E3B\u56FE\u6587\u4EF6"];
+function cell(v) {
+  return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+var hasInfo = (j) => j.steps[3].state === "done" && !!j.info && !!j.route;
+function rowOf(j) {
+  return [
+    j.source.originalName,
+    j.route.categoryName,
+    j.route.styleName,
+    j.info.scene,
+    j.info.keywords.join("; "),
+    j.info.customizable.join("\u3001"),
+    import_node_path8.default.join(safeName(j.route.categoryName), outputRel("main", j.outputBase))
+  ];
+}
+function render(rows) {
+  return "\uFEFF" + [HEADER, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
+}
+function csvOf(jobs) {
+  return render(jobs.filter(hasInfo).map(rowOf));
+}
+var csvForDay = (jobs, day) => csvOf(jobs.filter((j) => j.outputDay === day));
+var CSV_NAME = "\u8BC6\u522B\u4FE1\u606F.csv";
+async function writeBatchCsv(outputDir, jobs, folder, rowsFile) {
+  const inFolder = jobs.filter((j) => j.outputFolder === folder);
+  const saved = /* @__PURE__ */ new Map();
+  for (const r of (rowsFile ? readJsonSync(rowsFile) : null) ?? []) saved.set(r.id, r);
+  for (const j of inFolder) {
+    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j) });
+    else saved.delete(j.id);
+  }
+  const rows = [...saved.values()].sort((a, b) => a.createdAt === b.createdAt ? a.id < b.id ? -1 : 1 : a.createdAt < b.createdAt ? -1 : 1);
+  if (rowsFile) await writeFileAtomic(rowsFile, JSON.stringify(rows));
+  await writeFileAtomic(import_node_path8.default.join(batchDir(outputDir, folder), CSV_NAME), render(rows.map((r) => r.row)));
+}
+
+// server/src/api/misc.ts
+function registerMisc(r, ctx) {
+  r.get("/health", (_req, res) => {
+    res.json({ ok: true, version: ctx.version, pid: process.pid });
+  });
+  r.post("/open-output", (req, res) => {
+    const b = parseBody(external_exports.object({ jobId: external_exports.string().optional() }), req.body);
+    const root = resolveOutputDir(ctx.settings.get());
+    const latest = ctx.jobs.list().at(-1);
+    let dir = latest ? batchDir(root, latest.outputFolder) : root;
+    if (b.jobId) {
+      const job = ctx.jobs.get(b.jobId);
+      if (!job) throw new HttpError(404, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u4E0D\u5728\u961F\u5217\u91CC\u4E86");
+      if (job.route) dir = categoryDir(root, job);
+    }
+    if (!import_node_fs7.default.existsSync(dir)) dir = root;
+    import_node_fs7.default.mkdirSync(dir, { recursive: true });
+    openFolder(dir);
+    res.json({ ok: true, dir });
+  });
+  r.get("/info.csv", (req, res) => {
+    const day = typeof req.query.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.day) ? req.query.day : localDay();
+    const csv = csvForDay(ctx.jobs.list(), day);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="info-${day}.csv"; filename*=UTF-8''${encodeURIComponent(`\u8BC6\u522B\u4FE1\u606F-${day}.csv`)}`);
+    res.send(csv);
+  });
+}
+
+// server/src/api/events.ts
+var PING_MS = 2e4;
+function registerEvents(r, ctx) {
+  r.get("/events", (req, res) => {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no"
+    });
+    res.write(": connected\n\n");
+    ctx.sse.clients++;
+    const off = ctx.bus.onAny((name, payload) => {
+      if (name === "settings") return;
+      res.write(`event: ${name}
+data: ${JSON.stringify(payload)}
+
+`);
+    });
+    const ping = setInterval(() => res.write(": ping\n\n"), PING_MS);
+    req.on("close", () => {
+      clearInterval(ping);
+      off();
+      ctx.sse.clients--;
+    });
   });
 }
 
@@ -60931,10 +61641,10 @@ function fitLine(hits) {
   if (kept.length >= MIN_HITS * 2) f2 = lsq(kept);
   return f2;
 }
-function refineQuad(img, norm) {
+function refineQuad(img, norm2) {
   const { data, width: W, height: H } = img;
   const at = (x2, y, c) => data[(Math.min(H - 1, Math.max(0, Math.round(y))) * W + Math.min(W - 1, Math.max(0, Math.round(x2)))) * 3 + c];
-  const q = norm.map(([x2, y]) => [x2 * W, y * H]);
+  const q = norm2.map(([x2, y]) => [x2 * W, y * H]);
   const m = Math.min(W, H);
   const cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4;
   const cy = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4;
@@ -61184,9 +61894,9 @@ async function resolvePlan(job, lib, images, jobDir, scope = "all") {
 var import_sharp5 = __toESM(require("sharp"), 1);
 
 // server/src/ai/multipart.ts
-var import_node_crypto4 = require("node:crypto");
+var import_node_crypto5 = require("node:crypto");
 function encodeMultipart(parts) {
-  const boundary = "----TwoStages" + (0, import_node_crypto4.randomBytes)(12).toString("hex");
+  const boundary = "----TwoStages" + (0, import_node_crypto5.randomBytes)(12).toString("hex");
   const chunks = [];
   for (const p of parts) {
     let head = `--${boundary}\r
@@ -62583,15 +63293,6 @@ async function expandPaths(paths) {
   for (const p of paths) await walk(p);
   return out;
 }
-function sameOrigin(req) {
-  const o = req.headers.origin;
-  if (!o) return true;
-  try {
-    return new URL(o).host === req.headers.host;
-  } catch {
-    return false;
-  }
-}
 async function normalizeSource(buf) {
   if (sniffImageType(buf)) {
     const n = await normalizeLibraryImage(buf);
@@ -62778,6 +63479,11 @@ async function createContext(paths) {
     jobs,
     scheduler: sched,
     batch: new BatchFolders(import_node_path19.default.join(paths.dataDir, "batch.json"), () => resolveOutputDir(settings.get())),
+    parent: {
+      sheets: new FeishuSheets(settings),
+      spapi: new SpapiClient(settings),
+      oauth: new FeishuOAuth(settings, () => ctx.onSettingsSaved())
+    },
     sse: { clients: 0 },
     onSettingsSaved: () => {
     },
@@ -62791,6 +63497,7 @@ async function createContext(paths) {
     },
     stop: async () => {
       sched.stop();
+      ctx.parent.oauth.closeLark();
       limiter.dispose();
       await jobs.flush();
     },
@@ -62814,11 +63521,13 @@ function createApp(ctx) {
   app.disable("x-powered-by");
   app.use(import_express.default.json({ limit: "2mb" }));
   const api = import_express.default.Router();
+  api.use(sameOriginGuard);
   registerMisc(api, ctx);
   registerSettings(api, ctx);
   registerEvents(api, ctx);
   registerLibrary(api, ctx);
   registerJobs(api, ctx);
+  registerParent(api, ctx);
   api.use(() => {
     throw new HttpError(404, "\u63A5\u53E3\u4E0D\u5B58\u5728");
   });
@@ -62839,7 +63548,7 @@ function listen(app, ports) {
   return new Promise((resolve, reject) => {
     const tryAt = (i2) => {
       if (i2 >= ports.length) return reject(new Error(`\u7AEF\u53E3 ${ports[0]}\uFF5E${ports[ports.length - 1]} \u90FD\u88AB\u5360\u7528\u4E86`));
-      const server = import_node_http.default.createServer(app);
+      const server = import_node_http2.default.createServer(app);
       server.once("error", (e) => {
         if (e.code === "EADDRINUSE" || e.code === "EACCES") tryAt(i2 + 1);
         else reject(e);

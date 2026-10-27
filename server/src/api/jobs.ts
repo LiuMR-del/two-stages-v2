@@ -5,7 +5,7 @@ import type { Router, Request } from 'express'
 import { z } from 'zod'
 import sharp from 'sharp'
 import type { AppContext } from '../context'
-import { HttpError, parseBody } from './util'
+import { HttpError, parseBody, sameOrigin } from './util'
 import { upload } from './library'
 import { newSteps, withView, type Job } from '../store/jobs'
 import { localDay, newJobId } from '../util/ids'
@@ -35,16 +35,6 @@ async function expandPaths(paths: string[]): Promise<string[]> {
   return out
 }
 
-/** 浏览器跨站发来的请求一律不认，防止别的网页让本机服务去读剪贴板 */
-function sameOrigin(req: Request): boolean {
-  const o = req.headers.origin
-  if (!o) return true
-  try {
-    return new URL(o).host === req.headers.host
-  } catch {
-    return false
-  }
-}
 
 /** 非 PNG/JPG/WebP 的图片转成 PNG；带 EXIF 旋转的先转正 */
 async function normalizeSource(buf: Buffer): Promise<{ buffer: Buffer; ext: string }> {

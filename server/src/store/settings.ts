@@ -46,6 +46,54 @@ const AnalysisApiSchema = z.object({
   timeoutSec: analysisFields.timeoutSec.default(60),
 })
 
+/** 父体匹配（识别父体）。密钥、token 都会登记打码，接口返回时也打码 */
+const FeishuSchema = z.object({
+  appId: z.string().default(''),
+  appSecret: z.string().default(''),
+  /** 授权人的飞书名字，显示用 */
+  user: z.string().nullable().default(null),
+  /** 授权时用的 App ID；和现在的不一样说明换过应用，要重新授权 */
+  authAppId: z.string().default(''),
+  accessToken: z.string().default(''),
+  accessExpiresAt: z.string().default(''),
+  refreshToken: z.string().default(''),
+  refreshExpiresAt: z.string().default(''),
+  /** 授权回调：lark3000 = 借用 lark-mcp 在后台登记的 http://localhost:3000/callback（2026-10-27 用户确认）；self = 回调进本服务 */
+  redirect: z.enum(['lark3000', 'self']).default('lark3000'),
+  /** 接口地址，测试时由程序内部指向模拟服务；设置接口不能改（否则能把 token 发到别处） */
+  baseUrl: z.string().default('https://open.feishu.cn'),
+  accountsUrl: z.string().default('https://accounts.feishu.cn'),
+})
+
+const SpapiSchema = z.object({
+  sellerId: z.string().default(''),
+  clientId: z.string().default(''),
+  clientSecret: z.string().default(''),
+  refreshToken: z.string().default(''),
+  /** 美国站 */
+  marketplaceId: z.string().default('ATVPDKIKX0DER'),
+  endpoint: z.string().default('https://sellingpartnerapi-na.amazon.com'),
+  /** LWA 换 token 的地址，同上，设置接口不能改 */
+  tokenUrl: z.string().default('https://api.amazon.com/auth/o2/token'),
+})
+
+export const MAX_RECENT_URLS = 10
+
+const ParentSchema = z.object({
+  /** 「识别父体」开关，默认关闭：关着时第 6 步直接跳过，不读飞书、不调 SP-API */
+  enabled: z.boolean().default(false),
+  sheetUrl: z.string().default(''),
+  recentUrls: z.array(z.object({ url: z.string(), title: z.string(), usedAt: z.string() })).default([]),
+  /** 最近一次读表读到的标签页名，模版库「对应标签页」下拉用 */
+  tabs: z.array(z.string()).default([]),
+  threshold: z.number().min(0).max(1).default(0.7),
+  /** 建议新建父体 SKU 时的创建人标识 */
+  creatorMark: z.string().default('5'),
+  feishu: FeishuSchema.prefault({}),
+  spapi: SpapiSchema.prefault({}),
+})
+export type ParentSettings = z.infer<typeof ParentSchema>
+
 export const SettingsSchema = z.object({
   image: ImageApiSchema.prefault({}),
   analysis: AnalysisApiSchema.prefault({}),
@@ -61,6 +109,7 @@ export const SettingsSchema = z.object({
   mainQc: z.boolean().default(true),
   /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
   patternQcDeltaE: z.number().min(1).max(100).default(5),
+  parent: ParentSchema.prefault({}),
 })
 
 export type Settings = z.infer<typeof SettingsSchema>
@@ -78,6 +127,32 @@ export const SettingsPatchSchema = z.object({
   patternQcThreshold: z.number().min(0).max(1).optional(),
   patternQcDeltaE: z.number().min(1).max(100).optional(),
   mainQc: z.boolean().optional(),
+  parent: z
+    .object({
+      enabled: z.boolean().optional(),
+      sheetUrl: z.string().max(2000).optional(),
+      threshold: z.number().min(0).max(1).optional(),
+      creatorMark: z.string().max(10).optional(),
+      feishu: z
+        .object({
+          appId: z.string().max(200),
+          appSecret: z.string().max(500),
+          redirect: z.enum(['lark3000', 'self']),
+        })
+        .partial()
+        .optional(),
+      spapi: z
+        .object({
+          sellerId: z.string().max(100),
+          clientId: z.string().max(500),
+          clientSecret: z.string().max(500),
+          refreshToken: z.string().max(4000),
+          marketplaceId: z.string().max(50),
+        })
+        .partial()
+        .optional(),
+    })
+    .optional(),
 })
 export type SettingsPatch = z.infer<typeof SettingsPatchSchema>
 
@@ -94,12 +169,49 @@ export function isMaskedKey(key: string): boolean {
   return /^sk-….{0,4}$/.test(key)
 }
 
+/** 父体匹配的密钥打码：只露末 4 位 */
+export function maskSecret(v: string): string {
+  if (!v) return ''
+  return `••••${v.slice(-4)}`
+}
+
+export function isMaskedSecret(v: string): boolean {
+  return v.startsWith('••••')
+}
+
 export function maskSettings(s: Settings): Settings {
+  const f = s.parent.feishu
+  const sp = s.parent.spapi
   return {
     ...s,
     image: { ...s.image, apiKey: maskKey(s.image.apiKey) },
     analysis: { ...s.analysis, apiKey: maskKey(s.analysis.apiKey) },
+    parent: {
+      ...s.parent,
+      feishu: { ...f, appSecret: maskSecret(f.appSecret), accessToken: maskSecret(f.accessToken), refreshToken: maskSecret(f.refreshToken) },
+      spapi: {
+        ...sp,
+        sellerId: maskSecret(sp.sellerId),
+        clientId: maskSecret(sp.clientId),
+        clientSecret: maskSecret(sp.clientSecret),
+        refreshToken: maskSecret(sp.refreshToken),
+      },
+    },
   }
+}
+
+function registerParentSecrets(p: ParentSettings): void {
+  for (const v of [p.feishu.appSecret, p.feishu.accessToken, p.feishu.refreshToken, p.spapi.clientId, p.spapi.clientSecret, p.spapi.refreshToken, p.spapi.sellerId]) {
+    registerSecret(v)
+  }
+}
+
+/** 打码的值原样传回来时不改原值 */
+function stripMasked<T extends object | undefined>(p: T): Partial<NonNullable<T>> {
+  if (!p) return {}
+  return Object.fromEntries(
+    Object.entries(p).filter(([, v]) => v !== undefined && !(typeof v === 'string' && isMaskedSecret(v))).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v]),
+  ) as Partial<NonNullable<T>>
 }
 
 export function resolveOutputDir(s: Settings): string {
@@ -118,6 +230,7 @@ export class SettingsStore {
     if (this.value.outputDir === OLD_DEFAULT_OUTPUT_DIR) this.value.outputDir = DEFAULT_OUTPUT_DIR
     registerSecret(this.value.image.apiKey)
     registerSecret(this.value.analysis.apiKey)
+    registerParentSecrets(this.value.parent)
   }
 
   get(): Settings {
@@ -134,6 +247,13 @@ export class SettingsStore {
       image.apiKey = image.apiKey.trim()
       analysis.apiKey = analysis.apiKey.trim()
       if (patch.image?.sendFidelity === true) image.fidelityAutoDisabled = false
+      const pp = patch.parent
+      const parent = {
+        ...cur.parent,
+        ...stripUndefined({ enabled: pp?.enabled, sheetUrl: pp?.sheetUrl?.trim(), threshold: pp?.threshold, creatorMark: pp?.creatorMark?.trim() }),
+        feishu: { ...cur.parent.feishu, ...stripMasked(pp?.feishu) },
+        spapi: { ...cur.parent.spapi, ...stripMasked(pp?.spapi) },
+      }
       const next = SettingsSchema.parse({
         ...cur,
         ...stripUndefined({
@@ -148,9 +268,24 @@ export class SettingsStore {
         }),
         image,
         analysis,
+        parent,
       })
       registerSecret(next.image.apiKey)
       registerSecret(next.analysis.apiKey)
+      registerParentSecrets(next.parent)
+      await writeJsonAtomic(this.file, next)
+      this.value = next
+      return next
+    })
+  }
+
+  /** 程序内部改父体设置（授权换到的 token、用过的链接），不经过接口校验 */
+  async updateParent(fn: (p: ParentSettings) => void): Promise<Settings> {
+    return this.mutex.run(async () => {
+      const draft = structuredClone(this.value)
+      fn(draft.parent)
+      const next = SettingsSchema.parse(draft)
+      registerParentSecrets(next.parent)
       await writeJsonAtomic(this.file, next)
       this.value = next
       return next

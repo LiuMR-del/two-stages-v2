@@ -2,6 +2,7 @@
 import { reactive, watch } from 'vue'
 import { X } from '@lucide/vue'
 import AutoText from './AutoText.vue'
+import ParentSettings from './ParentSettings.vue'
 import { useSettings } from '../stores/settings'
 import { useJobs } from '../stores/jobs'
 import { useUi } from '../stores/ui'
@@ -137,6 +138,8 @@ function authDot(kind: 'image' | 'analysis') {
           </div>
           <div><button type="button" class="btn sm" @click="ui.act(() => jobs.openFolder())">打开输出文件夹</button></div>
         </div>
+
+        <ParentSettings />
       </div>
     </aside>
   </template>

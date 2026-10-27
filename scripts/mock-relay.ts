@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url'
 import express from 'express'
 import multer from 'multer'
 import sharp from 'sharp'
+import { mountParentMock, newParentMockState, type ParentMockState } from './mock-parent'
 
 export type Behavior =
   | 'ok'
@@ -51,6 +52,9 @@ export type MockRelay = {
   setDefaultDelay(ms: number): void
   log(): MockLogEntry[]
   reset(): void
+  /** 模拟飞书和 SP-API 的状态，测试直接改；origin 是它们的接口地址 */
+  parent: ParentMockState
+  origin: string
   close(): Promise<void>
 }
 
@@ -101,6 +105,9 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
 
   const app = express()
   app.use(express.json({ limit: '60mb' }))
+  app.use(express.urlencoded({ extended: false }))
+  let parentState = newParentMockState()
+  mountParentMock(app, () => parentState)
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } })
 
   const errorBody = (message: string, type = 'invalid_request_error') => ({ error: { message, type } })
@@ -323,7 +330,12 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       defaultDelay = ms
     },
     log: () => entries.slice(),
+    get parent() {
+      return parentState
+    },
+    origin: `http://127.0.0.1:${port}`,
     reset() {
+      parentState = newParentMockState()
       for (const q of Object.values(queues)) q.length = 0
       entries.length = 0
       defaultDelay = 0
