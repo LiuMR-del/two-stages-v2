@@ -57,7 +57,7 @@ describe('e2e 13：素材图验收', () => {
     w.mock.script({ qc: [{ qc: { element_score: 0.5, element_issues: ['星星不见了', '雪花球变成了圆球'] } }] })
     const [a] = await uploadJobs(api, ['g.png'])
     const bad = await waitJob(api, a.id, hasAttention('qc'))
-    expect(bad.attention.message).toContain('图案元素相似分 0.50，低于 0.80：星星不见了；雪花球变成了圆球')
+    expect(bad.attention.message).toContain('图案元素相似分 0.50，低于 0.90：星星不见了；雪花球变成了圆球')
 
     const r = await api.json('POST', `/jobs/${a.id}/redo`, { step: 1, prompt: '只要印刷面，星星和雪花球一个都不能少' })
     expect(r.status).toBe(200)
@@ -68,6 +68,16 @@ describe('e2e 13：素材图验收', () => {
     expect(extracts(w)).toHaveLength(2)
     expect(extracts(w)[1]!.prompt).toContain('星星和雪花球一个都不能少')
     expect(qcRequests(w)).toHaveLength(2)
+  })
+
+  it('默认阈值 0.9：0.88（Bennett 实测分数）不合格', async () => {
+    w = await startWorld()
+    const api = w.api
+    await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    w.mock.script({ qc: [{ qc: { element_score: 0.88, element_issues: ['房屋的造型明显变样'] } }] })
+    const [a] = await uploadJobs(api, ['bennett.png'])
+    const bad = await waitJob(api, a.id, hasAttention('qc'))
+    expect(bad.attention.message).toContain('图案元素相似分 0.88，低于 0.90：房屋的造型明显变样')
   })
 
   it('阈值可改；关掉验收时一个验收请求都不发', async () => {

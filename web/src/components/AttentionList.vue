@@ -116,7 +116,7 @@ function goUpload(j: Job) {
           <ul class="small">
             <li v-for="r in j.qc!.reasons" :key="r">{{ r }}</li>
           </ul>
-          <div v-if="j.qc!.score !== null" class="muted tiny">图案相似分 {{ j.qc!.score.toFixed(2) }}（低于 {{ (j.qc!.threshold ?? 0.8).toFixed(2) }} 不合格）</div>
+          <div v-if="j.qc!.score !== null" class="muted tiny">图案相似分 {{ j.qc!.score.toFixed(2) }}（低于 {{ (j.qc!.threshold ?? 0.9).toFixed(2) }} 不合格）</div>
         </div>
       </div>
       <div class="fix">

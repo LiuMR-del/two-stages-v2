@@ -55,8 +55,8 @@ export const SettingsSchema = z.object({
   blankImage: z.boolean().default(true),
   /** 素材图提取后和竞品图对比验收；关着时不发验收请求 */
   patternQc: z.boolean().default(true),
-  /** 图案元素相似分低于这个值不合格 */
-  patternQcThreshold: z.number().min(0).max(1).default(0.8),
+  /** 图案元素相似分低于这个值不合格；2026-10-27 实测 Bennett 细节明显变样仍有 0.88，用户确认提到 0.9 */
+  patternQcThreshold: z.number().min(0).max(1).default(0.9),
   /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
   patternQcDeltaE: z.number().min(1).max(100).default(5),
 })

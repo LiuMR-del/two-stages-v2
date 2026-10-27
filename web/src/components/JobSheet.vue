@@ -252,7 +252,7 @@ async function openFolder() {
             <div class="row">
               <b style="font-weight: 500">素材图验收</b>
               <span class="pill" :class="{ ac: qc.state === 'pass', rd: qc.state === 'fail', am: qc.state === 'bypassed' }">{{ QC_STATE[qc.state] }}</span>
-              <span v-if="qc.score !== null" class="muted small">图案相似分 {{ qc.score.toFixed(2) }}（阈值 {{ (qc.threshold ?? 0.8).toFixed(2) }}）</span>
+              <span v-if="qc.score !== null" class="muted small">图案相似分 {{ qc.score.toFixed(2) }}（阈值 {{ (qc.threshold ?? 0.9).toFixed(2) }}）</span>
             </div>
             <ul v-if="qc.reasons.length" class="small reasons">
               <li v-for="r in qc.reasons" :key="r">{{ r }}</li>
