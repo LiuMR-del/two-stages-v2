@@ -57926,6 +57926,33 @@ var FeishuSheets = class {
 // server/src/parent/spapi.ts
 var TIMEOUT_MS2 = 2e4;
 var REFRESH_AHEAD_MS2 = 6e4;
+var MAX_THROTTLE_WAITS = 6;
+var DEFAULT_THROTTLE_SEC = 2;
+var PAGE_SIZE = "20";
+var MAX_PAGES = 50;
+var sleep2 = (ms, signal) => new Promise((resolve, reject) => {
+  const t = setTimeout(resolve, ms);
+  signal?.addEventListener("abort", () => {
+    clearTimeout(t);
+    reject(new SpapiError("\u5DF2\u4E2D\u6B62"));
+  });
+});
+function attributeValue(attrs, name) {
+  const list = attrs?.[name];
+  if (!Array.isArray(list) || !list.length) return null;
+  const first = list[0];
+  const v = first?.value ?? first?.standardized_values?.[0];
+  return v === void 0 || v === null ? null : String(v);
+}
+function themeAttributes(body) {
+  for (const group of body?.relationships ?? []) {
+    for (const r of group?.relationships ?? []) {
+      const attrs = r?.variationTheme?.attributes;
+      if (r?.type === "VARIATION" && Array.isArray(attrs) && attrs.length) return attrs.map(String);
+    }
+  }
+  return [];
+}
 var SpapiAuthError = class extends Error {
 };
 var SpapiError = class extends Error {
@@ -58019,6 +58046,56 @@ var SpapiClient = class {
     }
     if (r.status >= 500) throw new SpapiError(`SP-API \u51FA\u9519\uFF08HTTP ${r.status}\uFF09`, r.status);
     return { status: r.status, body: r.body };
+  }
+  /** 429 按 Retry-After 等待后再发，不算重试次数 */
+  async getPatiently(path20, query, signal) {
+    for (let i2 = 0; ; i2++) {
+      try {
+        return await this.get(path20, query);
+      } catch (e) {
+        if (!(e instanceof SpapiError) || e.status !== 429 || i2 >= MAX_THROTTLE_WAITS) throw e;
+        await sleep2((e.retryAfterSec ?? DEFAULT_THROTTLE_SEC) * 1e3, signal);
+      }
+    }
+  }
+  seller() {
+    return encodeURIComponent(this.creds().sellerId);
+  }
+  /** 父体的 ASIN 和变体主题属性；店铺里没有这个 SKU 返回 null */
+  async parent(sku, signal) {
+    const s = this.creds();
+    const r = await this.getPatiently(`/listings/2021-08-01/items/${this.seller()}/${encodeURIComponent(sku)}`, { marketplaceIds: s.marketplaceId, includedData: "summaries,relationships" }, signal);
+    if (r.status === 404) return null;
+    if (r.status >= 400) throw new SpapiError(`\u67E5\u7236\u4F53\u5931\u8D25\uFF1AHTTP ${r.status}${r.body?.errors?.[0]?.message ? `\uFF0C${r.body.errors[0].message}` : ""}`, r.status);
+    return { sku, asin: r.body?.summaries?.[0]?.asin ?? null, themeAttributes: themeAttributes(r.body) };
+  }
+  /**
+   * 父体下所有子体，按 pageToken 翻完。不同状态（含未完成）的都算，避免撞名。
+   * attrs：要取值的属性（变体主题里的）；为空时取常见的 color / style / size_name / pattern_name。
+   */
+  async children(parentSku, attrs, signal) {
+    const s = this.creds();
+    const want = attrs.length ? attrs : ["color", "style", "size_name", "pattern_name"];
+    const out = [];
+    let token;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const q = { marketplaceIds: s.marketplaceId, variationParentSku: parentSku, includedData: "summaries,attributes", pageSize: PAGE_SIZE };
+      if (token) q.pageToken = token;
+      const r = await this.getPatiently(`/listings/2021-08-01/items/${this.seller()}`, q, signal);
+      if (r.status >= 400) throw new SpapiError(`\u67E5\u5B50\u4F53\u5931\u8D25\uFF1AHTTP ${r.status}${r.body?.errors?.[0]?.message ? `\uFF0C${r.body.errors[0].message}` : ""}`, r.status);
+      for (const it of r.body?.items ?? []) {
+        if (it?.sku === parentSku) continue;
+        const values = {};
+        for (const a of want) {
+          const v = attributeValue(it?.attributes, a);
+          if (v) values[a] = v;
+        }
+        out.push({ sku: String(it?.sku), asin: it?.summaries?.[0]?.asin ?? null, status: it?.summaries?.[0]?.status ?? [], values });
+      }
+      token = r.body?.pagination?.nextToken;
+      if (!token) break;
+    }
+    return out;
   }
   /** 换 token 并查一次店铺（按卖家搜一条商品） */
   async test() {
@@ -60810,7 +60887,7 @@ function timeScale() {
 function scaled(ms) {
   return Math.max(0, Math.round(ms * timeScale()));
 }
-function sleep2(ms, signal) {
+function sleep3(ms, signal) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new CancelledError());
     const t = setTimeout(() => {
@@ -60838,7 +60915,7 @@ async function withRetry(fn, opts) {
       if (isRetryable(e) && attempts < MAX_ATTEMPTS) {
         const delay = scaled(RETRY_DELAYS_SEC[Math.min(attempts, RETRY_DELAYS_SEC.length) - 1] * 1e3);
         opts.onRetryWait?.(attempts, delay, e);
-        await sleep2(delay, opts.signal);
+        await sleep3(delay, opts.signal);
         continue;
       }
       throw e;
