@@ -168,6 +168,7 @@ export const ops = {
       name: checkCategoryName(lib, name),
       hint: '',
       extractPrompt: null,
+      parentTab: null,
       styles: [{ id: newStyleId(), name: '', ratio: '1:1', whiteImage: null, activeTemplate: 'default', templates: [], pasteMode: 'auto' }],
     }
     lib.categories.push(c)

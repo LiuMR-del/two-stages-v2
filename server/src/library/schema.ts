@@ -45,6 +45,8 @@ export const CategorySchema = z.object({
   hint: z.string(),
   extractPrompt: z.string().nullable(),
   styles: z.array(StyleSchema).min(1),
+  /** 飞书父体表里对应的标签页；null = 和品类同名（旧库没有这个字段，读入时补 null，不升版本） */
+  parentTab: z.string().nullable().default(null),
 })
 
 export const LIBRARY_VERSION = 2

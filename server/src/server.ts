@@ -45,7 +45,18 @@ export async function createContext(paths: Paths): Promise<AppContext> {
   const jobs = new JobStore(paths.jobsDir, (job) => bus.emit('job', { job: withView(job) }))
   let scheduler: Scheduler | null = null
   const limiter = new Limiter(() => scheduler?.tick())
-  scheduler = new Scheduler({ jobs, library, settings, limiter, bus, stateFile: path.join(paths.dataDir, 'queue.json'), csvRowsDir: path.join(paths.dataDir, 'batches') })
+  const sheets = new FeishuSheets(settings)
+  const spapi = new SpapiClient(settings)
+  scheduler = new Scheduler({
+    jobs,
+    library,
+    settings,
+    limiter,
+    bus,
+    stateFile: path.join(paths.dataDir, 'queue.json'),
+    csvRowsDir: path.join(paths.dataDir, 'batches'),
+    parent: { sheets, spapi },
+  })
   const sched = scheduler
   library.onChange(() => sched.onLibraryChanged())
   const ctx: AppContext = {
@@ -58,10 +69,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     jobs,
     scheduler: sched,
     batch: new BatchFolders(path.join(paths.dataDir, 'batch.json'), () => resolveOutputDir(settings.get())),
-    parent: {
-      sheets: new FeishuSheets(settings),
-      spapi: new SpapiClient(settings),
-    },
+    parent: { sheets, spapi },
     sse: { clients: 0 },
     onSettingsSaved: () => {},
     start: async () => {

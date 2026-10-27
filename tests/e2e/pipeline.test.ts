@@ -166,7 +166,12 @@ describe('e2e 2：运行到一半追加图片', () => {
     expect(mainIdx('b.png')).toBeLessThan(mainIdx('c.png'))
     expect(mainIdx('c.png')).toBeLessThan(mainIdx('d.png'))
     const a = all.find((j: any) => j.source.originalName === 'a.png')
-    expect(a.steps.map((s: any) => s.attempts)).toEqual([1, 1, 1, 1, 1])
+    expect(a.steps.map((s: any) => s.attempts)).toEqual([1, 1, 1, 1, 1, 0])
+    // 识别父体默认关闭：第 6 步跳过，一个飞书、店铺、父体匹配请求都没有
+    for (const j of all) expect(j.steps[5]).toMatchObject({ state: 'skipped', note: '识别父体没有打开，可以在设置里打开' })
+    for (const j of all) expect(j.parent).toBeNull()
+    expect(w.mock.parent.calls).toEqual([])
+    expect(w.mock.log().filter((e) => e.kind === 'parent')).toEqual([])
     await waitFor(async () => (await api.json('GET', '/queue')).body.slots.image.busy === 0)
   })
 })

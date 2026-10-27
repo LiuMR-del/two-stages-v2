@@ -15235,11 +15235,11 @@ var require_mime_types = __commonJS({
       }
       return exts[0];
     }
-    function lookup(path20) {
-      if (!path20 || typeof path20 !== "string") {
+    function lookup(path21) {
+      if (!path21 || typeof path21 !== "string") {
         return false;
       }
-      var extension2 = extname("x." + path20).toLowerCase().slice(1);
+      var extension2 = extname("x." + path21).toLowerCase().slice(1);
       if (!extension2) {
         return false;
       }
@@ -15849,14 +15849,14 @@ var require_object_inspect = __commonJS({
     var gPO = (typeof Reflect === "function" ? Reflect.getPrototypeOf : Object.getPrototypeOf) || ([].__proto__ === Array.prototype ? function(O) {
       return O.__proto__;
     } : null);
-    function addNumericSeparator(num, str) {
-      if (num === Infinity || num === -Infinity || num !== num || num && num > -1e3 && num < 1e3 || $test.call(/e/, str)) {
+    function addNumericSeparator(num2, str) {
+      if (num2 === Infinity || num2 === -Infinity || num2 !== num2 || num2 && num2 > -1e3 && num2 < 1e3 || $test.call(/e/, str)) {
         return str;
       }
       var sepRegex = /[0-9](?=(?:[0-9]{3})+(?![0-9]))/g;
-      if (typeof num === "number") {
-        var int2 = num < 0 ? -$floor(-num) : $floor(num);
-        if (int2 !== num) {
+      if (typeof num2 === "number") {
+        var int2 = num2 < 0 ? -$floor(-num2) : $floor(num2);
+        if (int2 !== num2) {
           var intStr = String(int2);
           var dec = $slice.call(str, intStr.length + 1);
           return $replace.call(intStr, sepRegex, "$&_") + "." + $replace.call($replace.call(dec, /([0-9]{3})/g, "$&_"), /_$/, "");
@@ -17528,9 +17528,9 @@ var require_utils2 = __commonJS({
       var max2 = min;
       var keys = Object.keys(obj);
       for (var i2 = 0; i2 < keys.length; ++i2) {
-        var num = parseInt(keys[i2], 10);
-        if (String(num) === keys[i2] && num > max2) {
-          max2 = num;
+        var num2 = parseInt(keys[i2], 10);
+        if (String(num2) === keys[i2] && num2 > max2) {
+          max2 = num2;
         }
       }
       return max2;
@@ -18966,13 +18966,13 @@ var require_view = __commonJS({
   "node_modules/express/lib/view.js"(exports2, module2) {
     "use strict";
     var debug = require_src()("express:view");
-    var path20 = require("node:path");
+    var path21 = require("node:path");
     var fs14 = require("node:fs");
-    var dirname = path20.dirname;
-    var basename = path20.basename;
-    var extname = path20.extname;
-    var join = path20.join;
-    var resolve = path20.resolve;
+    var dirname = path21.dirname;
+    var basename = path21.basename;
+    var extname = path21.extname;
+    var join = path21.join;
+    var resolve = path21.resolve;
     module2.exports = View;
     function View(name, options) {
       var opts = options || {};
@@ -19001,17 +19001,17 @@ var require_view = __commonJS({
       this.path = this.lookup(fileName);
     }
     View.prototype.lookup = function lookup(name) {
-      var path21;
+      var path22;
       var roots = [].concat(this.root);
       debug('lookup "%s"', name);
-      for (var i2 = 0; i2 < roots.length && !path21; i2++) {
+      for (var i2 = 0; i2 < roots.length && !path22; i2++) {
         var root = roots[i2];
         var loc = resolve(root, name);
         var dir = dirname(loc);
         var file2 = basename(loc);
-        path21 = this.resolve(dir, file2);
+        path22 = this.resolve(dir, file2);
       }
-      return path21;
+      return path22;
     };
     View.prototype.render = function render2(options, callback) {
       var sync = true;
@@ -19033,21 +19033,21 @@ var require_view = __commonJS({
     };
     View.prototype.resolve = function resolve2(dir, file2) {
       var ext = this.ext;
-      var path21 = join(dir, file2);
-      var stat = tryStat(path21);
+      var path22 = join(dir, file2);
+      var stat = tryStat(path22);
       if (stat && stat.isFile()) {
-        return path21;
+        return path22;
       }
-      path21 = join(dir, basename(file2, ext), "index" + ext);
-      stat = tryStat(path21);
+      path22 = join(dir, basename(file2, ext), "index" + ext);
+      stat = tryStat(path22);
       if (stat && stat.isFile()) {
-        return path21;
+        return path22;
       }
     };
-    function tryStat(path21) {
-      debug('stat "%s"', path21);
+    function tryStat(path22) {
+      debug('stat "%s"', path22);
       try {
-        return fs14.statSync(path21);
+        return fs14.statSync(path22);
       } catch (e) {
         return void 0;
       }
@@ -20199,15 +20199,15 @@ var require_dist2 = __commonJS({
       let index = 0;
       function consumeUntil(end) {
         const output2 = [];
-        let path20 = "";
+        let path21 = "";
         function writePath() {
-          if (!path20)
+          if (!path21)
             return;
           output2.push({
             type: "text",
-            value: encodePath(path20)
+            value: encodePath(path21)
           });
-          path20 = "";
+          path21 = "";
         }
         while (index < chars.length) {
           const value = chars[index++];
@@ -20219,7 +20219,7 @@ var require_dist2 = __commonJS({
             if (index === chars.length) {
               throw new PathError(`Unexpected end after \\ at index ${index}`, str);
             }
-            path20 += chars[index++];
+            path21 += chars[index++];
             continue;
           }
           if (value === ":" || value === "*") {
@@ -20263,7 +20263,7 @@ var require_dist2 = __commonJS({
           if (value === "}" || value === "(" || value === ")" || value === "[" || value === "]" || value === "+" || value === "?" || value === "!") {
             throw new PathError(`Unexpected ${value} at index ${index - 1}`, str);
           }
-          path20 += value;
+          path21 += value;
         }
         if (end) {
           throw new PathError(`Unexpected end at index ${index}, expected ${end}`, str);
@@ -20273,17 +20273,17 @@ var require_dist2 = __commonJS({
       }
       return new TokenData(consumeUntil(""), str);
     }
-    function compile2(path20, options = {}) {
+    function compile2(path21, options = {}) {
       const { encode: encode3 = encodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
-      const data = typeof path20 === "object" ? path20 : parse3(path20, options);
+      const data = typeof path21 === "object" ? path21 : parse3(path21, options);
       const fn = tokensToFunction(data.tokens, delimiter, encode3);
-      return function path21(params = {}) {
+      return function path22(params = {}) {
         const missing = [];
-        const path22 = fn(params, missing);
+        const path23 = fn(params, missing);
         if (missing.length) {
           throw new TypeError(`Missing parameters: ${missing.join(", ")}`);
         }
-        return path22;
+        return path23;
       };
     }
     function tokensToFunction(tokens, delimiter, encode3) {
@@ -20345,9 +20345,9 @@ var require_dist2 = __commonJS({
         return encodeValue(value);
       };
     }
-    function match(path20, options = {}) {
+    function match(path21, options = {}) {
       const { decode: decode3 = decodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
-      const { regexp, keys } = pathToRegexp(path20, options);
+      const { regexp, keys } = pathToRegexp(path21, options);
       const decoders = keys.map((key) => {
         if (decode3 === false)
           return NOOP_VALUE;
@@ -20359,7 +20359,7 @@ var require_dist2 = __commonJS({
         const m = regexp.exec(input2);
         if (!m)
           return false;
-        const path21 = m[0];
+        const path22 = m[0];
         const params = /* @__PURE__ */ Object.create(null);
         for (let i2 = 1; i2 < m.length; i2++) {
           if (m[i2] === void 0)
@@ -20368,21 +20368,21 @@ var require_dist2 = __commonJS({
           const decoder = decoders[i2 - 1];
           params[key.name] = decoder(m[i2]);
         }
-        return { path: path21, params };
+        return { path: path22, params };
       };
     }
-    function pathToRegexp(path20, options = {}) {
+    function pathToRegexp(path21, options = {}) {
       const { delimiter = DEFAULT_DELIMITER, end = true, sensitive = false, trailing = true } = options;
       const keys = [];
       let source = "";
       let combinations = 0;
-      function process2(path21) {
-        if (Array.isArray(path21)) {
-          for (const p of path21)
+      function process2(path22) {
+        if (Array.isArray(path22)) {
+          for (const p of path22)
             process2(p);
           return;
         }
-        const data = typeof path21 === "object" ? path21 : parse3(path21, options);
+        const data = typeof path22 === "object" ? path22 : parse3(path22, options);
         flatten(data.tokens, 0, [], (tokens) => {
           if (combinations >= 256) {
             throw new PathError("Too many path combinations", data.originalPath);
@@ -20393,7 +20393,7 @@ var require_dist2 = __commonJS({
           combinations++;
         });
       }
-      process2(path20);
+      process2(path21);
       let pattern = `^(?:${source})`;
       if (trailing)
         pattern += "(?:" + escape2(delimiter) + "$)?";
@@ -20533,18 +20533,18 @@ var require_layer = __commonJS({
     var TRAILING_SLASH_REGEXP = /\/+$/;
     var MATCHING_GROUP_REGEXP = /\((?:\?<(.*?)>)?(?!\?)/g;
     module2.exports = Layer;
-    function Layer(path20, options, fn) {
+    function Layer(path21, options, fn) {
       if (!(this instanceof Layer)) {
-        return new Layer(path20, options, fn);
+        return new Layer(path21, options, fn);
       }
-      debug("new %o", path20);
+      debug("new %o", path21);
       const opts = options || {};
       this.handle = fn;
       this.keys = [];
       this.name = fn.name || "<anonymous>";
       this.params = void 0;
       this.path = void 0;
-      this.slash = path20 === "/" && opts.end === false;
+      this.slash = path21 === "/" && opts.end === false;
       function matcher(_path) {
         if (_path instanceof RegExp) {
           const keys = [];
@@ -20583,7 +20583,7 @@ var require_layer = __commonJS({
           decode: decodeParam
         });
       }
-      this.matchers = Array.isArray(path20) ? path20.map(matcher) : [matcher(path20)];
+      this.matchers = Array.isArray(path21) ? path21.map(matcher) : [matcher(path21)];
     }
     Layer.prototype.handleError = function handleError(error62, req, res, next) {
       const fn = this.handle;
@@ -20623,9 +20623,9 @@ var require_layer = __commonJS({
         next(err2);
       }
     };
-    Layer.prototype.match = function match(path20) {
+    Layer.prototype.match = function match(path21) {
       let match2;
-      if (path20 != null) {
+      if (path21 != null) {
         if (this.slash) {
           this.params = {};
           this.path = "";
@@ -20633,7 +20633,7 @@ var require_layer = __commonJS({
         }
         let i2 = 0;
         while (!match2 && i2 < this.matchers.length) {
-          match2 = this.matchers[i2](path20);
+          match2 = this.matchers[i2](path21);
           i2++;
         }
       }
@@ -20661,13 +20661,13 @@ var require_layer = __commonJS({
         throw err2;
       }
     }
-    function loosen(path20) {
-      if (path20 instanceof RegExp || path20 === "/") {
-        return path20;
+    function loosen(path21) {
+      if (path21 instanceof RegExp || path21 === "/") {
+        return path21;
       }
-      return Array.isArray(path20) ? path20.map(function(p) {
+      return Array.isArray(path21) ? path21.map(function(p) {
         return loosen(p);
-      }) : String(path20).replace(TRAILING_SLASH_REGEXP, "");
+      }) : String(path21).replace(TRAILING_SLASH_REGEXP, "");
     }
   }
 });
@@ -20683,9 +20683,9 @@ var require_route = __commonJS({
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
     module2.exports = Route;
-    function Route(path20) {
-      debug("new %o", path20);
-      this.path = path20;
+    function Route(path21) {
+      debug("new %o", path21);
+      this.path = path21;
       this.stack = [];
       this.methods = /* @__PURE__ */ Object.create(null);
     }
@@ -20893,8 +20893,8 @@ var require_router = __commonJS({
         if (++sync > 100) {
           return setImmediate(next, err2);
         }
-        const path20 = getPathname(req);
-        if (path20 == null) {
+        const path21 = getPathname(req);
+        if (path21 == null) {
           return done(layerError);
         }
         let layer;
@@ -20902,7 +20902,7 @@ var require_router = __commonJS({
         let route;
         while (match !== true && idx < stack.length) {
           layer = stack[idx++];
-          match = matchLayer(layer, path20);
+          match = matchLayer(layer, path21);
           route = layer.route;
           if (typeof match !== "boolean") {
             layerError = layerError || match;
@@ -20940,18 +20940,18 @@ var require_router = __commonJS({
           } else if (route) {
             layer.handleRequest(req, res, next);
           } else {
-            trimPrefix(layer, layerError, layerPath, path20);
+            trimPrefix(layer, layerError, layerPath, path21);
           }
           sync = 0;
         });
       }
-      function trimPrefix(layer, layerError, layerPath, path20) {
+      function trimPrefix(layer, layerError, layerPath, path21) {
         if (layerPath.length !== 0) {
-          if (layerPath !== path20.substring(0, layerPath.length)) {
+          if (layerPath !== path21.substring(0, layerPath.length)) {
             next(layerError);
             return;
           }
-          const c = path20[layerPath.length];
+          const c = path21[layerPath.length];
           if (c && c !== "/") {
             next(layerError);
             return;
@@ -20975,7 +20975,7 @@ var require_router = __commonJS({
     };
     Router.prototype.use = function use(handler) {
       let offset = 0;
-      let path20 = "/";
+      let path21 = "/";
       if (typeof handler !== "function") {
         let arg = handler;
         while (Array.isArray(arg) && arg.length !== 0) {
@@ -20983,7 +20983,7 @@ var require_router = __commonJS({
         }
         if (typeof arg !== "function") {
           offset = 1;
-          path20 = handler;
+          path21 = handler;
         }
       }
       const callbacks = flatten.call(slice.call(arguments, offset), Infinity);
@@ -20995,8 +20995,8 @@ var require_router = __commonJS({
         if (typeof fn !== "function") {
           throw new TypeError("argument handler must be a function");
         }
-        debug("use %o %s", path20, fn.name || "<anonymous>");
-        const layer = new Layer(path20, {
+        debug("use %o %s", path21, fn.name || "<anonymous>");
+        const layer = new Layer(path21, {
           sensitive: this.caseSensitive,
           strict: false,
           end: false
@@ -21006,9 +21006,9 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router.prototype.route = function route(path20) {
-      const route2 = new Route(path20);
-      const layer = new Layer(path20, {
+    Router.prototype.route = function route(path21) {
+      const route2 = new Route(path21);
+      const layer = new Layer(path21, {
         sensitive: this.caseSensitive,
         strict: this.strict,
         end: true
@@ -21021,8 +21021,8 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router.prototype[method] = function(path20) {
-        const route = this.route(path20);
+      Router.prototype[method] = function(path21) {
+        const route = this.route(path21);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
       };
@@ -21051,9 +21051,9 @@ var require_router = __commonJS({
       const fqdnIndex = url2.substring(0, pathLength).indexOf("://");
       return fqdnIndex !== -1 ? url2.substring(0, url2.indexOf("/", 3 + fqdnIndex)) : void 0;
     }
-    function matchLayer(layer, path20) {
+    function matchLayer(layer, path21) {
       try {
-        return layer.match(path20);
+        return layer.match(path21);
       } catch (err2) {
         return err2;
       }
@@ -21281,7 +21281,7 @@ var require_application = __commonJS({
     };
     app.use = function use(fn) {
       var offset = 0;
-      var path20 = "/";
+      var path21 = "/";
       if (typeof fn !== "function") {
         var arg = fn;
         while (Array.isArray(arg) && arg.length !== 0) {
@@ -21289,7 +21289,7 @@ var require_application = __commonJS({
         }
         if (typeof arg !== "function") {
           offset = 1;
-          path20 = fn;
+          path21 = fn;
         }
       }
       var fns = flatten.call(slice.call(arguments, offset), Infinity);
@@ -21299,12 +21299,12 @@ var require_application = __commonJS({
       var router = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router.use(path20, fn2);
+          return router.use(path21, fn2);
         }
-        debug(".use app under %s", path20);
-        fn2.mountpath = path20;
+        debug(".use app under %s", path21);
+        fn2.mountpath = path21;
         fn2.parent = this;
-        router.use(path20, function mounted_app(req, res, next) {
+        router.use(path21, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err2) {
             Object.setPrototypeOf(req, orig.request);
@@ -21316,8 +21316,8 @@ var require_application = __commonJS({
       }, this);
       return this;
     };
-    app.route = function route(path20) {
-      return this.router.route(path20);
+    app.route = function route(path21) {
+      return this.router.route(path21);
     };
     app.engine = function engine(ext, fn) {
       if (typeof fn !== "function") {
@@ -21360,7 +21360,7 @@ var require_application = __commonJS({
       }
       return this;
     };
-    app.path = function path20() {
+    app.path = function path21() {
       return this.parent ? this.parent.path() + this.mountpath : "";
     };
     app.enabled = function enabled(setting) {
@@ -21376,17 +21376,17 @@ var require_application = __commonJS({
       return this.set(setting, false);
     };
     methods.forEach(function(method) {
-      app[method] = function(path20) {
+      app[method] = function(path21) {
         if (method === "get" && arguments.length === 1) {
-          return this.set(path20);
+          return this.set(path21);
         }
-        var route = this.route(path20);
+        var route = this.route(path21);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
       };
     });
-    app.all = function all(path20) {
-      var route = this.route(path20);
+    app.all = function all(path21) {
+      var route = this.route(path21);
       var args = slice.call(arguments, 1);
       for (var i2 = 0; i2 < methods.length; i2++) {
         route[methods[i2]].apply(route, args);
@@ -22232,7 +22232,7 @@ var require_request = __commonJS({
       var subdomains2 = !isIP(hostname3) ? hostname3.split(".").reverse() : [hostname3];
       return subdomains2.slice(offset);
     });
-    defineGetter(req, "path", function path20() {
+    defineGetter(req, "path", function path21() {
       return parse3(this).pathname;
     });
     defineGetter(req, "host", function host() {
@@ -22770,27 +22770,27 @@ var require_send = __commonJS({
     var ms = require_ms();
     var onFinished = require_on_finished();
     var parseRange = require_range_parser();
-    var path20 = require("path");
+    var path21 = require("path");
     var statuses = require_statuses();
     var Stream = require("stream");
     var util = require("util");
-    var extname = path20.extname;
-    var join = path20.join;
-    var normalize = path20.normalize;
-    var resolve = path20.resolve;
-    var sep = path20.sep;
+    var extname = path21.extname;
+    var join = path21.join;
+    var normalize = path21.normalize;
+    var resolve = path21.resolve;
+    var sep = path21.sep;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
     var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
     var UP_PATH_REGEXP = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
     module2.exports = send;
-    function send(req, path21, options) {
-      return new SendStream(req, path21, options);
+    function send(req, path22, options) {
+      return new SendStream(req, path22, options);
     }
-    function SendStream(req, path21, options) {
+    function SendStream(req, path22, options) {
       Stream.call(this);
       var opts = options || {};
       this.options = opts;
-      this.path = path21;
+      this.path = path22;
       this.req = req;
       this._acceptRanges = opts.acceptRanges !== void 0 ? Boolean(opts.acceptRanges) : true;
       this._cacheControl = opts.cacheControl !== void 0 ? Boolean(opts.cacheControl) : true;
@@ -22904,10 +22904,10 @@ var require_send = __commonJS({
       var lastModified = this.res.getHeader("Last-Modified");
       return parseHttpDate(lastModified) <= parseHttpDate(ifRange);
     };
-    SendStream.prototype.redirect = function redirect(path21) {
+    SendStream.prototype.redirect = function redirect(path22) {
       var res = this.res;
       if (hasListeners(this, "directory")) {
-        this.emit("directory", res, path21);
+        this.emit("directory", res, path22);
         return;
       }
       if (this.hasTrailingSlash()) {
@@ -22927,38 +22927,38 @@ var require_send = __commonJS({
     SendStream.prototype.pipe = function pipe2(res) {
       var root = this._root;
       this.res = res;
-      var path21 = decode3(this.path);
-      if (path21 === -1) {
+      var path22 = decode3(this.path);
+      if (path22 === -1) {
         this.error(400);
         return res;
       }
-      if (~path21.indexOf("\0")) {
+      if (~path22.indexOf("\0")) {
         this.error(400);
         return res;
       }
       var parts;
       if (root !== null) {
-        if (path21) {
-          path21 = normalize("." + sep + path21);
+        if (path22) {
+          path22 = normalize("." + sep + path22);
         }
-        if (UP_PATH_REGEXP.test(path21)) {
-          debug('malicious path "%s"', path21);
+        if (UP_PATH_REGEXP.test(path22)) {
+          debug('malicious path "%s"', path22);
           this.error(403);
           return res;
         }
-        parts = path21.split(sep);
-        path21 = normalize(join(root, path21));
+        parts = path22.split(sep);
+        path22 = normalize(join(root, path22));
       } else {
-        if (UP_PATH_REGEXP.test(path21)) {
-          debug('malicious path "%s"', path21);
+        if (UP_PATH_REGEXP.test(path22)) {
+          debug('malicious path "%s"', path22);
           this.error(403);
           return res;
         }
-        parts = normalize(path21).split(sep);
-        path21 = resolve(path21);
+        parts = normalize(path22).split(sep);
+        path22 = resolve(path22);
       }
       if (containsDotFile(parts)) {
-        debug('%s dotfile "%s"', this._dotfiles, path21);
+        debug('%s dotfile "%s"', this._dotfiles, path22);
         switch (this._dotfiles) {
           case "allow":
             break;
@@ -22972,13 +22972,13 @@ var require_send = __commonJS({
         }
       }
       if (this._index.length && this.hasTrailingSlash()) {
-        this.sendIndex(path21);
+        this.sendIndex(path22);
         return res;
       }
-      this.sendFile(path21);
+      this.sendFile(path22);
       return res;
     };
-    SendStream.prototype.send = function send2(path21, stat) {
+    SendStream.prototype.send = function send2(path22, stat) {
       var len2 = stat.size;
       var options = this.options;
       var opts = {};
@@ -22990,9 +22990,9 @@ var require_send = __commonJS({
         this.headersAlreadySent();
         return;
       }
-      debug('pipe "%s"', path21);
-      this.setHeader(path21, stat);
-      this.type(path21);
+      debug('pipe "%s"', path22);
+      this.setHeader(path22, stat);
+      this.type(path22);
       if (this.isConditionalGET()) {
         if (this.isPreconditionFailure()) {
           this.error(412);
@@ -23041,28 +23041,28 @@ var require_send = __commonJS({
         res.end();
         return;
       }
-      this.stream(path21, opts);
+      this.stream(path22, opts);
     };
-    SendStream.prototype.sendFile = function sendFile(path21) {
+    SendStream.prototype.sendFile = function sendFile(path22) {
       var i2 = 0;
       var self = this;
-      debug('stat "%s"', path21);
-      fs14.stat(path21, function onstat(err2, stat) {
-        var pathEndsWithSep = path21[path21.length - 1] === sep;
-        if (err2 && err2.code === "ENOENT" && !extname(path21) && !pathEndsWithSep) {
+      debug('stat "%s"', path22);
+      fs14.stat(path22, function onstat(err2, stat) {
+        var pathEndsWithSep = path22[path22.length - 1] === sep;
+        if (err2 && err2.code === "ENOENT" && !extname(path22) && !pathEndsWithSep) {
           return next(err2);
         }
         if (err2) return self.onStatError(err2);
-        if (stat.isDirectory()) return self.redirect(path21);
+        if (stat.isDirectory()) return self.redirect(path22);
         if (pathEndsWithSep) return self.error(404);
-        self.emit("file", path21, stat);
-        self.send(path21, stat);
+        self.emit("file", path22, stat);
+        self.send(path22, stat);
       });
       function next(err2) {
         if (self._extensions.length <= i2) {
           return err2 ? self.onStatError(err2) : self.error(404);
         }
-        var p = path21 + "." + self._extensions[i2++];
+        var p = path22 + "." + self._extensions[i2++];
         debug('stat "%s"', p);
         fs14.stat(p, function(err3, stat) {
           if (err3) return next(err3);
@@ -23072,7 +23072,7 @@ var require_send = __commonJS({
         });
       }
     };
-    SendStream.prototype.sendIndex = function sendIndex(path21) {
+    SendStream.prototype.sendIndex = function sendIndex(path22) {
       var i2 = -1;
       var self = this;
       function next(err2) {
@@ -23080,7 +23080,7 @@ var require_send = __commonJS({
           if (err2) return self.onStatError(err2);
           return self.error(404);
         }
-        var p = join(path21, self._index[i2]);
+        var p = join(path22, self._index[i2]);
         debug('stat "%s"', p);
         fs14.stat(p, function(err3, stat) {
           if (err3) return next(err3);
@@ -23091,10 +23091,10 @@ var require_send = __commonJS({
       }
       next();
     };
-    SendStream.prototype.stream = function stream(path21, options) {
+    SendStream.prototype.stream = function stream(path22, options) {
       var self = this;
       var res = this.res;
-      var stream2 = fs14.createReadStream(path21, options);
+      var stream2 = fs14.createReadStream(path22, options);
       this.emit("stream", stream2);
       stream2.pipe(res);
       function cleanup() {
@@ -23109,17 +23109,17 @@ var require_send = __commonJS({
         self.emit("end");
       });
     };
-    SendStream.prototype.type = function type(path21) {
+    SendStream.prototype.type = function type(path22) {
       var res = this.res;
       if (res.getHeader("Content-Type")) return;
-      var ext = extname(path21);
+      var ext = extname(path22);
       var type2 = mime.contentType(ext) || "application/octet-stream";
       debug("content-type %s", type2);
       res.setHeader("Content-Type", type2);
     };
-    SendStream.prototype.setHeader = function setHeader(path21, stat) {
+    SendStream.prototype.setHeader = function setHeader(path22, stat) {
       var res = this.res;
-      this.emit("headers", res, path21, stat);
+      this.emit("headers", res, path22, stat);
       if (this._acceptRanges && !res.getHeader("Accept-Ranges")) {
         debug("accept ranges");
         res.setHeader("Accept-Ranges", "bytes");
@@ -23177,9 +23177,9 @@ var require_send = __commonJS({
       }
       return err2 instanceof Error ? createError(status, err2, { expose: false }) : createError(status, err2);
     }
-    function decode3(path21) {
+    function decode3(path22) {
       try {
-        return decodeURIComponent(path21);
+        return decodeURIComponent(path22);
       } catch (err2) {
         return -1;
       }
@@ -23323,7 +23323,7 @@ var require_response = __commonJS({
     var http2 = require("node:http");
     var onFinished = require_on_finished();
     var mime = require_mime_types();
-    var path20 = require("node:path");
+    var path21 = require("node:path");
     var pathIsAbsolute = require("node:path").isAbsolute;
     var statuses = require_statuses();
     var sign = require_cookie_signature().sign;
@@ -23332,9 +23332,9 @@ var require_response = __commonJS({
     var setCharset = require_utils3().setCharset;
     var cookie = require_cookie();
     var send = require_send();
-    var extname = path20.extname;
-    var resolve = path20.resolve;
-    var basename = path20.basename;
+    var extname = path21.extname;
+    var resolve = path21.resolve;
+    var basename = path21.basename;
     var vary = require_vary();
     var { Buffer: Buffer2 } = require("node:buffer");
     var res = Object.create(http2.ServerResponse.prototype);
@@ -23478,26 +23478,26 @@ var require_response = __commonJS({
       this.type("txt");
       return this.send(body);
     };
-    res.sendFile = function sendFile(path21, options, callback) {
+    res.sendFile = function sendFile(path22, options, callback) {
       var done = callback;
       var req = this.req;
       var res2 = this;
       var next = req.next;
       var opts = options || {};
-      if (!path21) {
+      if (!path22) {
         throw new TypeError("path argument is required to res.sendFile");
       }
-      if (typeof path21 !== "string") {
+      if (typeof path22 !== "string") {
         throw new TypeError("path must be a string to res.sendFile");
       }
       if (typeof options === "function") {
         done = options;
         opts = {};
       }
-      if (!opts.root && !pathIsAbsolute(path21)) {
+      if (!opts.root && !pathIsAbsolute(path22)) {
         throw new TypeError("path must be absolute or specify root to res.sendFile");
       }
-      var pathname = encodeURI(path21);
+      var pathname = encodeURI(path22);
       opts.etag = this.app.enabled("etag");
       var file2 = send(req, pathname, opts);
       sendfile(res2, file2, opts, function(err2) {
@@ -23508,7 +23508,7 @@ var require_response = __commonJS({
         }
       });
     };
-    res.download = function download(path21, filename, options, callback) {
+    res.download = function download(path22, filename, options, callback) {
       var done = callback;
       var name = filename;
       var opts = options || null;
@@ -23525,7 +23525,7 @@ var require_response = __commonJS({
         opts = filename;
       }
       var headers = {
-        "Content-Disposition": contentDisposition.create(basename(name || path21))
+        "Content-Disposition": contentDisposition.create(basename(name || path22))
       };
       if (opts && opts.headers) {
         var keys = Object.keys(opts.headers);
@@ -23538,7 +23538,7 @@ var require_response = __commonJS({
       }
       opts = Object.create(opts);
       opts.headers = headers;
-      var fullPath = !opts.root ? resolve(path21) : path21;
+      var fullPath = !opts.root ? resolve(path22) : path22;
       return this.sendFile(fullPath, opts, done);
     };
     res.contentType = res.type = function contentType(type) {
@@ -23822,11 +23822,11 @@ var require_serve_static = __commonJS({
         }
         var forwardError = !fallthrough;
         var originalUrl = parseUrl.original(req);
-        var path20 = parseUrl(req).pathname;
-        if (path20 === "/" && originalUrl.pathname.substr(-1) !== "/") {
-          path20 = "";
+        var path21 = parseUrl(req).pathname;
+        if (path21 === "/" && originalUrl.pathname.substr(-1) !== "/") {
+          path21 = "";
         }
-        var stream = send(req, path20, opts);
+        var stream = send(req, path21, opts);
         stream.on("directory", onDirectory);
         if (setHeaders) {
           stream.on("headers", setHeaders);
@@ -32644,11 +32644,11 @@ var require_mime_types2 = __commonJS({
       }
       return exts[0];
     }
-    function lookup(path20) {
-      if (!path20 || typeof path20 !== "string") {
+    function lookup(path21) {
+      if (!path21 || typeof path21 !== "string") {
         return false;
       }
-      var extension2 = extname("x." + path20).toLowerCase().substr(1);
+      var extension2 = extname("x." + path21).toLowerCase().substr(1);
       if (!extension2) {
         return false;
       }
@@ -33157,19 +33157,19 @@ var require_utils4 = __commonJS({
       if (decode3)
         return decode3(data, hint);
     }
-    function basename(path20) {
-      if (typeof path20 !== "string")
+    function basename(path21) {
+      if (typeof path21 !== "string")
         return "";
-      for (let i2 = path20.length - 1; i2 >= 0; --i2) {
-        switch (path20.charCodeAt(i2)) {
+      for (let i2 = path21.length - 1; i2 >= 0; --i2) {
+        switch (path21.charCodeAt(i2)) {
           case 47:
           // '/'
           case 92:
-            path20 = path20.slice(i2 + 1);
-            return path20 === ".." || path20 === "." ? "" : path20;
+            path21 = path21.slice(i2 + 1);
+            return path21 === ".." || path21 === "." ? "" : path21;
         }
       }
-      return path20 === ".." || path20 === "." ? "" : path20;
+      return path21 === ".." || path21 === "." ? "" : path21;
     }
     var TOKEN = [
       0,
@@ -34475,8 +34475,8 @@ var require_utils4 = __commonJS({
 var require_sbmh = __commonJS({
   "node_modules/streamsearch/lib/sbmh.js"(exports2, module2) {
     "use strict";
-    function memcmp(buf1, pos1, buf2, pos2, num) {
-      for (let i2 = 0; i2 < num; ++i2) {
+    function memcmp(buf1, pos1, buf2, pos2, num2) {
+      for (let i2 = 0; i2 < num2; ++i2) {
         if (buf1[pos1 + i2] !== buf2[pos2 + i2])
           return false;
       }
@@ -37154,7 +37154,7 @@ var require_disk = __commonJS({
   "node_modules/multer/storage/disk.js"(exports2, module2) {
     var fs14 = require("fs");
     var os3 = require("os");
-    var path20 = require("path");
+    var path21 = require("path");
     var crypto = require("crypto");
     var pipeline = require("stream").pipeline;
     var MulterError = require_multer_error();
@@ -37193,7 +37193,7 @@ var require_disk = __commonJS({
         if (err2) return cb(err2);
         that.getFilename(req, file2, function(err3, filename) {
           if (err3) return cb(err3);
-          var finalPath = path20.join(destination, filename);
+          var finalPath = path21.join(destination, filename);
           if (file2.stream.destroyed) return cb(new MulterError("STREAM_DESTROYED"));
           var outStream = fs14.createWriteStream(finalPath);
           file2.path = finalPath;
@@ -37234,15 +37234,15 @@ var require_disk = __commonJS({
       });
     };
     DiskStorage.prototype._removeFile = function _removeFile(req, file2, cb) {
-      var path21 = file2.path;
+      var path22 = file2.path;
       delete file2.destination;
       delete file2.filename;
       delete file2.path;
       function unlink() {
         var flush = flushingFiles.get(file2);
-        if (!flush) return fs14.unlink(path21, cb);
+        if (!flush) return fs14.unlink(path22, cb);
         flush.onClosed = function() {
-          fs14.unlink(path21, cb);
+          fs14.unlink(path22, cb);
         };
       }
       var outStream = openStreams.get(file2);
@@ -37634,7 +37634,7 @@ function readJsonSync(file2) {
 
 // server/src/server.ts
 var import_node_fs13 = __toESM(require("node:fs"), 1);
-var import_node_path19 = __toESM(require("node:path"), 1);
+var import_node_path20 = __toESM(require("node:path"), 1);
 var import_node_http = __toESM(require("node:http"), 1);
 var import_express = __toESM(require_express2(), 1);
 
@@ -38483,10 +38483,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path20) {
-  if (!path20)
+function getElementAtPath(obj, path21) {
+  if (!path21)
     return obj;
-  return path20.reduce((acc, key) => acc?.[key], obj);
+  return path21.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -38826,11 +38826,11 @@ function explicitlyAborted(x2, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path20, issues) {
+function prefixIssues(path21, issues) {
   return issues.map((iss) => {
     var _a4;
     (_a4 = iss).path ?? (_a4.path = []);
-    iss.path.unshift(path20);
+    iss.path.unshift(path21);
     return iss;
   });
 }
@@ -39292,16 +39292,16 @@ function flattenError(error62, mapper = (issue2) => issue2.message) {
 }
 function formatError(error62, mapper = (issue2) => issue2.message) {
   const fieldErrors = { _errors: [] };
-  const processError = (error63, path20 = []) => {
+  const processError = (error63, path21 = []) => {
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path20, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path21, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path20, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path21, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path20, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path21, ...issue2.path]);
       } else {
-        const fullpath = [...path20, ...issue2.path];
+        const fullpath = [...path21, ...issue2.path];
         if (fullpath.length === 0) {
           fieldErrors._errors.push(mapper(issue2));
         } else {
@@ -39340,17 +39340,17 @@ function formatError(error62, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error62, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error63, path20 = []) => {
+  const processError = (error63, path21 = []) => {
     var _a4;
     for (const issue2 of error63.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
-        issue2.errors.map((issues) => processError({ issues }, [...path20, ...issue2.path]));
+        issue2.errors.map((issues) => processError({ issues }, [...path21, ...issue2.path]));
       } else if (issue2.code === "invalid_key") {
-        processError({ issues: issue2.issues }, [...path20, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path21, ...issue2.path]);
       } else if (issue2.code === "invalid_element") {
-        processError({ issues: issue2.issues }, [...path20, ...issue2.path]);
+        processError({ issues: issue2.issues }, [...path21, ...issue2.path]);
       } else {
-        const fullpath = [...path20, ...issue2.path];
+        const fullpath = [...path21, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -39389,8 +39389,8 @@ function treeifyError(error62, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path20 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path20) {
+  const path21 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path21) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -56528,13 +56528,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path20 = ref.slice(1).split("/").filter(Boolean);
-  if (path20.length === 0) {
+  const path21 = ref.slice(1).split("/").filter(Boolean);
+  if (path21.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path20[0] === defsKey) {
-    const key = path20[1] === void 0 ? void 0 : decodeJSONPointerSegment(path20[1]);
+  if (path21[0] === defsKey) {
+    const key = path21[1] === void 0 ? void 0 : decodeJSONPointerSegment(path21[1]);
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -56543,7 +56543,7 @@ function resolveRef(ref, ctx) {
   throw new Error(`Reference not found: ${ref}`);
 }
 function checkObjectGuards(objectSchema, guards) {
-  const guard = z.transform((value) => value).check((payload) => {
+  const guard2 = z.transform((value) => value).check((payload) => {
     const value = payload.value;
     if (typeof value !== "object" || value === null || Array.isArray(value))
       return;
@@ -56588,7 +56588,7 @@ function checkObjectGuards(objectSchema, guards) {
       }
     }
   });
-  return guard.pipe(objectSchema);
+  return guard2.pipe(objectSchema);
 }
 function canonicalKey(value, seen) {
   if (value === null)
@@ -56672,7 +56672,7 @@ function plural(n) {
   return n === 1 ? "element" : "elements";
 }
 function checkArrayGuards(arraySchema, guards) {
-  const guard = z.transform((value) => value).check((payload) => {
+  const guard2 = z.transform((value) => value).check((payload) => {
     const items = payload.value;
     if (!Array.isArray(items))
       return;
@@ -56722,7 +56722,7 @@ function checkArrayGuards(arraySchema, guards) {
       }
     }
   });
-  return guard.pipe(arraySchema);
+  return guard2.pipe(arraySchema);
 }
 function getTupleRest(restSchema, ctx) {
   if (restSchema === false) {
@@ -57865,14 +57865,14 @@ var FeishuSheets = class {
   base() {
     return this.settings.get().parent.feishu.baseUrl.replace(/\/+$/, "");
   }
-  async get(path20) {
+  async get(path21) {
     const token = await appToken(this.settings);
     try {
-      return await call(this.base() + path20, { headers: { Authorization: `Bearer ${token}` } });
+      return await call(this.base() + path21, { headers: { Authorization: `Bearer ${token}` } });
     } catch (e) {
       if (!(e instanceof FeishuAuthError)) throw explain(e);
       const fresh = await appToken(this.settings, true);
-      return call(this.base() + path20, { headers: { Authorization: `Bearer ${fresh}` } }).catch((e2) => {
+      return call(this.base() + path21, { headers: { Authorization: `Bearer ${fresh}` } }).catch((e2) => {
         throw explain(e2);
       });
     }
@@ -58028,11 +58028,11 @@ var SpapiClient = class {
     return this.pending;
   }
   /** 只允许 GET */
-  async get(path20, query = {}) {
+  async get(path21, query = {}) {
     const token = await this.accessToken();
     const s = this.creds();
     const q = new URLSearchParams(query).toString();
-    const r = await this.fetchJson(`${s.endpoint.replace(/\/+$/, "")}${path20}${q ? `?${q}` : ""}`, {
+    const r = await this.fetchJson(`${s.endpoint.replace(/\/+$/, "")}${path21}${q ? `?${q}` : ""}`, {
       method: "GET",
       headers: { "x-amz-access-token": token, Accept: "application/json" }
     });
@@ -58048,10 +58048,10 @@ var SpapiClient = class {
     return { status: r.status, body: r.body };
   }
   /** 429 按 Retry-After 等待后再发，不算重试次数 */
-  async getPatiently(path20, query, signal) {
+  async getPatiently(path21, query, signal) {
     for (let i2 = 0; ; i2++) {
       try {
-        return await this.get(path20, query);
+        return await this.get(path21, query);
       } catch (e) {
         if (!(e instanceof SpapiError) || e.status !== 429 || i2 >= MAX_THROTTLE_WAITS) throw e;
         await sleep2((e.retryAfterSec ?? DEFAULT_THROTTLE_SEC) * 1e3, signal);
@@ -58355,7 +58355,9 @@ var CategorySchema = external_exports.object({
   name: external_exports.string().min(1).max(20),
   hint: external_exports.string(),
   extractPrompt: external_exports.string().nullable(),
-  styles: external_exports.array(StyleSchema).min(1)
+  styles: external_exports.array(StyleSchema).min(1),
+  /** 飞书父体表里对应的标签页；null = 和品类同名（旧库没有这个字段，读入时补 null，不升版本） */
+  parentTab: external_exports.string().nullable().default(null)
 });
 var LIBRARY_VERSION = 2;
 var LibrarySchema = external_exports.object({
@@ -58912,6 +58914,7 @@ var ops = {
       name: checkCategoryName(lib, name),
       hint: "",
       extractPrompt: null,
+      parentTab: null,
       styles: [{ id: newStyleId(), name: "", ratio: "1:1", whiteImage: null, activeTemplate: "default", templates: [], pasteMode: "auto" }]
     };
     lib.categories.push(c);
@@ -60872,6 +60875,29 @@ function registerParent(r, ctx) {
     log.info(`\u5BFC\u5165 SP-API \u51ED\u8BC1\uFF1A${Object.entries(found).filter(([, v]) => v).map(([k]) => k).join("\u3001")}`);
     res.json({ found, settings: maskSettings(settings.get()) });
   });
+  r.get("/parent/rows", async (req, res) => {
+    const url2 = settings.get().parent.sheetUrl;
+    if (!url2) throw new HttpError(400, "\u5148\u5728\u8BBE\u7F6E\u91CC\u586B\u7236\u4F53\u8868\u94FE\u63A5");
+    const tab = typeof req.query.tab === "string" ? req.query.tab : "";
+    try {
+      const info = await p.sheets.info(url2);
+      const tabs = tab ? info.tabs.filter((t) => t.title === tab) : info.tabs;
+      const out = [];
+      const failed = [];
+      for (const t of tabs) {
+        try {
+          const r2 = await p.sheets.rows(url2, t.title, false, info);
+          for (const row of r2?.rows ?? []) out.push({ tab: t.title, sku: row.sku, asin: row.asin, theme: row.theme });
+        } catch (e) {
+          failed.push({ tab: t.title, message: e.message });
+        }
+      }
+      res.json({ title: info.title, rows: out, failed });
+    } catch (e) {
+      if (e instanceof FeishuError || e instanceof FeishuAuthError) throw new HttpError(502, e.message);
+      throw e;
+    }
+  });
   r.post("/settings/spapi/test", async (_req, res) => {
     res.json(await p.spapi.test());
   });
@@ -61171,8 +61197,9 @@ data: ${JSON.stringify(payload)}
 var import_node_fs8 = __toESM(require("node:fs"), 1);
 var import_promises4 = __toESM(require("node:fs/promises"), 1);
 var import_node_path9 = __toESM(require("node:path"), 1);
-var STEP_COUNT = 5;
-var STEP_NAMES = ["\u8BC6\u522B\u54C1\u7C7B", "\u63D0\u53D6\u7D20\u6750", "\u751F\u6210\u4E3B\u56FE", "\u4FE1\u606F\u8BC6\u522B", "\u7A7A\u767D\u56FE"];
+var STEP_COUNT = 6;
+var STEP_NAMES = ["\u8BC6\u522B\u54C1\u7C7B", "\u63D0\u53D6\u7D20\u6750", "\u751F\u6210\u4E3B\u56FE", "\u4FE1\u606F\u8BC6\u522B", "\u7A7A\u767D\u56FE", "\u5339\u914D\u7236\u4F53"];
+var PARENT_STEP = 5;
 var StepStateSchema = external_exports.enum(["pending", "running", "done", "skipped", "failed"]);
 var SnapshotSchema = external_exports.object({
   images: external_exports.array(external_exports.object({ no: external_exports.number(), role: external_exports.string(), sha256: external_exports.string() })),
@@ -61191,7 +61218,9 @@ var StepRecordSchema = external_exports.object({
   endedAt: external_exports.string().optional(),
   error: external_exports.string().optional(),
   snapshot: SnapshotSchema.optional(),
-  output: external_exports.string().optional()
+  output: external_exports.string().optional(),
+  /** 跳过的原因等说明（如「识别父体没有打开」） */
+  note: external_exports.string().optional()
 });
 var PlanMainSchema = external_exports.object({
   templateId: external_exports.string(),
@@ -61238,6 +61267,38 @@ var QcSchema = external_exports.object({
   /** 模型原始回复 */
   raw: external_exports.string().optional()
 });
+var ParentResultSchema = external_exports.object({
+  /** new = 建议新建父体 */
+  status: external_exports.enum(["matched", "unsure", "none", "new"]),
+  /** none / unsure 的原因 */
+  message: external_exports.string().nullable(),
+  tab: external_exports.string(),
+  readAt: external_exports.string(),
+  sku: external_exports.string().nullable(),
+  asin: external_exports.string().nullable(),
+  theme: external_exports.string().nullable(),
+  confidence: external_exports.number().nullable(),
+  reason: external_exports.string().nullable(),
+  manual: external_exports.boolean(),
+  candidates: external_exports.array(external_exports.object({ sku: external_exports.string(), asin: external_exports.string(), theme: external_exports.string(), confidence: external_exports.number().nullable() })),
+  naming: external_exports.object({
+    attribute: external_exports.string(),
+    existing: external_exports.array(external_exports.string()),
+    groups: external_exports.array(external_exports.object({ pattern: external_exports.string(), count: external_exports.number() })),
+    next: external_exports.string().nullable(),
+    note: external_exports.string().nullable(),
+    /** 占号用：命名方式（如 Design ##）和分到的号 */
+    key: external_exports.string().nullable().default(null),
+    number: external_exports.number().nullable().default(null)
+  }).nullable(),
+  proposal: external_exports.object({
+    sku: external_exports.string(),
+    prefix: external_exports.string(),
+    theme: external_exports.string(),
+    basedOn: external_exports.array(external_exports.string()),
+    themeCandidates: external_exports.array(external_exports.string())
+  }).nullable()
+});
 var JobSchema = external_exports.object({
   id: external_exports.string(),
   createdAt: external_exports.string(),
@@ -61268,13 +61329,15 @@ var JobSchema = external_exports.object({
   }).nullable(),
   attention: external_exports.object({
     kind: external_exports.enum(["nomatch", "nowhite", "failed", "refused", "qc"]),
-    step: external_exports.number().int().min(0).max(4),
+    step: external_exports.number().int().min(0).max(STEP_COUNT - 1),
     message: external_exports.string(),
     guess: external_exports.string().optional(),
     at: external_exports.string()
   }).nullable(),
   override: external_exports.object({ step: external_exports.number().int(), prompt: external_exports.string() }).nullable(),
   qc: QcSchema.nullable().default(null),
+  /** 第 6 步匹配到的父体；没打开识别父体、旧任务时为 null */
+  parent: ParentResultSchema.nullable().default(null),
   /** 竞品图里商品印刷面的区域（第①步模型给四个角，本地往外校正）；没有时第②步按整张竞品图提取 */
   face: external_exports.object({
     ai: external_exports.array(external_exports.tuple([external_exports.number(), external_exports.number()])).length(4),
@@ -61333,6 +61396,7 @@ function resetFrom(job, n) {
   if (job.steps.some((s, i2) => i2 >= n && s.state === "running")) throw new TransitionError("\u6709\u6B65\u9AA4\u6B63\u5728\u8FD0\u884C\uFF0C\u8981\u5148\u4E2D\u6B62\u624D\u80FD\u91CD\u7F6E");
   if (n <= 1) job.qc = null;
   if (n <= 2) job.mainQc = null;
+  if (n <= PARENT_STEP) job.parent = null;
   for (let i2 = n; i2 < STEP_COUNT; i2++) {
     const s = job.steps[i2];
     if (s.state !== "pending") transition(job, i2, "pending");
@@ -61340,6 +61404,7 @@ function resetFrom(job, n) {
     delete s.output;
     delete s.snapshot;
     delete s.error;
+    delete s.note;
     delete s.startedAt;
     delete s.endedAt;
   }
@@ -61359,7 +61424,7 @@ function runningStep(job) {
 function viewOf(job) {
   const r = runningStep(job);
   if (job.attention) return { phase: "attention", runningStep: r >= 0 ? r : null, label: "\u9700\u5904\u7406" };
-  if (r >= 0) return { phase: "running", runningStep: r, label: r === 4 ? "\u751F\u6210\u7A7A\u767D\u56FE\u4E2D" : r === 1 && job.qc?.state === "pending" ? "\u9A8C\u6536\u7D20\u6750\u4E2D" : r === 2 && job.mainQc?.state === "pending" ? "\u9A8C\u6536\u4E3B\u56FE\u4E2D" : `${STEP_NAMES[r]}\u4E2D` };
+  if (r >= 0) return { phase: "running", runningStep: r, label: r === 4 ? "\u751F\u6210\u7A7A\u767D\u56FE\u4E2D" : r === 1 && job.qc?.state === "pending" ? "\u9A8C\u6536\u7D20\u6750\u4E2D" : r === 2 && job.mainQc?.state === "pending" ? "\u9A8C\u6536\u4E3B\u56FE\u4E2D" : r === PARENT_STEP ? "\u5339\u914D\u7236\u4F53\u4E2D" : `${STEP_NAMES[r]}\u4E2D` };
   if (currentStep(job) === -1) return { phase: "done", runningStep: null, label: "\u5B8C\u6210" };
   return { phase: "queued", runningStep: null, label: "\u6392\u961F\u4E2D" };
 }
@@ -61386,7 +61451,11 @@ var JobStore = class {
       const file2 = import_node_path9.default.join(this.dir, ent.name, "job.json");
       if (!import_node_fs8.default.existsSync(file2)) continue;
       try {
-        const r = JobSchema.safeParse(JSON.parse(import_node_fs8.default.readFileSync(file2, "utf8")));
+        const raw2 = JSON.parse(import_node_fs8.default.readFileSync(file2, "utf8"));
+        if (Array.isArray(raw2?.steps) && raw2.steps.length === STEP_COUNT - 1) {
+          raw2.steps.push({ state: "skipped", attempts: 0, note: "\u8FD9\u5F20\u56FE\u662F\u52A0\u7236\u4F53\u529F\u80FD\u4E4B\u524D\u8DD1\u7684\uFF0C\u6CA1\u6709\u5339\u914D\u7236\u4F53" });
+        }
+        const r = JobSchema.safeParse(raw2);
         if (!r.success) {
           log.warn(`\u4EFB\u52A1\u8BB0\u5F55 ${ent.name} \u683C\u5F0F\u4E0D\u5BF9\uFF0C\u5DF2\u8DF3\u8FC7`);
           continue;
@@ -61443,7 +61512,7 @@ var JobStore = class {
 };
 
 // server/src/scheduler/scheduler.ts
-var import_node_path17 = __toESM(require("node:path"), 1);
+var import_node_path18 = __toESM(require("node:path"), 1);
 
 // server/src/pipeline/step0Route.ts
 var import_promises5 = __toESM(require("node:fs/promises"), 1);
@@ -62720,11 +62789,329 @@ var step4Blank = async (ctx) => {
   };
 };
 
-// server/src/scheduler/scheduler.ts
+// server/src/pipeline/step5Parent.ts
 var import_promises10 = __toESM(require("node:fs/promises"), 1);
-var kindOf = (step, job) => step === 0 || step === 3 || step === 1 && job?.qc?.state === "pending" || step === 2 && job?.mainQc?.state === "pending" ? "analysis" : "image";
+var import_node_path17 = __toESM(require("node:path"), 1);
+
+// server/src/prompts/parent.ts
+var MAX_CANDIDATES = 300;
+function parentSystem(tab, samples) {
+  return `\u4F60\u662F\u4E9A\u9A6C\u900A\u7236\u4F53\u5339\u914D\u52A9\u624B\u3002\u7ED9\u4F60\u4E00\u5F20\u7ADE\u54C1\u5546\u54C1\u56FE\u3001\u5B83\u7684\u54C1\u7C7B\u3001\u573A\u666F\u548C\u5173\u952E\u8BCD\uFF0C\u4EE5\u53CA\u98DE\u4E66\u7236\u4F53\u8868\u300C${tab}\u300D\u6807\u7B7E\u9875\u91CC\u7684\u7236\u4F53\u6E05\u5355\uFF08\u7F16\u53F7\uFF5C\u4E3B\u9898\uFF5C\u7236\u4F53SKU\uFF09\u3002\u5224\u65AD\u8FD9\u5F20\u56FE\u5E94\u8BE5\u6302\u5230\u54EA\u4E2A\u7236\u4F53\u4E0B\uFF1A\u7236\u4F53\u7684\u4E3B\u9898\u8981\u548C\u56FE\u6848\u5185\u5BB9\uFF08\u8282\u65E5\u3001\u4EBA\u7269\u3001\u52A8\u7269\u3001\u98CE\u683C\u3001\u7528\u9014\uFF09\u5BF9\u5F97\u4E0A\u3002\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
+{"pick": \u6E05\u5355\u91CC\u7684\u7F16\u53F7\u6216 null, "confidence": 0 \u5230 1 \u4E4B\u95F4\u7684\u5C0F\u6570, "reason": "\u4E00\u53E5\u8BDD\u4E2D\u6587\u7406\u7531", "alternatives": [\u5176\u4ED6\u53EF\u80FD\u7684\u7F16\u53F7\uFF0C\u6700\u591A 2 \u4E2A], "new_themes": ["pick \u4E3A null \u65F6\u7ED9 2\uFF5E3 \u4E2A\u82F1\u6587\u4E3B\u9898\uFF0C\u5426\u5219\u7A7A\u6570\u7EC4"]}
+\u89C4\u5219\uFF1A
+1. \u53EA\u80FD\u4ECE\u6E05\u5355\u91CC\u9009\u7F16\u53F7\uFF0C\u4E0D\u8981\u7F16\u9020\u3002\u6E05\u5355\u91CC\u6CA1\u6709\u5408\u9002\u7684\u7236\u4F53\u65F6 pick \u586B null\u3002
+2. confidence \u8868\u793A\u4F60\u5BF9 pick \u7684\u628A\u63E1\uFF0C\u4E0D\u8981\u4E60\u60EF\u6027\u7ED9\u9AD8\u5206\u3002
+3. pick \u4E3A null \u65F6\uFF0Cnew_themes \u7ED9 2\uFF5E3 \u4E2A\u82F1\u6587\u4E3B\u9898\uFF0C\u6309\u5408\u9002\u7A0B\u5EA6\u6392\u5E8F\uFF1A\u6BCF\u4E2A 1\uFF5E3 \u4E2A\u8BCD\uFF0C\u6BCF\u4E2A\u8BCD\u9996\u5B57\u6BCD\u5927\u5199\uFF0C\u98CE\u683C\u7167\u7740\u8FD9\u4E2A\u6807\u7B7E\u9875\u5DF2\u6709\u7684\u4E3B\u9898${samples.length ? `\uFF08\u6837\u4F8B\uFF1A${samples.join("\u3001")}\uFF09` : ""}\u3002pick \u4E0D\u4E3A null \u65F6 new_themes \u7ED9\u7A7A\u6570\u7EC4\u3002`;
+}
+function parentUser(p) {
+  const list = p.rows.slice(0, MAX_CANDIDATES).map((r, i2) => `${i2 + 1}\uFF5C${r.theme || "\uFF08\u6CA1\u5199\u4E3B\u9898\uFF09"}\uFF5C${r.sku}`).join("\n");
+  return [
+    `\u54C1\u7C7B\uFF1A${p.category}`,
+    `\u573A\u666F\uFF1A${p.scene || "\uFF08\u6CA1\u6709\uFF09"}`,
+    `\u5173\u952E\u8BCD\uFF1A${p.keywords.join("\u3001") || "\uFF08\u6CA1\u6709\uFF09"}`,
+    `\u7236\u4F53\u6E05\u5355\uFF1A`,
+    list,
+    "\u8BF7\u5224\u65AD\u8FD9\u5F20\u7ADE\u54C1\u56FE\u5E94\u8BE5\u6302\u5230\u54EA\u4E2A\u7236\u4F53\u4E0B\uFF0C\u53EA\u8F93\u51FA JSON\u3002"
+  ].join("\n");
+}
+var num = external_exports.preprocess((v) => v === "" || v === "null" || v === void 0 ? null : v, external_exports.coerce.number().int().nullable());
+var ParentAnswerSchema = external_exports.object({
+  pick: num,
+  confidence: external_exports.coerce.number().min(0).max(1),
+  reason: external_exports.string().optional().default(""),
+  alternatives: external_exports.array(external_exports.unknown()).nullish().transform((a) => (a ?? []).map((x2) => Number(x2)).filter((x2) => Number.isInteger(x2))),
+  new_themes: external_exports.array(external_exports.unknown()).nullish().transform((a) => (a ?? []).map((x2) => String(x2 ?? "").trim()).filter(Boolean))
+});
+
+// server/src/parent/newParent.ts
+var MAX_BASED_ON = 5;
+var MAX_SAMPLES = 15;
+function splitSku(row) {
+  const sku = row.sku.trim();
+  const theme = row.theme.trim();
+  if (theme && sku.toLowerCase().endsWith(`-${theme.toLowerCase()}`)) {
+    const prefix = sku.slice(0, sku.length - theme.length - 1);
+    if (prefix) return { prefix, theme: sku.slice(prefix.length + 1) };
+  }
+  const i2 = sku.lastIndexOf("-");
+  if (i2 <= 0 || i2 === sku.length - 1) return null;
+  return { prefix: sku.slice(0, i2), theme: sku.slice(i2 + 1) };
+}
+function derivePrefix(rows) {
+  const stat = /* @__PURE__ */ new Map();
+  rows.forEach((r, i2) => {
+    const s = splitSku(r);
+    if (!s) return;
+    const g = stat.get(s.prefix) ?? { count: 0, last: -1, skus: [] };
+    g.count++;
+    g.last = i2;
+    g.skus.push(r.sku);
+    stat.set(s.prefix, g);
+  });
+  let best = null;
+  for (const e of stat) {
+    if (!best || e[1].count > best[1].count || e[1].count === best[1].count && e[1].last > best[1].last) best = e;
+  }
+  if (!best) return null;
+  return { prefix: best[0], basedOn: [...best[1].skus].reverse().slice(0, MAX_BASED_ON) };
+}
+function withCreator(prefix, mark) {
+  const i2 = prefix.lastIndexOf("-");
+  const head = i2 >= 0 ? prefix.slice(0, i2 + 1) : "";
+  const last = (i2 >= 0 ? prefix.slice(i2 + 1) : prefix).replace(/\d+$/, "");
+  return head + last + mark.trim();
+}
+function themeSamples(rows) {
+  const out = [];
+  for (const r of [...rows].reverse()) {
+    const t = splitSku(r)?.theme;
+    if (t && !out.includes(t)) out.push(t);
+    if (out.length >= MAX_SAMPLES) break;
+  }
+  return out;
+}
+function cleanTheme(t) {
+  return t.replace(/[^A-Za-z0-9 ]+/g, " ").trim().split(/\s+/).filter(Boolean).slice(0, 3).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+}
+async function proposeParent(opts) {
+  const base = derivePrefix(opts.rows);
+  if (!base) return { ok: false, reason: "noPrefix" };
+  const prefix = withCreator(base.prefix, opts.creatorMark);
+  const themes = [...new Set(opts.themes.map(cleanTheme).filter(Boolean))];
+  if (!themes.length) return { ok: false, reason: "noThemes" };
+  const inTable = new Set(opts.rows.map((r) => r.sku.trim().toLowerCase()));
+  const queued = new Map(opts.queued.map((s) => [s.toLowerCase(), s]));
+  const tried = [];
+  for (const theme of themes) {
+    const sku = `${prefix}-${theme}`;
+    tried.push(sku);
+    if (inTable.has(sku.toLowerCase())) continue;
+    const shared = queued.get(sku.toLowerCase());
+    if (shared) return { ok: true, proposal: { sku: shared, prefix, theme, basedOn: base.basedOn, themeCandidates: themes } };
+    if (await opts.existsInStore(sku)) continue;
+    return { ok: true, proposal: { sku, prefix, theme, basedOn: base.basedOn, themeCandidates: themes } };
+  }
+  return { ok: false, reason: "taken", tried };
+}
+
+// server/src/parent/naming.ts
+var SPLIT = /^(.*?)(\d+)\s*$/;
+function splitValue(v) {
+  const m = SPLIT.exec(v.trim());
+  if (!m) return null;
+  return { prefix: m[1], num: Number(m[2]), width: m[2].length };
+}
+function patternOf(v) {
+  const s = splitValue(v);
+  return s ? s.prefix + "#".repeat(s.width) : v.trim();
+}
+var share = (vals) => vals.length ? vals.filter((v) => splitValue(v)).length / vals.length : 0;
+function chooseAttribute(themeAttrs, valuesByAttr) {
+  const attrs = themeAttrs.length ? themeAttrs : Object.keys(valuesByAttr);
+  let best = attrs[0] ?? "";
+  for (const a of attrs) if (share(valuesByAttr[a] ?? []) > share(valuesByAttr[best] ?? [])) best = a;
+  return best;
+}
+function analyzeNaming(themeAttrs, children) {
+  const valuesByAttr = {};
+  for (const c of children) for (const [k, v] of Object.entries(c)) if (v?.trim()) (valuesByAttr[k] ??= []).push(v.trim());
+  const attribute = chooseAttribute(themeAttrs, valuesByAttr);
+  const existing = valuesByAttr[attribute] ?? [];
+  const map2 = /* @__PURE__ */ new Map();
+  existing.forEach((v, i2) => {
+    const s = splitValue(v);
+    const key = patternOf(v);
+    const g = map2.get(key) ?? { count: 0, max: -1, prefix: s?.prefix ?? v, width: s?.width ?? 0, numbered: !!s, first: i2 };
+    g.count++;
+    if (s) g.max = Math.max(g.max, s.num);
+    map2.set(key, g);
+  });
+  const entries = [...map2.entries()];
+  entries.sort((a, b) => b[1].count - a[1].count || b[1].max - a[1].max || a[1].first - b[1].first);
+  const groups = entries.map(([pattern, g]) => ({ pattern, count: g.count }));
+  const t = entries[0];
+  return {
+    attribute,
+    existing,
+    groups,
+    top: t ? { key: t[0], prefix: t[1].prefix, width: t[1].width, numbered: t[1].numbered, max: t[1].max } : null
+  };
+}
+function nextName(a, taken = []) {
+  const base = { attribute: a.attribute, existing: a.existing, groups: a.groups };
+  if (!a.top) {
+    const n2 = Math.max(1, ...taken.map((x2) => x2 + 1));
+    return { ...base, next: `Design ${String(n2).padStart(2, "0")}`, note: "\u8FD9\u4E2A\u7236\u4F53\u8FD8\u6CA1\u6709\u5B50\u4F53\uFF0C\u6309 Design 01 \u8D77", key: "Design ##", number: n2 };
+  }
+  if (!a.top.numbered) {
+    return { ...base, next: null, note: `\u8FD9\u4E2A\u7236\u4F53\u7684\u547D\u540D\u6CA1\u6709\u7F16\u53F7\uFF0C\u8BF7\u624B\u52A8\u8D77\u540D\uFF08\u73B0\u6709\uFF1A${a.existing.join("\u3001")}\uFF09`, key: null, number: null };
+  }
+  const { prefix, width } = a.top;
+  const lower2 = (s) => s.trim().toLowerCase();
+  const used = new Set(a.existing.map(lower2));
+  let max2 = Math.max(a.top.max, ...taken);
+  for (const v of a.existing) {
+    const s = splitValue(v);
+    if (s && lower2(s.prefix) === lower2(prefix)) max2 = Math.max(max2, s.num);
+  }
+  let n = max2 + 1;
+  const name = (k) => prefix + String(k).padStart(width, "0");
+  while (used.has(lower2(name(n)))) n++;
+  return { ...base, next: name(n), note: null, key: a.top.key, number: n };
+}
+
+// server/src/parent/match.ts
+var ParentPauseError = class extends Error {
+};
+var NEW_PARENT_NOTE = "\u8FD9\u662F\u5EFA\u8BAE\u65B0\u5EFA\u7684\u7236\u4F53\uFF0C\u98DE\u4E66\u8868\u548C\u5E97\u94FA\u91CC\u90FD\u8FD8\u6CA1\u6709\uFF0C\u9700\u8981\u4F60\u624B\u52A8\u521B\u5EFA";
+function parentSkipReason(s) {
+  const p = s.parent;
+  if (!p.enabled) return "\u8BC6\u522B\u7236\u4F53\u6CA1\u6709\u6253\u5F00\uFF0C\u53EF\u4EE5\u5728\u8BBE\u7F6E\u91CC\u6253\u5F00";
+  const miss = [];
+  if (!p.sheetUrl) miss.push("\u7236\u4F53\u8868\u94FE\u63A5");
+  if (!p.feishu.appId || !p.feishu.appSecret) miss.push("\u98DE\u4E66 App ID / App Secret");
+  const sp = p.spapi;
+  if (!sp.sellerId || !sp.clientId || !sp.clientSecret || !sp.refreshToken) miss.push("SP-API \u51ED\u8BC1");
+  return miss.length ? `\u8BC6\u522B\u7236\u4F53\u7F3A\uFF1A${miss.join("\u3001")}\u3002\u8865\u9F50\u540E\u5728\u8BE6\u60C5\u91CC\u5BF9\u7B2C 6 \u6B65\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D` : null;
+}
+async function guard(fn) {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof FeishuAuthError || e instanceof SpapiAuthError) throw new ParentPauseError(e.message);
+    if (e instanceof FeishuError) {
+      if (/^(应用没有这张表的权限|飞书应用还没开通|这个链接读不了)/.test(e.message)) {
+        const msg = e.message.startsWith("\u8FD9\u4E2A\u94FE\u63A5") ? e.message : `\u8FD9\u4E2A\u94FE\u63A5\u8BFB\u4E0D\u4E86\uFF1A${e.message}`;
+        throw new ParentPauseError(`${msg}\u3002\u5728\u98DE\u4E66\u91CC\u5904\u7406\u597D\u540E\uFF0C\u5230\u8BBE\u7F6E\u91CC\u70B9\u300C\u8BFB\u4E00\u4E0B\u8BD5\u8BD5\u300D\u5C31\u4F1A\u7EE7\u7EED`);
+      }
+      throw new AiError("network", `\u98DE\u4E66\uFF1A${e.message}`);
+    }
+    if (e instanceof SpapiError) throw new AiError(e.status >= 500 ? "server" : e.status >= 400 ? "client" : "network", `SP-API\uFF1A${e.message}`, e.status || void 0);
+    throw e;
+  }
+}
+function emptyResult(base, status, message) {
+  return { ...base, status, message, sku: null, asin: null, theme: null, confidence: null, reason: null, manual: false, candidates: [], naming: null, proposal: null };
+}
+var lower = (s) => s.trim().toLowerCase();
+function takenNumbers(jobs, selfId, sku, key) {
+  if (!key) return [];
+  return jobs.filter((j) => j.id !== selfId && j.parent?.sku && lower(j.parent.sku) === lower(sku) && j.parent.naming?.key === key && j.parent.naming.number !== null).map((j) => j.parent.naming.number);
+}
+var namingOf = (n) => ({
+  attribute: n.attribute,
+  existing: n.existing,
+  groups: n.groups,
+  next: n.next,
+  note: n.note,
+  key: n.key,
+  number: n.number
+});
+async function bindExisting(opts) {
+  const { deps, row } = opts;
+  const listing = await opts.call(() => guard(() => deps.spapi.parent(row.sku, opts.signal)));
+  const common = { ...opts.base, sku: row.sku, asin: row.asin || null, theme: row.theme || null, proposal: null };
+  if (!listing) {
+    const r = { ...common, status: "unsure", message: "\u5E97\u94FA\u91CC\u67E5\u4E0D\u5230\u8FD9\u4E2A\u7236\u4F53 SKU\uFF0C\u68C0\u67E5\u98DE\u4E66\u8868\u91CC\u7684 SKU \u662F\u5426\u5199\u5BF9", naming: null };
+    opts.commit(r);
+    return r;
+  }
+  const kids = await opts.call(() => guard(() => deps.spapi.children(row.sku, listing.themeAttributes, opts.signal)));
+  const analysis = analyzeNaming(listing.themeAttributes, kids.map((k) => k.values));
+  return deps.mutex.run(lower(row.sku), () => {
+    const naming = nextName(analysis, takenNumbers(deps.jobs(), opts.job.id, row.sku, analysis.top?.key ?? "Design ##"));
+    const sure = opts.base.manual || (opts.base.confidence ?? 0) >= opts.threshold;
+    const message = !naming.next ? naming.note : sure ? null : `\u628A\u63E1\u53EA\u6709 ${(opts.base.confidence ?? 0).toFixed(2)}\uFF0C\u4F4E\u4E8E ${opts.threshold.toFixed(2)}\uFF0C\u8BF7\u786E\u8BA4`;
+    const r = { ...common, asin: listing.asin ?? common.asin, status: sure && naming.next ? "matched" : "unsure", message, naming: namingOf(naming) };
+    opts.commit(r);
+    return r;
+  });
+}
+async function bindNew(opts) {
+  const { deps } = opts;
+  const queued = deps.jobs().filter((j) => j.id !== opts.job.id && j.parent?.status === "new" && j.parent.proposal).map((j) => j.parent.proposal.sku);
+  const p = await proposeParent({
+    rows: opts.rows,
+    themes: opts.themes,
+    creatorMark: opts.creatorMark,
+    queued,
+    existsInStore: (sku) => opts.call(() => guard(async () => await deps.spapi.parent(sku, opts.signal) !== null))
+  });
+  const common = { ...opts.base, manual: false };
+  if (!p.ok) {
+    const r = p.reason === "noPrefix" ? { ...emptyResult(opts.base, "none", "\u8868\u91CC\u7684\u7236\u4F53 SKU \u770B\u4E0D\u51FA\u547D\u540D\u89C4\u5219\uFF0C\u6CA1\u6CD5\u5EFA\u8BAE\u65B0\u7236\u4F53"), ...common } : p.reason === "noThemes" ? { ...emptyResult(opts.base, "none", "AI \u8BA4\u4E3A\u8868\u91CC\u6CA1\u6709\u5408\u9002\u7684\u7236\u4F53\uFF0C\u4F46\u6CA1\u7ED9\u51FA\u65B0\u4E3B\u9898\uFF1B\u53EF\u4EE5\u624B\u52A8\u9009\u7236\u4F53\uFF0C\u6216\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D"), ...common } : { ...emptyResult(opts.base, "unsure", `\u5EFA\u8BAE\u7684\u7236\u4F53 SKU \u90FD\u5DF2\u5B58\u5728\uFF1A${"tried" in p ? p.tried.join("\u3001") : ""}\uFF0C\u8BF7\u624B\u52A8\u8D77\u540D`), ...common };
+    opts.commit(r);
+    return r;
+  }
+  const prop = p.proposal;
+  return deps.mutex.run(lower(prop.sku), () => {
+    const n = nextName(analyzeNaming([], []), takenNumbers(deps.jobs(), opts.job.id, prop.sku, "Design ##"));
+    const r = {
+      ...common,
+      status: "new",
+      message: null,
+      sku: prop.sku,
+      asin: null,
+      theme: prop.theme,
+      proposal: prop,
+      naming: { ...namingOf(n), attribute: "color", note: NEW_PARENT_NOTE }
+    };
+    opts.commit(r);
+    return r;
+  });
+}
+
+// server/src/pipeline/step5Parent.ts
+var step5Parent = async (ctx) => {
+  const settings = ctx.env.settings();
+  const skip = parentSkipReason(settings);
+  if (skip) return { kind: "skipped", patch: (j) => j.steps[PARENT_STEP].note = skip };
+  const route = ctx.job.route;
+  if (!route) return { kind: "skipped", patch: (j) => j.steps[PARENT_STEP].note = "\u8FD8\u6CA1\u6709\u786E\u5B9A\u54C1\u7C7B\uFF0C\u4E0D\u5339\u914D\u7236\u4F53" };
+  const deps = ctx.env.parent;
+  const p = settings.parent;
+  const cat = ctx.env.library.get().categories.find((c) => c.id === route.categoryId);
+  const tab = cat?.parentTab?.trim() || route.categoryName;
+  const read = await ctx.retry(() => guard(() => deps.sheets.rows(p.sheetUrl, tab)));
+  const base = { tab, readAt: read?.readAt ?? (/* @__PURE__ */ new Date()).toISOString() };
+  const finish2 = (r) => ({ kind: "done", patch: (j) => j.parent = r });
+  if (!read) return finish2(emptyResult(base, "none", `\u98DE\u4E66\u8868\u91CC\u6CA1\u6709\u300C${tab}\u300D\u6807\u7B7E\u9875\uFF0C\u53BB\u6A21\u7248\u5E93\u7ED9\u300C${route.categoryName}\u300D\u9009\u5BF9\u5E94\u7684\u6807\u7B7E\u9875`));
+  if (!read.rows) return finish2(emptyResult(base, "none", `\u300C${tab}\u300D\u6807\u7B7E\u9875\u91CC\u627E\u4E0D\u5230\u300C\u7236\u4F53SKU\u300D\u8868\u5934`));
+  if (!read.rows.length) return finish2(emptyResult(base, "none", `\u300C${tab}\u300D\u6807\u7B7E\u9875\u91CC\u8FD8\u6CA1\u6709\u7236\u4F53`));
+  const rows = read.rows.slice(0, MAX_CANDIDATES);
+  const system = parentSystem(tab, themeSamples(rows));
+  const user = parentUser({ category: route.categoryName, scene: ctx.job.info?.scene ?? null, keywords: ctx.job.info?.keywords ?? [], rows });
+  const src = await import_promises10.default.readFile(import_node_path17.default.join(ctx.dir, ctx.job.source.file));
+  const jpeg = await shrinkForAnalysis(src);
+  ctx.setSnapshot({
+    images: [{ no: 1, role: "\u7ADE\u54C1\u56FE", sha256: ctx.job.source.sha256 }],
+    prefix: "",
+    prompt: system,
+    model: settings.analysis.model,
+    params: { user, tab, candidates: rows.length }
+  });
+  const { data } = await ctx.retry(() => chatJson(settings.analysis, { system, user, imageJpeg: jpeg, signal: ctx.signal }, ParentAnswerSchema));
+  const rowAt = (n) => n !== null && n >= 1 && n <= rows.length ? rows[n - 1] : null;
+  const pick2 = rowAt(data.pick);
+  const seen = /* @__PURE__ */ new Set();
+  const candidates = [data.pick, ...data.alternatives].map((n, i2) => ({ row: rowAt(n), confidence: i2 === 0 ? data.confidence : null })).filter((c) => !!c.row && !seen.has(c.row.sku) && !!seen.add(c.row.sku)).slice(0, 3).map((c) => ({ sku: c.row.sku, asin: c.row.asin, theme: c.row.theme, confidence: c.confidence }));
+  const info = { ...base, candidates, confidence: data.confidence, reason: data.reason || null };
+  const call2 = (fn) => ctx.retry(fn);
+  const save = (r) => ctx.commit((j) => j.parent = r);
+  const job = ctx.job;
+  if (pick2) {
+    await bindExisting({ deps, job, row: pick2, base: { ...info, manual: false }, threshold: p.threshold, commit: save, call: call2, signal: ctx.signal });
+  } else {
+    await bindNew({ deps, job, rows: read.rows, themes: data.new_themes, creatorMark: p.creatorMark, base: info, commit: save, call: call2, signal: ctx.signal });
+  }
+  return { kind: "done" };
+};
+
+// server/src/scheduler/scheduler.ts
+var import_promises11 = __toESM(require("node:fs/promises"), 1);
+var kindOf = (step, job) => step === 0 || step === 3 || step === PARENT_STEP || step === 1 && job?.qc?.state === "pending" || step === 2 && job?.mainQc?.state === "pending" ? "analysis" : "image";
 var phaseName = (job, i2) => i2 === 1 && job.qc?.state === "pending" ? "\u7D20\u6750\u56FE\u9A8C\u6536" : i2 === 2 && job.mainQc?.state === "pending" ? "\u4E3B\u56FE\u9A8C\u6536" : STEP_NAMES[i2];
-var DEFAULT_HANDLERS = [step0Route, step1Extract, step2Main, step3Info, step4Blank];
+var DEFAULT_HANDLERS = [step0Route, step1Extract, step2Main, step3Info, step4Blank, step5Parent];
 var AUTH_MESSAGE = { image: "\u751F\u56FE\u63A5\u53E3 Key \u65E0\u6548\u6216\u65E0\u6743\u9650", analysis: "\u5206\u6790\u63A5\u53E3 Key \u65E0\u6548\u6216\u65E0\u6743\u9650" };
 var Scheduler = class {
   constructor(d) {
@@ -62740,6 +63127,12 @@ var Scheduler = class {
         await d.settings.update({ image: { sendFidelity: false, fidelityAutoDisabled: true } });
         log.warn(`\u4E2D\u8F6C\u7AD9\u4E0D\u652F\u6301\u4FDD\u771F\u53C2\u6570\uFF08${message}\uFF09\uFF0C\u5DF2\u81EA\u52A8\u5173\u95ED\uFF0C\u4E4B\u540E\u7684\u8BF7\u6C42\u4E0D\u518D\u5E26 quality / input_fidelity`);
         d.bus.toast("warn", "\u4E2D\u8F6C\u7AD9\u4E0D\u652F\u6301\u4FDD\u771F\u53C2\u6570\uFF0C\u5DF2\u81EA\u52A8\u5173\u95ED");
+      },
+      parent: {
+        sheets: d.parent?.sheets ?? null,
+        spapi: d.parent?.spapi ?? null,
+        mutex: this.parentLock,
+        jobs: () => d.jobs.list()
       }
     };
   }
@@ -62748,6 +63141,8 @@ var Scheduler = class {
   running = /* @__PURE__ */ new Map();
   userPaused = false;
   authPaused = {};
+  parentPaused = null;
+  parentLock = new KeyedMutex();
   holds = /* @__PURE__ */ new Set();
   tickQueued = false;
   stopped = false;
@@ -62776,6 +63171,7 @@ var Scheduler = class {
     }
     return {
       paused,
+      parentPaused: this.parentPaused,
       slots: {
         image: { busy: this.busy.image, limit: this.d.limiter.limit("image") },
         analysis: { busy: this.busy.analysis, limit: this.d.limiter.limit("analysis") }
@@ -62811,6 +63207,11 @@ var Scheduler = class {
       this.authPaused = {};
       log.info("\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF0C\u89E3\u9664\u63A5\u53E3\u6682\u505C");
     }
+    if (this.parentPaused) {
+      this.parentPaused = null;
+      this.d.parent?.sheets.clear();
+      log.info("\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF0C\u7B2C 6 \u6B65\u300C\u5339\u914D\u7236\u4F53\u300D\u7EE7\u7EED");
+    }
     this.emitQueue();
     this.tick();
   }
@@ -62835,7 +63236,9 @@ var Scheduler = class {
     if (job.attention || this.holds.has(job.id)) return -1;
     const i2 = currentStep(job);
     if (i2 < 0 || job.steps[i2].state !== "pending") return -1;
+    if (i2 === PARENT_STEP && parentSkipReason(this.d.settings.get())) return i2;
     if (this.authPaused[kindOf(i2, job)]) return -1;
+    if (i2 === PARENT_STEP && this.parentPaused) return -1;
     return i2;
   }
   doTick() {
@@ -62843,6 +63246,16 @@ var Scheduler = class {
     for (const job of this.d.jobs.list()) {
       const i2 = this.dispatchableStep(job);
       if (i2 < 0) continue;
+      if (i2 === PARENT_STEP) {
+        const why = parentSkipReason(this.d.settings.get());
+        if (why) {
+          this.d.jobs.update(job.id, (j) => {
+            markSkipped(j, PARENT_STEP);
+            j.steps[PARENT_STEP].note = why;
+          });
+          continue;
+        }
+      }
       const k = kindOf(i2, job);
       if (this.d.limiter.inCooldown(k)) continue;
       if (this.busy[k] >= this.d.limiter.limit(k)) continue;
@@ -62874,7 +63287,8 @@ var Scheduler = class {
       dir,
       signal: ctrl.signal,
       retry: (fn) => withRetry(fn, {
-        attemptsSoFar: job.steps[i2].attempts,
+        // 第 6 步要串行发好几个请求（读表、问 AI、查父体、查子体），每个请求单独计重试次数
+        attemptsSoFar: i2 === PARENT_STEP ? 0 : job.steps[i2].attempts,
         signal: ctrl.signal,
         onAttempt: (n, err2) => update((j) => {
           j.steps[i2].attempts = n;
@@ -62938,11 +63352,11 @@ var Scheduler = class {
         log.warn(`\u300C${j.source.originalName}\u300D\u9700\u5904\u7406\uFF1A${r.attention.message}`);
       }
     });
-    if (r.kind === "done" && i2 === 3) void this.rewriteCsv(this.d.jobs.get(jobId).outputFolder);
+    if (r.kind === "done" && (i2 === 3 || i2 === PARENT_STEP)) void this.rewriteCsv(this.d.jobs.get(jobId).outputFolder);
   }
   /** 同一批的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
   rewriteCsv(folder) {
-    return this.csvLock.run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, this.d.csvRowsDir && import_node_path17.default.join(this.d.csvRowsDir, `${folder}.json`))).catch((e) => log.error(`\u5199\u8BC6\u522B\u4FE1\u606F CSV \u5931\u8D25\uFF1A${e.message}`));
+    return this.csvLock.run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, this.d.csvRowsDir && import_node_path18.default.join(this.d.csvRowsDir, `${folder}.json`))).catch((e) => log.error(`\u5199\u8BC6\u522B\u4FE1\u606F CSV \u5931\u8D25\uFF1A${e.message}`));
   }
   applyError(jobId, i2, k, e) {
     const name = STEP_NAMES[i2];
@@ -62957,6 +63371,19 @@ var Scheduler = class {
       this.d.jobs.update(jobId, (j) => {
         transition(j, i2, "pending");
         j.steps[i2].error = "\u88AB\u9650\u6D41\uFF0C\u7A0D\u540E\u81EA\u52A8\u7EE7\u7EED";
+      });
+      return;
+    }
+    if (e instanceof ParentPauseError) {
+      const first = !this.parentPaused;
+      this.parentPaused = e.message;
+      if (first) {
+        log.error(`\u7B2C 6 \u6B65\u300C\u5339\u914D\u7236\u4F53\u300D\u6682\u505C\uFF1A${e.message}`);
+        this.d.bus.toast("error", `\u5339\u914D\u7236\u4F53\u6682\u505C\uFF1A${e.message}\u3002\u53BB\u8BBE\u7F6E\u91CC\u5904\u7406\u597D\u540E\u4F1A\u81EA\u52A8\u7EE7\u7EED\uFF0C\u524D\u9762\u7684\u6B65\u9AA4\u4E0D\u53D7\u5F71\u54CD`);
+      }
+      this.d.jobs.update(jobId, (j) => {
+        transition(j, i2, "pending");
+        j.steps[i2].error = e.message;
       });
       return;
     }
@@ -63044,7 +63471,7 @@ var Scheduler = class {
   async redo(jobId, p) {
     return this.hold(jobId, async (job) => {
       const n = p.step;
-      if (!Number.isInteger(n) || n < 0 || n > 4) throw new HttpError(400, "\u6B65\u9AA4\u7F16\u53F7\u4E0D\u5BF9");
+      if (!Number.isInteger(n) || n < 0 || n >= STEP_COUNT) throw new HttpError(400, "\u6B65\u9AA4\u7F16\u53F7\u4E0D\u5BF9");
       if (!["done", "skipped", "failed"].includes(job.steps[n].state)) throw new HttpError(400, `\u300C${STEP_NAMES[n]}\u300D\u8FD8\u6CA1\u8DD1\u5B8C\uFF0C\u4E0D\u80FD\u91CD\u505A`);
       const route = n === 0 && p.categoryId ? this.routeFor(p.categoryId, p.styleId) : null;
       const r = runningStep(job);
@@ -63143,7 +63570,7 @@ var Scheduler = class {
       if (step !== 1 && step !== 2) throw new HttpError(400, "\u8FD9\u5F20\u56FE\u4E0D\u9700\u8981\u5904\u7406\u9A8C\u6536");
       const kind = step === 1 ? "pattern" : "main";
       const label = step === 1 ? "\u7D20\u6750\u56FE" : "\u4E3B\u56FE";
-      const buf = await import_promises10.default.readFile(this.d.jobs.fileOf(jobId, JOB_FILES[kind])).catch(() => null);
+      const buf = await import_promises11.default.readFile(this.d.jobs.fileOf(jobId, JOB_FILES[kind])).catch(() => null);
       if (!buf) throw new HttpError(400, `${label}\u6587\u4EF6\u4E0D\u5728\u4E86\uFF0C\u8BF7\u91CD\u505A\u8FD9\u4E00\u6B65`);
       await writeOutput(this.env.outputDir(), job, kind, buf);
       const reasons = (step === 1 ? job.qc : job.mainQc)?.reasons.join("\uFF1B") ?? "";
@@ -63158,6 +63585,69 @@ var Scheduler = class {
       log.info(`\u300C${job.source.originalName}\u300D${label}\u6CA1\u8FC7\u9A8C\u6536\uFF08${reasons}\uFF09\uFF0C\u6309\u4F60\u7684\u9009\u62E9\u4ECD\u7136\u4F7F\u7528`);
       return this.d.jobs.get(jobId);
     });
+  }
+  settingParent = /* @__PURE__ */ new Set();
+  /**
+   * 手动指定父体：只重算命名，标 manual。
+   * 不先放掉原来的号（排号时本来就不算自己），失败就什么都不改；查店铺可能要好几秒，这期间不占着这张图，
+   * 删除、清空队列照常；写入时这张图已经不在、或第 6 步正在重跑，就放弃这次结果。
+   */
+  async setParent(jobId, sku) {
+    const job = this.d.jobs.get(jobId);
+    if (!job) throw new HttpError(404, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u4E0D\u5728\u961F\u5217\u91CC\u4E86");
+    const why = parentSkipReason(this.d.settings.get());
+    if (why) throw new HttpError(400, why);
+    if (!job.route) throw new HttpError(400, "\u8FD9\u5F20\u56FE\u8FD8\u6CA1\u6709\u786E\u5B9A\u54C1\u7C7B");
+    const st = job.steps[PARENT_STEP].state;
+    if (st === "pending" || st === "running") throw new HttpError(400, "\u300C\u5339\u914D\u7236\u4F53\u300D\u8FD8\u6CA1\u8DD1\u5B8C\uFF0C\u7B49\u5B83\u8DD1\u5B8C\u518D\u6539");
+    if (this.settingParent.has(jobId) || this.holds.has(jobId)) throw new HttpError(409, "\u8FD9\u5F20\u56FE\u6B63\u5728\u5904\u7406\u4E0A\u4E00\u4E2A\u64CD\u4F5C\uFF0C\u8BF7\u7A0D\u7B49");
+    this.settingParent.add(jobId);
+    try {
+      const p = this.d.settings.get().parent;
+      const cat = this.d.library.get().categories.find((c) => c.id === job.route.categoryId);
+      const tab = cat?.parentTab?.trim() || job.route.categoryName;
+      const call2 = (fn) => fn().catch((e) => {
+        if (e instanceof ParentPauseError) throw new HttpError(409, e.message);
+        if (e instanceof AiError) throw new HttpError(502, e.message);
+        throw e;
+      });
+      const read = await call2(() => guard(() => this.env.parent.sheets.rows(p.sheetUrl, tab)));
+      const row = read?.rows?.find((r) => r.sku.trim().toLowerCase() === sku.trim().toLowerCase()) ?? { sku: sku.trim(), asin: "", theme: "", row: 0 };
+      const base = {
+        tab,
+        readAt: read?.readAt ?? (/* @__PURE__ */ new Date()).toISOString(),
+        candidates: job.parent?.candidates ?? [],
+        confidence: null,
+        reason: "\u624B\u52A8\u6307\u5B9A",
+        manual: true
+      };
+      let applied = false;
+      await bindExisting({
+        deps: this.env.parent,
+        job,
+        row,
+        base,
+        threshold: p.threshold,
+        commit: (r) => {
+          const cur = this.d.jobs.get(jobId);
+          const s5 = cur?.steps[PARENT_STEP].state;
+          if (!cur || s5 === "pending" || s5 === "running") return;
+          this.d.jobs.update(jobId, (j) => {
+            j.parent = r;
+            if (j.steps[PARENT_STEP].state !== "done") markDone(j, PARENT_STEP);
+            if (j.attention?.step === PARENT_STEP) j.attention = null;
+          });
+          applied = true;
+        },
+        call: call2
+      });
+      if (!applied) throw new HttpError(409, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u5220\u6389\u6216\u6B63\u5728\u91CD\u65B0\u5339\u914D\uFF0C\u8FD9\u6B21\u624B\u52A8\u6307\u5B9A\u6CA1\u6709\u4FDD\u5B58");
+      log.info(`\u300C${job.source.originalName}\u300D\u624B\u52A8\u6307\u5B9A\u7236\u4F53 ${row.sku}`);
+      void this.rewriteCsv(job.outputFolder);
+      return this.d.jobs.get(jobId);
+    } finally {
+      this.settingParent.delete(jobId);
+    }
   }
   async remove(jobId) {
     await this.hold(jobId, async () => {
@@ -63178,14 +63668,14 @@ var Scheduler = class {
     return all.length;
   }
   jobDir(jobId) {
-    return import_node_path17.default.join(this.d.jobs.dirOf(jobId));
+    return import_node_path18.default.join(this.d.jobs.dirOf(jobId));
   }
 };
 
 // server/src/api/jobs.ts
 var import_node_fs12 = __toESM(require("node:fs"), 1);
-var import_promises11 = __toESM(require("node:fs/promises"), 1);
-var import_node_path18 = __toESM(require("node:path"), 1);
+var import_promises12 = __toESM(require("node:fs/promises"), 1);
+var import_node_path19 = __toESM(require("node:path"), 1);
 var import_sharp8 = __toESM(require("sharp"), 1);
 var MAX_FILES = 500;
 var MAX_BYTES = 50 * 1024 * 1024;
@@ -63193,11 +63683,11 @@ var IMAGE_EXT = /\.(png|jpe?g|webp|gif|bmp|tiff?|heic|heif|avif)$/i;
 async function expandPaths(paths) {
   const out = [];
   const walk = async (p) => {
-    if (import_node_path18.default.basename(p).startsWith(".")) return;
-    const st = await import_promises11.default.stat(p).catch(() => null);
+    if (import_node_path19.default.basename(p).startsWith(".")) return;
+    const st = await import_promises12.default.stat(p).catch(() => null);
     if (!st) return;
     if (st.isDirectory()) {
-      for (const c of (await import_promises11.default.readdir(p)).sort()) await walk(import_node_path18.default.join(p, c));
+      for (const c of (await import_promises12.default.readdir(p)).sort()) await walk(import_node_path19.default.join(p, c));
     } else if (st.isFile()) out.push(p);
   };
   for (const p of paths) await walk(p);
@@ -63224,7 +63714,7 @@ function registerJobs(r, ctx) {
   r.post("/jobs", upload.array("files", MAX_FILES), async (req, res) => {
     const files = req.files ?? [];
     if (!files.length) throw new HttpError(400, "\u6CA1\u6709\u6536\u5230\u56FE\u7247\uFF08\u8868\u5355\u5B57\u6BB5\u540D\u5E94\u4E3A files\uFF09");
-    res.json(await addSources(files.map((f2) => ({ name: import_node_path18.default.basename(f2.originalname || "image"), read: async () => f2.buffer }))));
+    res.json(await addSources(files.map((f2) => ({ name: import_node_path19.default.basename(f2.originalname || "image"), read: async () => f2.buffer }))));
   });
   r.post("/jobs/from-clipboard", async (req, res) => {
     if (!sameOrigin(req)) throw new HttpError(403, "\u53EA\u80FD\u4ECE\u672C\u5DE5\u5177\u7684\u9875\u9762\u7C98\u8D34");
@@ -63239,10 +63729,10 @@ function registerJobs(r, ctx) {
     const images = (await expandPaths(paths)).filter((p) => IMAGE_EXT.test(p)).slice(0, MAX_FILES);
     const added = images.length ? await addSources(
       images.map((p) => ({
-        name: import_node_path18.default.basename(p),
+        name: import_node_path19.default.basename(p),
         read: async () => {
-          if ((await import_promises11.default.stat(p)).size > MAX_BYTES) throw new Error("\u6587\u4EF6\u8D85\u8FC7 50 MB");
-          return import_promises11.default.readFile(p);
+          if ((await import_promises12.default.stat(p)).size > MAX_BYTES) throw new Error("\u6587\u4EF6\u8D85\u8FC7 50 MB");
+          return import_promises12.default.readFile(p);
         }
       }))
     ) : { jobs: [], errors: [] };
@@ -63276,7 +63766,8 @@ function registerJobs(r, ctx) {
           override: null,
           qc: null,
           mainQc: null,
-          face: null
+          face: null,
+          parent: null
         };
         await jobs.create(job);
         created.push(withView(job));
@@ -63307,7 +63798,7 @@ function registerJobs(r, ctx) {
   r.post("/jobs/:id/redo", async (req, res) => {
     const b = parseBody(
       external_exports.object({
-        step: external_exports.number().int().min(0).max(4),
+        step: external_exports.number().int().min(0).max(STEP_COUNT - 1),
         prompt: external_exports.string().max(2e4).optional(),
         categoryId: external_exports.string().optional(),
         styleId: external_exports.string().optional(),
@@ -63324,6 +63815,10 @@ function registerJobs(r, ctx) {
   r.post("/jobs/:id/create-category", async (req, res) => {
     res.json({ job: withView(await scheduler.createCategory(id(req))) });
   });
+  r.post("/jobs/:id/parent", async (req, res) => {
+    const b = parseBody(external_exports.object({ sku: external_exports.string().min(1).max(200) }), req.body);
+    res.json({ job: withView(await scheduler.setParent(id(req), b.sku)) });
+  });
   r.post("/jobs/:id/qc-accept", async (req, res) => {
     res.json({ job: withView(await scheduler.acceptQc(id(req))) });
   });
@@ -63336,7 +63831,7 @@ function registerJobs(r, ctx) {
     const kind = String(req.params.kind);
     if (!["source", "pattern", "main", "blank", "face"].includes(kind)) throw new HttpError(400, "\u6587\u4EF6\u7C7B\u578B\u53EA\u80FD\u662F source\u3001pattern\u3001main\u3001blank\u3001face");
     const dir = jobs.dirOf(job.id);
-    const file2 = req.query.size === "thumb" ? import_node_path18.default.join(dir, "thumbs", `${kind}.webp`) : import_node_path18.default.join(dir, kind === "source" ? job.source.file : JOB_FILES[kind]);
+    const file2 = req.query.size === "thumb" ? import_node_path19.default.join(dir, "thumbs", `${kind}.webp`) : import_node_path19.default.join(dir, kind === "source" ? job.source.file : JOB_FILES[kind]);
     if (!import_node_fs12.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(file2);
@@ -63357,7 +63852,7 @@ function registerJobs(r, ctx) {
 // server/src/server.ts
 function readVersion(toolDir) {
   try {
-    return JSON.parse(import_node_fs13.default.readFileSync(import_node_path19.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
+    return JSON.parse(import_node_fs13.default.readFileSync(import_node_path20.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
   } catch {
     return "0.0.0";
   }
@@ -63376,7 +63871,18 @@ async function createContext(paths) {
   const jobs = new JobStore(paths.jobsDir, (job) => bus.emit("job", { job: withView(job) }));
   let scheduler = null;
   const limiter = new Limiter(() => scheduler?.tick());
-  scheduler = new Scheduler({ jobs, library, settings, limiter, bus, stateFile: import_node_path19.default.join(paths.dataDir, "queue.json"), csvRowsDir: import_node_path19.default.join(paths.dataDir, "batches") });
+  const sheets = new FeishuSheets(settings);
+  const spapi = new SpapiClient(settings);
+  scheduler = new Scheduler({
+    jobs,
+    library,
+    settings,
+    limiter,
+    bus,
+    stateFile: import_node_path20.default.join(paths.dataDir, "queue.json"),
+    csvRowsDir: import_node_path20.default.join(paths.dataDir, "batches"),
+    parent: { sheets, spapi }
+  });
   const sched = scheduler;
   library.onChange(() => sched.onLibraryChanged());
   const ctx = {
@@ -63388,11 +63894,8 @@ async function createContext(paths) {
     library,
     jobs,
     scheduler: sched,
-    batch: new BatchFolders(import_node_path19.default.join(paths.dataDir, "batch.json"), () => resolveOutputDir(settings.get())),
-    parent: {
-      sheets: new FeishuSheets(settings),
-      spapi: new SpapiClient(settings)
-    },
+    batch: new BatchFolders(import_node_path20.default.join(paths.dataDir, "batch.json"), () => resolveOutputDir(settings.get())),
+    parent: { sheets, spapi },
     sse: { clients: 0 },
     onSettingsSaved: () => {
     },
@@ -63441,9 +63944,9 @@ function createApp(ctx) {
   });
   app.use("/api", api);
   const webDir = ctx.paths.webDir;
-  if (import_node_fs13.default.existsSync(import_node_path19.default.join(webDir, "index.html"))) {
+  if (import_node_fs13.default.existsSync(import_node_path20.default.join(webDir, "index.html"))) {
     app.use(import_express.default.static(webDir, { index: "index.html" }));
-    app.get("/{*rest}", (_req, res) => res.sendFile(import_node_path19.default.join(webDir, "index.html")));
+    app.get("/{*rest}", (_req, res) => res.sendFile(import_node_path20.default.join(webDir, "index.html")));
   } else {
     app.get("/", (_req, res) => {
       res.type("html").send('<!doctype html><meta charset="utf-8"><title>Two stages</title><p>\u9875\u9762\u8FD8\u6CA1\u6709\u6784\u5EFA\uFF0C\u8BF7\u5148\u8FD0\u884C npm run build\uFF0C\u6216\u7528 npm run dev \u5F00\u53D1\u3002</p>');

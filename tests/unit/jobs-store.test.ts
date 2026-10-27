@@ -50,7 +50,7 @@ describe('状态流转白名单', () => {
     expect(viewOf(j)).toEqual({ phase: 'queued', runningStep: null, label: '排队中' })
     transition(j, 0, 'running')
     expect(viewOf(j)).toMatchObject({ phase: 'running', runningStep: 0, label: '识别品类中' })
-    for (let i = 0; i < 5; i++) markDone(j, i)
+    for (let i = 0; i < j.steps.length; i++) markDone(j, i)
     expect(viewOf(j).phase).toBe('done')
   })
 })

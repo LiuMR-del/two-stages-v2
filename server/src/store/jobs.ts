@@ -5,8 +5,10 @@ import { z } from 'zod'
 import { writeFileAtomicSync } from './atomic'
 import { log } from '../util/log'
 
-export const STEP_COUNT = 5
-export const STEP_NAMES = ['识别品类', '提取素材', '生成主图', '信息识别', '空白图'] as const
+export const STEP_COUNT = 6
+export const STEP_NAMES = ['识别品类', '提取素材', '生成主图', '信息识别', '空白图', '匹配父体'] as const
+/** 第 6 步「匹配父体」的下标 */
+export const PARENT_STEP = 5
 
 const StepStateSchema = z.enum(['pending', 'running', 'done', 'skipped', 'failed'])
 export type StepState = z.infer<typeof StepStateSchema>
@@ -31,6 +33,8 @@ const StepRecordSchema = z.object({
   error: z.string().optional(),
   snapshot: SnapshotSchema.optional(),
   output: z.string().optional(),
+  /** 跳过的原因等说明（如「识别父体没有打开」） */
+  note: z.string().optional(),
 })
 export type StepRecord = z.infer<typeof StepRecordSchema>
 
@@ -86,6 +90,45 @@ const QcSchema = z.object({
 })
 export type Qc = z.infer<typeof QcSchema>
 
+/** 第 6 步「匹配父体」的结果（实施方案 2.3） */
+const ParentResultSchema = z.object({
+  /** new = 建议新建父体 */
+  status: z.enum(['matched', 'unsure', 'none', 'new']),
+  /** none / unsure 的原因 */
+  message: z.string().nullable(),
+  tab: z.string(),
+  readAt: z.string(),
+  sku: z.string().nullable(),
+  asin: z.string().nullable(),
+  theme: z.string().nullable(),
+  confidence: z.number().nullable(),
+  reason: z.string().nullable(),
+  manual: z.boolean(),
+  candidates: z.array(z.object({ sku: z.string(), asin: z.string(), theme: z.string(), confidence: z.number().nullable() })),
+  naming: z
+    .object({
+      attribute: z.string(),
+      existing: z.array(z.string()),
+      groups: z.array(z.object({ pattern: z.string(), count: z.number() })),
+      next: z.string().nullable(),
+      note: z.string().nullable(),
+      /** 占号用：命名方式（如 Design ##）和分到的号 */
+      key: z.string().nullable().default(null),
+      number: z.number().nullable().default(null),
+    })
+    .nullable(),
+  proposal: z
+    .object({
+      sku: z.string(),
+      prefix: z.string(),
+      theme: z.string(),
+      basedOn: z.array(z.string()),
+      themeCandidates: z.array(z.string()),
+    })
+    .nullable(),
+})
+export type ParentResult = z.infer<typeof ParentResultSchema>
+
 export const JobSchema = z.object({
   id: z.string(),
   createdAt: z.string(),
@@ -121,7 +164,7 @@ export const JobSchema = z.object({
   attention: z
     .object({
       kind: z.enum(['nomatch', 'nowhite', 'failed', 'refused', 'qc']),
-      step: z.number().int().min(0).max(4),
+      step: z.number().int().min(0).max(STEP_COUNT - 1),
       message: z.string(),
       guess: z.string().optional(),
       at: z.string(),
@@ -129,6 +172,8 @@ export const JobSchema = z.object({
     .nullable(),
   override: z.object({ step: z.number().int(), prompt: z.string() }).nullable(),
   qc: QcSchema.nullable().default(null),
+  /** 第 6 步匹配到的父体；没打开识别父体、旧任务时为 null */
+  parent: ParentResultSchema.nullable().default(null),
   /** 竞品图里商品印刷面的区域（第①步模型给四个角，本地往外校正）；没有时第②步按整张竞品图提取 */
   face: z
     .object({
@@ -204,6 +249,8 @@ export function resetFrom(job: Job, n: number): void {
   if (job.steps.some((s, i) => i >= n && s.state === 'running')) throw new TransitionError('有步骤正在运行，要先中止才能重置')
   if (n <= 1) job.qc = null
   if (n <= 2) job.mainQc = null
+  // 第 6 步重跑：分到的号随之释放
+  if (n <= PARENT_STEP) job.parent = null
   for (let i = n; i < STEP_COUNT; i++) {
     const s = job.steps[i]!
     if (s.state !== 'pending') transition(job, i, 'pending')
@@ -211,6 +258,7 @@ export function resetFrom(job: Job, n: number): void {
     delete s.output
     delete s.snapshot
     delete s.error
+    delete s.note
     delete s.startedAt
     delete s.endedAt
   }
@@ -240,7 +288,7 @@ export type JobView = { phase: 'queued' | 'running' | 'attention' | 'done'; runn
 export function viewOf(job: Job): JobView {
   const r = runningStep(job)
   if (job.attention) return { phase: 'attention', runningStep: r >= 0 ? r : null, label: '需处理' }
-  if (r >= 0) return { phase: 'running', runningStep: r, label: r === 4 ? '生成空白图中' : r === 1 && job.qc?.state === 'pending' ? '验收素材中' : r === 2 && job.mainQc?.state === 'pending' ? '验收主图中' : `${STEP_NAMES[r]}中` }
+  if (r >= 0) return { phase: 'running', runningStep: r, label: r === 4 ? '生成空白图中' : r === 1 && job.qc?.state === 'pending' ? '验收素材中' : r === 2 && job.mainQc?.state === 'pending' ? '验收主图中' : r === PARENT_STEP ? '匹配父体中' : `${STEP_NAMES[r]}中` }
   if (currentStep(job) === -1) return { phase: 'done', runningStep: null, label: '完成' }
   return { phase: 'queued', runningStep: null, label: '排队中' }
 }
@@ -273,7 +321,12 @@ export class JobStore {
       const file = path.join(this.dir, ent.name, 'job.json')
       if (!fs.existsSync(file)) continue
       try {
-        const r = JobSchema.safeParse(JSON.parse(fs.readFileSync(file, 'utf8')))
+        const raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+        // 旧任务只有 5 步：补上第 6 步（跳过），需要的话在详情里对第 6 步点重做
+        if (Array.isArray(raw?.steps) && raw.steps.length === STEP_COUNT - 1) {
+          raw.steps.push({ state: 'skipped', attempts: 0, note: '这张图是加父体功能之前跑的，没有匹配父体' })
+        }
+        const r = JobSchema.safeParse(raw)
         if (!r.success) {
           log.warn(`任务记录 ${ent.name} 格式不对，已跳过`)
           continue

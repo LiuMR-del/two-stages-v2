@@ -63,6 +63,31 @@ export function registerParent(r: Router, ctx: AppContext): void {
     res.json({ found, settings: maskSettings(settings.get()) })
   })
 
+  /** 手动选父体时搜索用：给了 tab 就返回这一页，不给就返回所有页 */
+  r.get('/parent/rows', async (req, res) => {
+    const url = settings.get().parent.sheetUrl
+    if (!url) throw new HttpError(400, '先在设置里填父体表链接')
+    const tab = typeof req.query.tab === 'string' ? req.query.tab : ''
+    try {
+      const info = await p.sheets.info(url)
+      const tabs = tab ? info.tabs.filter((t) => t.title === tab) : info.tabs
+      const out: { tab: string; sku: string; asin: string; theme: string }[] = []
+      const failed: { tab: string; message: string }[] = []
+      for (const t of tabs) {
+        try {
+          const r2 = await p.sheets.rows(url, t.title, false, info)
+          for (const row of r2?.rows ?? []) out.push({ tab: t.title, sku: row.sku, asin: row.asin, theme: row.theme })
+        } catch (e) {
+          failed.push({ tab: t.title, message: (e as Error).message })
+        }
+      }
+      res.json({ title: info.title, rows: out, failed })
+    } catch (e) {
+      if (e instanceof FeishuError || e instanceof FeishuAuthError) throw new HttpError(502, e.message)
+      throw e
+    }
+  })
+
   r.post('/settings/spapi/test', async (_req, res) => {
     res.json(await p.spapi.test())
   })

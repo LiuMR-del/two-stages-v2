@@ -7,7 +7,7 @@ import sharp from 'sharp'
 import type { AppContext } from '../context'
 import { HttpError, parseBody, sameOrigin } from './util'
 import { upload } from './library'
-import { newSteps, withView, type Job } from '../store/jobs'
+import { newSteps, STEP_COUNT, withView, type Job } from '../store/jobs'
 import { localDay, newJobId } from '../util/ids'
 import { EXT_OF, readSize, sniffImageType } from '../image/process'
 import { normalizeLibraryImage, sha256 } from '../library/images'
@@ -118,6 +118,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           qc: null,
           mainQc: null,
           face: null,
+          parent: null,
         }
         await jobs.create(job)
         created.push(withView(job))
@@ -152,7 +153,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
   r.post('/jobs/:id/redo', async (req, res) => {
     const b = parseBody(
       z.object({
-        step: z.number().int().min(0).max(4),
+        step: z.number().int().min(0).max(STEP_COUNT - 1),
         prompt: z.string().max(20000).optional(),
         categoryId: z.string().optional(),
         styleId: z.string().optional(),
@@ -170,6 +171,12 @@ export function registerJobs(r: Router, ctx: AppContext): void {
 
   r.post('/jobs/:id/create-category', async (req, res) => {
     res.json({ job: withView(await scheduler.createCategory(id(req))) })
+  })
+
+  /** 手动指定父体（详情里点候选或搜索出来的父体）：只重算命名 */
+  r.post('/jobs/:id/parent', async (req, res) => {
+    const b = parseBody(z.object({ sku: z.string().min(1).max(200) }), req.body)
+    res.json({ job: withView(await scheduler.setParent(id(req), b.sku)) })
   })
 
   r.post('/jobs/:id/qc-accept', async (req, res) => {

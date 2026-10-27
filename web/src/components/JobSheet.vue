@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { FolderOpen, RotateCcw, TriangleAlert, X } from '@lucide/vue'
 import ImageSlot, { type SlotState } from './ImageSlot.vue'
 import RecipeCard, { type RecipeSlot } from './RecipeCard.vue'
-import { useJobs, STEP_NAMES, type FileKind } from '../stores/jobs'
+import { useJobs, STEP_NAMES, PARENT_STEP, type FileKind } from '../stores/jobs'
 import { activeTemplateName, useLibrary } from '../stores/library'
 import { useUi } from '../stores/ui'
 import { imageUrl } from '../api'
@@ -90,6 +90,8 @@ function colorText(q: NonNullable<Job['qc']>): string {
   return `${head}；素材图比竞品图：亮度 ${sign(s.L)}、红绿 ${sign(s.a)}、黄蓝 ${sign(s.b)}、鲜艳度 ${sign(s.C)}`
 }
 
+const PARENT_STATUS: Record<string, string> = { matched: '已匹配', unsure: '待确认', none: '没有合适的父体', new: '建议新建' }
+
 const QC_STATE: Record<string, string> = { pending: '等待验收', pass: '验收合格', fail: '没过验收', bypassed: '没过验收，已选择仍然使用' }
 const qc = computed(() => (step.value === 1 ? (job.value?.qc ?? null) : step.value === 2 ? (job.value?.mainQc ?? null) : null))
 const isMain = computed(() => step.value === 2)
@@ -151,6 +153,8 @@ function openRedo() {
 
 const canRedo = computed(() => !!rec.value && ['done', 'skipped', 'failed'].includes(rec.value.state))
 const downstream = computed(() => STEP_NAMES.slice(step.value + 1).join('、'))
+/** 第 6 步重做 = 重新读表、重新问 AI */
+const isParent = computed(() => step.value === PARENT_STEP)
 
 async function confirmRedo() {
   const j = job.value!
@@ -162,7 +166,7 @@ async function confirmRedo() {
       body.categoryId = cid
       body.styleId = sid
     }
-  } else if (recipe.value?.local) {
+  } else if (recipe.value?.local || isParent.value) {
     // 本地合成没有提示词
   } else if (redoText.value.trim() && redoText.value !== prefill()) {
     body.prompt = redoText.value
@@ -175,7 +179,7 @@ async function confirmRedo() {
   busy.value = false
   if (r) {
     redoOpen.value = false
-    ui.toast(`已重做「${STEP_NAMES[step.value]}」${step.value < 4 ? '，后面的步骤会自动跟上' : ''}`)
+    ui.toast(`已重做「${STEP_NAMES[step.value]}」${step.value < PARENT_STEP ? '，后面的步骤会自动跟上' : ''}`)
   }
 }
 
@@ -249,6 +253,48 @@ async function openFolder() {
             </dd>
           </dl>
           <div v-else-if="rec!.state === 'pending'" class="none">排队等待识别</div>
+        </template>
+
+        <!-- ⑥ 匹配父体（完整的候选切换、复制、搜索在第四段） -->
+        <template v-else-if="step === 5">
+          <div v-if="rec!.state === 'skipped'" class="none">{{ rec!.note || '这张图没有匹配父体' }}</div>
+          <div v-else-if="rec!.state === 'running'" class="none">正在读飞书父体表、查店铺…</div>
+          <div v-else-if="rec!.state === 'pending'" class="none">
+            {{ rec!.error || (jobs.queue?.parentPaused && job.steps[4]!.state !== 'pending' ? `匹配父体暂停：${jobs.queue.parentPaused}` : '等待前面的步骤完成') }}
+          </div>
+          <dl v-else-if="job.parent" class="kv">
+            <dt>状态</dt>
+            <dd>
+              <span class="pill" :class="{ ac: job.parent.status === 'matched', am: job.parent.status === 'unsure', bl: job.parent.status === 'new' }">{{ PARENT_STATUS[job.parent.status] }}</span>
+              <span v-if="job.parent.message" class="muted small"> {{ job.parent.message }}</span>
+            </dd>
+            <template v-if="job.parent.sku">
+              <dt>父体</dt>
+              <dd>{{ job.parent.sku }}<span class="muted small"> · {{ job.parent.theme || '—' }} · {{ job.parent.asin || (job.parent.status === 'new' ? '需手动创建' : '—') }}</span></dd>
+            </template>
+            <template v-if="job.parent.naming">
+              <dt>下一个变体名</dt>
+              <dd>
+                <b style="font-weight: 500">{{ job.parent.naming.next ?? '需要手动起名' }}</b>
+                <span v-if="job.parent.confidence !== null" class="muted small"> · 把握 {{ job.parent.confidence.toFixed(2) }}</span>
+                <div v-if="job.parent.naming.note" class="muted tiny">{{ job.parent.naming.note }}</div>
+              </dd>
+              <dt>现有子体</dt>
+              <dd class="small">{{ job.parent.naming.existing.join('、') || '（没有）' }}<span class="muted"> · {{ job.parent.naming.groups.map((g) => `${g.pattern} ×${g.count}`).join('，') }}</span></dd>
+            </template>
+            <template v-if="job.parent.candidates.length">
+              <dt>候选</dt>
+              <dd class="small">{{ job.parent.candidates.map((c) => `${c.theme || c.sku}（${c.sku}）`).join('；') }}</dd>
+            </template>
+            <dt>标签页</dt>
+            <dd class="small">「{{ job.parent.tab }}」 · {{ new Date(job.parent.readAt).toLocaleTimeString() }} 读取</dd>
+          </dl>
+          <details v-if="rec!.snapshot" style="margin-top: 8px">
+            <summary class="small">实际发给分析模型的内容</summary>
+            <pre class="raw">{{ rec!.snapshot.prompt }}
+
+{{ String(rec!.snapshot.params?.user ?? '') }}</pre>
+          </details>
         </template>
 
         <!-- ④ 信息识别 -->
@@ -328,7 +374,7 @@ async function openFolder() {
         <div v-if="canRedo" class="redo">
           <div v-if="!redoOpen" class="row">
             <span class="muted small fill">对结果不满意？</span>
-            <button type="button" class="btn sm" @click="openRedo"><RotateCcw aria-hidden="true" />重做这一步</button>
+            <button type="button" class="btn sm" @click="openRedo"><RotateCcw aria-hidden="true" />{{ isParent ? '重新匹配' : '重做这一步' }}</button>
           </div>
           <template v-else>
             <b style="font-weight: 500">重做「{{ STEP_NAMES[step] }}」</b>
@@ -342,14 +388,15 @@ async function openFolder() {
               </select>
             </div>
             <div v-else-if="recipe?.local" class="muted small">本地合成没有提示词可改，重做就是重新合成；想要 AI 版本，请在模版库的配方卡把贴图方式改成「AI 贴图」。</div>
+            <div v-else-if="isParent" class="muted small">重新读飞书父体表、重新让 AI 挑父体、重新查店铺推算变体名；原来分到的号会释放。</div>
             <textarea v-else v-model="redoText" rows="6" aria-label="本次使用的提示词" placeholder="留空则按原来的提示词重做"></textarea>
             <label v-if="step === 1 && job.face" class="sw small">
               <input v-model="redoWhole" type="checkbox" />不用第 ① 步找的印刷面，按整张竞品图提取（区域框错了、切掉了图案时用）
             </label>
             <div class="row">
-              <span class="muted small fill">只改这一张，不会改模版库{{ step < 4 ? '；之后的 ' + downstream + ' 会自动重跑' : '' }}</span>
+              <span class="muted small fill">只改这一张，不会改模版库{{ downstream ? '；之后的 ' + downstream + ' 会自动重跑' : '' }}</span>
               <button type="button" class="btn sm" @click="redoOpen = false">取消</button>
-              <button type="button" class="btn sm pri" :disabled="busy" @click="confirmRedo">{{ recipe?.local ? '重新合成' : step === 1 ? '重新提取' : '确认重做' }}</button>
+              <button type="button" class="btn sm pri" :disabled="busy" @click="confirmRedo">{{ recipe?.local ? '重新合成' : step === 1 ? '重新提取' : isParent ? '重新匹配' : '确认重做' }}</button>
             </div>
           </template>
         </div>

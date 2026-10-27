@@ -12,6 +12,8 @@ import {
   resetFrom,
   runningStep,
   STEP_NAMES,
+  STEP_COUNT,
+  PARENT_STEP,
   transition,
   type Attention,
   type Job,
@@ -23,6 +25,10 @@ import { step1Extract } from '../pipeline/step1Extract'
 import { step2Main } from '../pipeline/step2Main'
 import { step3Info } from '../pipeline/step3Info'
 import { step4Blank } from '../pipeline/step4Blank'
+import { step5Parent } from '../pipeline/step5Parent'
+import { bindExisting, guard, ParentPauseError, parentSkipReason } from '../parent/match'
+import type { FeishuSheets } from '../parent/feishu'
+import type { SpapiClient } from '../parent/spapi'
 import { resolvePlan } from '../pipeline/plan'
 import { assignOutputBase, writeOutput } from '../pipeline/output'
 import { JOB_FILES } from '../pipeline/files'
@@ -39,18 +45,20 @@ import { readJsonSync, writeFileAtomicSync } from '../store/atomic'
 
 /** 第②步提取完、第③步生成完，等验收时这一步占的是分析并发 */
 export const kindOf = (step: number, job?: Pick<Job, 'qc' | 'mainQc'>): ApiKind =>
-  step === 0 || step === 3 || (step === 1 && job?.qc?.state === 'pending') || (step === 2 && job?.mainQc?.state === 'pending') ? 'analysis' : 'image'
+  step === 0 || step === 3 || step === PARENT_STEP || (step === 1 && job?.qc?.state === 'pending') || (step === 2 && job?.mainQc?.state === 'pending') ? 'analysis' : 'image'
 
 /** 正在验收时，日志和提示里用验收的名字 */
 const phaseName = (job: Job, i: number) =>
   i === 1 && job.qc?.state === 'pending' ? '素材图验收' : i === 2 && job.mainQc?.state === 'pending' ? '主图验收' : STEP_NAMES[i]
 
-const DEFAULT_HANDLERS: StepHandler[] = [step0Route, step1Extract, step2Main, step3Info, step4Blank]
+const DEFAULT_HANDLERS: StepHandler[] = [step0Route, step1Extract, step2Main, step3Info, step4Blank, step5Parent]
 
 const AUTH_MESSAGE: Record<ApiKind, string> = { image: '生图接口 Key 无效或无权限', analysis: '分析接口 Key 无效或无权限' }
 
 export type QueueState = {
   paused: null | { by: 'user' | 'auth'; kind?: ApiKind; message: string }
+  /** 第 6 步单独暂停（飞书 / SP-API 凭证、权限问题），前 5 步照常 */
+  parentPaused: string | null
   slots: Record<ApiKind, { busy: number; limit: number }>
 }
 
@@ -65,6 +73,8 @@ export type SchedulerDeps = {
   handlers?: StepHandler[]
   /** 记住「暂停队列」，重启后仍然暂停；不给就只记在内存里 */
   stateFile?: string
+  /** 第 6 步用的飞书读表和 SP-API；单元测试不给时第 6 步一律当作凭证问题 */
+  parent?: { sheets: FeishuSheets; spapi: SpapiClient }
   /** 每批识别信息 CSV 的行记在这里，移出队列的图的行不丢 */
   csvRowsDir?: string
 }
@@ -74,6 +84,8 @@ export class Scheduler {
   private running = new Map<string, Running>()
   private userPaused = false
   private authPaused: Partial<Record<ApiKind, string>> = {}
+  private parentPaused: string | null = null
+  private parentLock = new KeyedMutex()
   private holds = new Set<string>()
   private tickQueued = false
   private stopped = false
@@ -94,6 +106,12 @@ export class Scheduler {
         await d.settings.update({ image: { sendFidelity: false, fidelityAutoDisabled: true } })
         log.warn(`中转站不支持保真参数（${message}），已自动关闭，之后的请求不再带 quality / input_fidelity`)
         d.bus.toast('warn', '中转站不支持保真参数，已自动关闭')
+      },
+      parent: {
+        sheets: d.parent?.sheets ?? (null as unknown as FeishuSheets),
+        spapi: d.parent?.spapi ?? (null as unknown as SpapiClient),
+        mutex: this.parentLock,
+        jobs: () => d.jobs.list(),
       },
     }
   }
@@ -122,6 +140,7 @@ export class Scheduler {
     }
     return {
       paused,
+      parentPaused: this.parentPaused,
       slots: {
         image: { busy: this.busy.image, limit: this.d.limiter.limit('image') },
         analysis: { busy: this.busy.analysis, limit: this.d.limiter.limit('analysis') },
@@ -162,6 +181,11 @@ export class Scheduler {
       this.authPaused = {}
       log.info('设置已保存，解除接口暂停')
     }
+    if (this.parentPaused) {
+      this.parentPaused = null
+      this.d.parent?.sheets.clear()
+      log.info('设置已保存，第 6 步「匹配父体」继续')
+    }
     this.emitQueue()
     this.tick()
   }
@@ -191,7 +215,10 @@ export class Scheduler {
     if (job.attention || this.holds.has(job.id)) return -1
     const i = currentStep(job)
     if (i < 0 || job.steps[i]!.state !== 'pending') return -1
+    // 识别父体关着 / 缺设置：doTick 里直接跳过，不受分析接口暂停影响
+    if (i === PARENT_STEP && parentSkipReason(this.d.settings.get())) return i
     if (this.authPaused[kindOf(i, job)]) return -1
+    if (i === PARENT_STEP && this.parentPaused) return -1
     return i
   }
 
@@ -200,6 +227,17 @@ export class Scheduler {
     for (const job of this.d.jobs.list()) {
       const i = this.dispatchableStep(job)
       if (i < 0) continue
+      // 识别父体关着或缺设置：第 6 步直接跳过，不占并发、不发任何请求
+      if (i === PARENT_STEP) {
+        const why = parentSkipReason(this.d.settings.get())
+        if (why) {
+          this.d.jobs.update(job.id, (j) => {
+            markSkipped(j, PARENT_STEP)
+            j.steps[PARENT_STEP]!.note = why
+          })
+          continue
+        }
+      }
       const k = kindOf(i, job)
       if (this.d.limiter.inCooldown(k)) continue
       if (this.busy[k] >= this.d.limiter.limit(k)) continue
@@ -234,7 +272,8 @@ export class Scheduler {
       signal: ctrl.signal,
       retry: (fn) =>
         withRetry(fn, {
-          attemptsSoFar: job.steps[i]!.attempts,
+          // 第 6 步要串行发好几个请求（读表、问 AI、查父体、查子体），每个请求单独计重试次数
+          attemptsSoFar: i === PARENT_STEP ? 0 : job.steps[i]!.attempts,
           signal: ctrl.signal,
           onAttempt: (n, err) =>
             update((j) => {
@@ -304,7 +343,7 @@ export class Scheduler {
         log.warn(`「${j.source.originalName}」需处理：${r.attention.message}`)
       }
     })
-    if (r.kind === 'done' && i === 3) void this.rewriteCsv(this.d.jobs.get(jobId)!.outputFolder)
+    if (r.kind === 'done' && (i === 3 || i === PARENT_STEP)) void this.rewriteCsv(this.d.jobs.get(jobId)!.outputFolder)
   }
 
   /** 同一批的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
@@ -327,6 +366,19 @@ export class Scheduler {
       this.d.jobs.update(jobId, (j) => {
         transition(j, i, 'pending')
         j.steps[i]!.error = '被限流，稍后自动继续'
+      })
+      return
+    }
+    if (e instanceof ParentPauseError) {
+      const first = !this.parentPaused
+      this.parentPaused = e.message
+      if (first) {
+        log.error(`第 6 步「匹配父体」暂停：${e.message}`)
+        this.d.bus.toast('error', `匹配父体暂停：${e.message}。去设置里处理好后会自动继续，前面的步骤不受影响`)
+      }
+      this.d.jobs.update(jobId, (j) => {
+        transition(j, i, 'pending')
+        j.steps[i]!.error = e.message
       })
       return
     }
@@ -422,7 +474,7 @@ export class Scheduler {
   async redo(jobId: string, p: { step: number; prompt?: string; categoryId?: string; styleId?: string; wholePhoto?: boolean }): Promise<Job> {
     return this.hold(jobId, async (job) => {
       const n = p.step
-      if (!Number.isInteger(n) || n < 0 || n > 4) throw new HttpError(400, '步骤编号不对')
+      if (!Number.isInteger(n) || n < 0 || n >= STEP_COUNT) throw new HttpError(400, '步骤编号不对')
       if (!['done', 'skipped', 'failed'].includes(job.steps[n]!.state)) throw new HttpError(400, `「${STEP_NAMES[n]}」还没跑完，不能重做`)
       const route = n === 0 && p.categoryId ? this.routeFor(p.categoryId, p.styleId) : null
       const r = runningStep(job)
@@ -541,6 +593,72 @@ export class Scheduler {
       log.info(`「${job.source.originalName}」${label}没过验收（${reasons}），按你的选择仍然使用`)
       return this.d.jobs.get(jobId)!
     })
+  }
+
+  private settingParent = new Set<string>()
+
+  /**
+   * 手动指定父体：只重算命名，标 manual。
+   * 不先放掉原来的号（排号时本来就不算自己），失败就什么都不改；查店铺可能要好几秒，这期间不占着这张图，
+   * 删除、清空队列照常；写入时这张图已经不在、或第 6 步正在重跑，就放弃这次结果。
+   */
+  async setParent(jobId: string, sku: string): Promise<Job> {
+    const job = this.d.jobs.get(jobId)
+    if (!job) throw new HttpError(404, '这张图已经不在队列里了')
+    const why = parentSkipReason(this.d.settings.get())
+    if (why) throw new HttpError(400, why)
+    if (!job.route) throw new HttpError(400, '这张图还没有确定品类')
+    const st = job.steps[PARENT_STEP]!.state
+    if (st === 'pending' || st === 'running') throw new HttpError(400, '「匹配父体」还没跑完，等它跑完再改')
+    if (this.settingParent.has(jobId) || this.holds.has(jobId)) throw new HttpError(409, '这张图正在处理上一个操作，请稍等')
+    this.settingParent.add(jobId)
+    try {
+      const p = this.d.settings.get().parent
+      const cat = this.d.library.get().categories.find((c) => c.id === job.route!.categoryId)
+      const tab = cat?.parentTab?.trim() || job.route.categoryName
+      const call = <T,>(fn: () => Promise<T>) =>
+        fn().catch((e) => {
+          if (e instanceof ParentPauseError) throw new HttpError(409, e.message)
+          if (e instanceof AiError) throw new HttpError(502, e.message)
+          throw e
+        })
+      const read = await call(() => guard(() => this.env.parent.sheets.rows(p.sheetUrl, tab)))
+      const row = read?.rows?.find((r) => r.sku.trim().toLowerCase() === sku.trim().toLowerCase()) ?? { sku: sku.trim(), asin: '', theme: '', row: 0 }
+      const base = {
+        tab,
+        readAt: read?.readAt ?? new Date().toISOString(),
+        candidates: job.parent?.candidates ?? [],
+        confidence: null,
+        reason: '手动指定',
+        manual: true,
+      }
+      let applied = false
+      await bindExisting({
+        deps: this.env.parent,
+        job,
+        row,
+        base,
+        threshold: p.threshold,
+        commit: (r) => {
+          const cur = this.d.jobs.get(jobId)
+          const s5 = cur?.steps[PARENT_STEP]!.state
+          if (!cur || s5 === 'pending' || s5 === 'running') return
+          this.d.jobs.update(jobId, (j) => {
+            j.parent = r
+            if (j.steps[PARENT_STEP]!.state !== 'done') markDone(j, PARENT_STEP)
+            if (j.attention?.step === PARENT_STEP) j.attention = null
+          })
+          applied = true
+        },
+        call,
+      })
+      if (!applied) throw new HttpError(409, '这张图已经删掉或正在重新匹配，这次手动指定没有保存')
+      log.info(`「${job.source.originalName}」手动指定父体 ${row.sku}`)
+      void this.rewriteCsv(job.outputFolder)
+      return this.d.jobs.get(jobId)!
+    } finally {
+      this.settingParent.delete(jobId)
+    }
   }
 
   async remove(jobId: string): Promise<void> {

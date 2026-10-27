@@ -4,7 +4,8 @@ import { api } from '../api'
 import type { Job, QueueState } from '../types'
 import type { ViewerItem } from './ui'
 
-export const STEP_NAMES = ['识别品类', '提取素材', '生成主图', '信息识别', '空白图'] as const
+export const STEP_NAMES = ['识别品类', '提取素材', '生成主图', '信息识别', '空白图', '匹配父体'] as const
+export const PARENT_STEP = 5
 export type FileKind = 'source' | 'face' | 'pattern' | 'main' | 'blank'
 const STEP_OF_KIND: Record<FileKind, number> = { source: -1, face: 1, pattern: 1, main: 2, blank: 4 }
 const VIEW_KINDS: { kind: FileKind; label: string; step: number }[] = [

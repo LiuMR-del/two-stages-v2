@@ -25,7 +25,13 @@ function status(kind: 'image' | 'analysis') {
 }
 const image = computed(() => status('image'))
 const analysis = computed(() => status('analysis'))
-const problem = computed(() => [image.value, analysis.value].find((s) => s.dot === 'rd' || s.dot === 'gr') ?? [image.value, analysis.value].find((s) => s.dot === 'am'))
+const parentPaused = computed(() => (props.connected ? (jobs.queue?.parentPaused ?? null) : null))
+const problem = computed(
+  () =>
+    [image.value, analysis.value].find((s) => s.dot === 'rd' || s.dot === 'gr') ??
+    (parentPaused.value ? { dot: 'rd', text: `匹配父体暂停：${parentPaused.value}，去设置检查` } : null) ??
+    [image.value, analysis.value].find((s) => s.dot === 'am'),
+)
 const userPaused = computed(() => jobs.queue?.paused?.by === 'user')
 
 async function togglePause() {
@@ -44,6 +50,7 @@ async function togglePause() {
     <button type="button" class="ok" style="border: 0; background: transparent" :title="`${image.text}\n${analysis.text}`" @click="ui.settingsOpen = true">
       <span class="dot" :class="image.dot" aria-hidden="true"></span>
       <span class="dot" :class="analysis.dot" aria-hidden="true"></span>
+      <span v-if="parentPaused" class="dot rd" aria-hidden="true"></span>
       <span class="ok-text" :style="problem?.dot === 'rd' ? 'color: var(--rd)' : ''">{{ problem ? problem.text : '接口正常' }}</span>
     </button>
     <button type="button" class="btn sm" :class="{ pri: userPaused }" :aria-label="userPaused ? '继续队列' : '暂停队列'" @click="togglePause">

@@ -98,6 +98,8 @@ export type StepRecord = {
   error?: string
   snapshot?: StepSnapshot
   output?: string
+  /** 跳过的原因等说明 */
+  note?: string
 }
 export type AttentionKind = 'nomatch' | 'nowhite' | 'failed' | 'refused' | 'qc'
 export type Qc = {
@@ -165,6 +167,8 @@ export type Job = {
   qc: Qc | null
   /** 竞品图里印刷面的区域：ai 是模型给的四个角，corners 是本地往外校正后的（0～1 比例，左上、右上、右下、左下） */
   face: null | { ai: [number, number][]; corners: [number, number][]; moved: number[]; size: { width: number; height: number } }
+  /** 第 6 步匹配到的父体 */
+  parent: ParentResult | null
   /** 主图验收：sourceTexts 是素材图的文字，patternTexts 是主图的文字 */
   mainQc: Qc | null
   /** 服务端算好的展示状态，前端不再自己判断 */
@@ -176,8 +180,34 @@ export type JobView = {
   label: string
 }
 
+export type ParentResult = {
+  status: 'matched' | 'unsure' | 'none' | 'new'
+  message: string | null
+  tab: string
+  readAt: string
+  sku: string | null
+  asin: string | null
+  theme: string | null
+  confidence: number | null
+  reason: string | null
+  manual: boolean
+  candidates: { sku: string; asin: string; theme: string; confidence: number | null }[]
+  naming: null | {
+    attribute: string
+    existing: string[]
+    groups: { pattern: string; count: number }[]
+    next: string | null
+    note: string | null
+    key: string | null
+    number: number | null
+  }
+  proposal: null | { sku: string; prefix: string; theme: string; basedOn: string[]; themeCandidates: string[] }
+}
+
 export type QueueState = {
   paused: null | { by: 'user' | 'auth'; kind?: 'image' | 'analysis'; message: string }
+  /** 第 6 步单独暂停的原因 */
+  parentPaused: string | null
   slots: { image: { busy: number; limit: number }; analysis: { busy: number; limit: number } }
 }
 

@@ -18,13 +18,14 @@ const job = (i: number): Job => ({
   outputBase: 'j' + i,
   route: null,
   plan: null,
-  steps: Array.from({ length: 5 }, () => ({ state: 'pending' as const, attempts: 0 })),
+  steps: Array.from({ length: 6 }, () => ({ state: 'pending' as const, attempts: 0 })),
   info: null,
   attention: null,
   override: null,
   qc: null,
   mainQc: null,
   face: null,
+  parent: null,
   view: { phase: 'queued', runningStep: null, label: '排队中' },
 })
 
@@ -35,6 +36,7 @@ async function render(paused: boolean, n: number): Promise<string> {
   jobs.byId = Object.fromEntries(Array.from({ length: n }, (_, i) => job(i)).map((j) => [j.id, j]))
   jobs.queue = {
     paused: paused ? { by: 'user', message: '队列已暂停' } : null,
+    parentPaused: null,
     slots: { image: { busy: 0, limit: 2 }, analysis: { busy: 0, limit: 3 } },
   }
   const app = createSSRApp(QueueTabs)
