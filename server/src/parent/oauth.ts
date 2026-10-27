@@ -5,6 +5,14 @@ import { authorizeUrl, exchangeCode } from './feishu'
 import { log } from '../util/log'
 import { HttpError } from '../util/errors'
 
+/**
+ * 在已登录的飞书 App 里打开授权页（AppLink「在飞书内打开网页」），点一下「授权」就行，不用在浏览器里扫码登录。
+ * 2026-10-27 用户选的方式；打不开时界面上还有浏览器打开的链接。
+ */
+export function appLinkFor(url: string): string {
+  return `https://applink.feishu.cn/client/web_url/open?${new URLSearchParams({ mode: 'window', url })}`
+}
+
 /** lark-mcp 在应用后台登记的回调地址（2026-10-27 用户确认后台有这一条），授权时临时借用 */
 export const LARK_REDIRECT = 'http://localhost:3000/callback'
 const LARK_PORT = 3000
@@ -27,7 +35,7 @@ export class FeishuOAuth {
   ) {}
 
   /** selfBase：本服务的地址（如 http://127.0.0.1:3451），回调进本服务时用 */
-  async start(selfBase: string): Promise<{ url: string; redirectUri: string }> {
+  async start(selfBase: string): Promise<{ url: string; appUrl: string; redirectUri: string }> {
     const f = this.settings.get().parent.feishu
     if (!f.appId || !f.appSecret) throw new HttpError(400, '先填飞书应用的 App ID 和 App Secret')
     const redirectUri = f.redirect === 'lark3000' ? LARK_REDIRECT : `${selfBase}/api/feishu/callback`
@@ -36,7 +44,8 @@ export class FeishuOAuth {
     const now = Date.now()
     for (const [k, v] of this.states) if (v.expires < now) this.states.delete(k)
     this.states.set(state, { redirectUri, expires: now + WAIT_MS })
-    return { url: authorizeUrl(f, redirectUri, state), redirectUri }
+    const url = authorizeUrl(f, redirectUri, state)
+    return { url, appUrl: appLinkFor(url), redirectUri }
   }
 
   /** 回调：返回给浏览器的页面 */

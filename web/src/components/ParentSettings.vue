@@ -71,18 +71,21 @@ async function toggle(enabled: boolean) {
 }
 
 const authUrl = ref('')
-async function authorize() {
+const appUrl = ref('')
+/** 默认在已登录的飞书 App 里打开授权页；browser 为 true 时用浏览器打开 */
+async function authorize(browser = false) {
   // 先同步开一个窗口，await 之后再开容易被浏览器当成弹窗拦掉
   const w = window.open('', '_blank')
-  const r = await ui.act(() => api.post<{ url: string; redirectUri: string }>('/settings/feishu/authorize'))
+  const r = await ui.act(() => api.post<{ url: string; appUrl: string; redirectUri: string }>('/settings/feishu/authorize'))
   if (!r) {
     w?.close()
     return
   }
   authUrl.value = r.url
+  appUrl.value = r.appUrl
   if (w) {
     w.opener = null
-    w.location.href = r.url
+    w.location.href = browser ? r.url : r.appUrl
   }
 }
 
@@ -163,12 +166,13 @@ async function testSpapi() {
       <div class="row">
         <span class="dot" :class="p.feishu.refreshToken && !authExpired && !otherApp ? '' : 'rd'"></span>
         <span class="small">{{ authText }}</span>
-        <button type="button" class="btn sm" @click="authorize">{{ p.feishu.refreshToken ? '重新授权' : '授权飞书' }}</button>
+        <button type="button" class="btn sm" @click="authorize()">{{ p.feishu.refreshToken ? '重新授权' : '在飞书 App 里授权' }}</button>
         <button v-if="p.feishu.refreshToken" type="button" class="btn txt sm" @click="logout">退出授权</button>
       </div>
       <div v-if="authUrl" class="muted tiny">
-        授权页没有弹出来的话，<a :href="authUrl" target="_blank" rel="noopener">点这里打开</a>；在飞书里点「授权」后回到这里，状态会自动更新。
+        会在飞书 App 里打开授权页，点「授权」后回到这里，状态会自动更新。飞书 App 没有打开的话，<a :href="appUrl" target="_blank" rel="noopener">再试一次</a>，或者<a href="#" @click.prevent="authorize(true)">用浏览器授权</a>（浏览器没登录飞书时要扫码）。
       </div>
+      <div v-else-if="!p.feishu.refreshToken" class="muted tiny">只需要授权一次，之后工具自己续期；很久不用过期了再点一次。</div>
       <div v-if="p.feishu.redirect === 'lark3000'" class="muted tiny">授权回调借用 lark-mcp 在应用后台登记的 http://localhost:3000/callback，点授权后 10 分钟内有效。</div>
       <div class="fld">
         <label>父体表链接</label>

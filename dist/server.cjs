@@ -58098,6 +58098,9 @@ var HttpError = class extends Error {
 };
 
 // server/src/parent/oauth.ts
+function appLinkFor(url2) {
+  return `https://applink.feishu.cn/client/web_url/open?${new URLSearchParams({ mode: "window", url: url2 })}`;
+}
 var LARK_REDIRECT = "http://localhost:3000/callback";
 var LARK_PORT = 3e3;
 var WAIT_MS = 10 * 6e4;
@@ -58123,7 +58126,8 @@ var FeishuOAuth = class {
     const now = Date.now();
     for (const [k, v] of this.states) if (v.expires < now) this.states.delete(k);
     this.states.set(state, { redirectUri, expires: now + WAIT_MS });
-    return { url: authorizeUrl(f2, redirectUri, state), redirectUri };
+    const url2 = authorizeUrl(f2, redirectUri, state);
+    return { url: url2, appUrl: appLinkFor(url2), redirectUri };
   }
   /** 回调：返回给浏览器的页面 */
   async callback(q) {

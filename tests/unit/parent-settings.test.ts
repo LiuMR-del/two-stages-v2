@@ -157,6 +157,11 @@ describe('飞书授权', () => {
     expect(u.searchParams.get('client_id')).toBe(mock.parent.feishu.appId)
     expect(u.searchParams.get('scope')).toBe(FEISHU_SCOPE)
     expect(u.searchParams.get('redirect_uri')).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/api\/feishu\/callback$/)
+    // 默认在已登录的飞书 App 里打开同一个授权页
+    const app = new URL(r.body.appUrl)
+    expect(app.origin + app.pathname).toBe('https://applink.feishu.cn/client/web_url/open')
+    expect(app.searchParams.get('mode')).toBe('window')
+    expect(app.searchParams.get('url')).toBe(r.body.url)
     mock.parent.feishu.codes.add('good')
     const html = await (await api.raw(`/feishu/callback?code=good&state=${u.searchParams.get('state')}`)).text()
     expect(html).toContain('授权成功，可以关闭这个页面')
