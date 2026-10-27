@@ -237,7 +237,8 @@ export class Scheduler {
               j.steps[i]!.attempts = n
               if (err) j.steps[i]!.error = err.message
             }),
-          onRetryWait: (n, ms, err) => log.warn(`「${job.source.originalName}」${STEP_NAMES[i]}第 ${n} 次失败（${err.message}），${Math.round(ms / 1000)} 秒后重试`),
+          onRetryWait: (n, ms, err) =>
+            log.warn(`「${job.source.originalName}」${i === 1 && job.qc?.state === 'pending' ? '素材图验收' : STEP_NAMES[i]}第 ${n} 次失败（${err.message}），${Math.round(ms / 1000)} 秒后重试`),
         }),
       setSnapshot: (s) => update((j) => (j.steps[i]!.snapshot = s)),
       commit: (patch) => {

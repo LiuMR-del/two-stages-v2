@@ -61900,7 +61900,7 @@ var Scheduler = class {
           j.steps[i2].attempts = n;
           if (err2) j.steps[i2].error = err2.message;
         }),
-        onRetryWait: (n, ms, err2) => log.warn(`\u300C${job.source.originalName}\u300D${STEP_NAMES[i2]}\u7B2C ${n} \u6B21\u5931\u8D25\uFF08${err2.message}\uFF09\uFF0C${Math.round(ms / 1e3)} \u79D2\u540E\u91CD\u8BD5`)
+        onRetryWait: (n, ms, err2) => log.warn(`\u300C${job.source.originalName}\u300D${i2 === 1 && job.qc?.state === "pending" ? "\u7D20\u6750\u56FE\u9A8C\u6536" : STEP_NAMES[i2]}\u7B2C ${n} \u6B21\u5931\u8D25\uFF08${err2.message}\uFF09\uFF0C${Math.round(ms / 1e3)} \u79D2\u540E\u91CD\u8BD5`)
       }),
       setSnapshot: (s) => update((j) => j.steps[i2].snapshot = s),
       commit: (patch) => {
