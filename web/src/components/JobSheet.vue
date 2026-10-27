@@ -55,7 +55,9 @@ const recipe = computed(() => {
   const kind = OUT_KIND[step.value]!
   let out: { label: string; state: SlotState; img?: string | null; text?: string; white?: boolean; full?: string }
   // 素材图没过验收、或提取完正在验收：素材图已经有了
-  const hasPattern = step.value === 1 && (j.attention?.kind === 'qc' || j.qc?.state === 'pending')
+  // 没过验收、或生成完正在验收：结果图已经有了
+  const pendingQc = step.value === 1 ? j.qc : step.value === 2 ? j.mainQc : null
+  const hasPattern = (j.attention?.kind === 'qc' && j.attention.step === step.value) || pendingQc?.state === 'pending'
   if (r.state === 'done' || hasPattern) out = { label: '', state: 'image', img: jobs.fileUrl(j, kind), full: jobs.fileUrl(j, kind, false), white: true }
   else if (r.state === 'running') out = { label: '生成中', state: 'run' }
   else if (r.state === 'failed') out = { label: '失败', state: 'err', text: '失败' }
@@ -79,7 +81,8 @@ function colorText(q: NonNullable<Job['qc']>): string {
 }
 
 const QC_STATE: Record<string, string> = { pending: '等待验收', pass: '验收合格', fail: '没过验收', bypassed: '没过验收，已选择仍然使用' }
-const qc = computed(() => (step.value === 1 ? (job.value?.qc ?? null) : null))
+const qc = computed(() => (step.value === 1 ? (job.value?.qc ?? null) : step.value === 2 ? (job.value?.mainQc ?? null) : null))
+const isMain = computed(() => step.value === 2)
 const qcSlots = computed<RecipeSlot[]>(() => {
   const j = job.value
   const s = qc.value?.snapshot
@@ -250,24 +253,39 @@ async function openFolder() {
           <div v-else class="none">等待前面的步骤完成</div>
           <div v-if="qc" class="qcbox">
             <div class="row">
-              <b style="font-weight: 500">素材图验收</b>
+              <b style="font-weight: 500">{{ isMain ? '主图验收' : '素材图验收' }}</b>
+              <span v-if="isMain && qc.mode === 'local'" class="muted small">本地合成，在本地核对，没有发请求</span>
               <span class="pill" :class="{ ac: qc.state === 'pass', rd: qc.state === 'fail', am: qc.state === 'bypassed' }">{{ QC_STATE[qc.state] }}</span>
               <span v-if="qc.score !== null" class="muted small">图案相似分 {{ qc.score.toFixed(2) }}（阈值 {{ (qc.threshold ?? 0.9).toFixed(2) }}）</span>
             </div>
             <ul v-if="qc.reasons.length" class="small reasons">
               <li v-for="r in qc.reasons" :key="r">{{ r }}</li>
             </ul>
-            <dl v-if="qc.state !== 'pending'" class="kv">
-              <dt>竞品图文字</dt>
+            <dl v-if="qc.state !== 'pending' && isMain && qc.mode === 'local'" class="kv">
+              <dt>核对</dt>
+              <dd>{{ colorText(qc) }}</dd>
+            </dl>
+            <dl v-else-if="qc.state !== 'pending'" class="kv">
+              <dt>{{ isMain ? '素材图文字' : '竞品图文字' }}</dt>
               <dd>{{ qc.sourceTexts.join(' / ') || '（没有文字）' }}</dd>
-              <dt>素材图文字</dt>
+              <dt>{{ isMain ? '主图文字' : '素材图文字' }}</dt>
               <dd>{{ qc.patternTexts.join(' / ') || '（没有文字）' }}</dd>
               <dt>元素问题</dt>
               <dd>{{ qc.elementIssues.join('；') || '无' }}</dd>
+              <template v-if="isMain">
+                <dt>贴图</dt>
+                <dd>{{ qc.fillIssues.join('；') || '铺满印刷面，没有露出底材' }}</dd>
+              </template>
+              <template v-else>
+                <dt>四边</dt>
+                <dd>{{ [...qc.edgeMissing.map((x) => '少了：' + x), ...qc.edgeExtra.map((x) => '多了：' + x)].join('；') || '和竞品图一致' }}</dd>
+              </template>
               <dt>颜色</dt>
               <dd>{{ colorText(qc) }}</dd>
-              <dt>版面</dt>
-              <dd>{{ qc.layout ? (qc.layout.issues.join('；') || '四边铺满，没有圆角、边框') + (qc.layout.note ? `（${qc.layout.note}）` : qc.layout.ratioChecked ? '，比例一致' : '') : '—' }}</dd>
+              <template v-if="!isMain">
+                <dt>版面</dt>
+                <dd>{{ qc.layout ? (qc.layout.issues.join('；') || '四边铺满，没有白边、圆角') + (qc.layout.note ? `（${qc.layout.note}）` : qc.layout.ratioChecked ? '，比例一致' : '') : '—' }}</dd>
+              </template>
             </dl>
             <details v-if="qc.snapshot">
               <summary class="small">实际发送的验收请求和模型原始回复</summary>

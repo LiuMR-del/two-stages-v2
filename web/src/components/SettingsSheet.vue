@@ -126,13 +126,14 @@ function authDot(kind: 'image' | 'analysis') {
           </div>
           <label class="sw"><input type="checkbox" :checked="st.settings.padSquare" @change="toggle({ padSquare: ($event.target as HTMLInputElement).checked })" />主图补成方图（只加白边）</label>
           <label class="sw"><input type="checkbox" :checked="st.settings.blankImage" @change="toggle({ blankImage: ($event.target as HTMLInputElement).checked })" />有定制项时生成空白图</label>
-          <label class="sw"><input type="checkbox" :checked="st.settings.patternQc" @change="toggle({ patternQc: ($event.target as HTMLInputElement).checked })" />素材图验收（和竞品图对比文字、图案、版面，不合格进「需处理」）</label>
-          <div v-if="st.settings.patternQc" class="fld">
+          <label class="sw"><input type="checkbox" :checked="st.settings.patternQc" @change="toggle({ patternQc: ($event.target as HTMLInputElement).checked })" />素材图验收（和竞品图对比文字、图案、四边、颜色、版面，不合格进「需处理」）</label>
+          <label class="sw"><input type="checkbox" :checked="st.settings.mainQc" @change="toggle({ mainQc: ($event.target as HTMLInputElement).checked })" />主图验收（和素材图对比文字、图案、颜色，检查有没有铺满、露出底材）</label>
+          <div v-if="st.settings.patternQc || st.settings.mainQc" class="fld">
             <label>图案相似分低于多少算不合格（0～1）</label>
-            <AutoText :value="st.settings.patternQcThreshold.toFixed(2)" :save="saver((v) => ({ patternQcThreshold: num(v, '验收阈值') }))" label="素材图验收阈值" />
-            <label>和竞品图的色差 ΔE 超过多少算不合格</label>
+            <AutoText :value="st.settings.patternQcThreshold.toFixed(2)" :save="saver((v) => ({ patternQcThreshold: num(v, '验收阈值') }))" label="图案相似分阈值" />
+            <label>色差 ΔE 超过多少算不合格</label>
             <AutoText :value="String(st.settings.patternQcDeltaE)" :save="saver((v) => ({ patternQcDeltaE: num(v, '色差阈值') }))" label="色差阈值" />
-            <div class="muted tiny">每张素材图多发一次分析请求；文字有任何缺、多、改都不合格。色差 ΔE 越小越严，2 左右人眼基本看不出，5 以上能看出偏色；分块比较的阈值是它的 2 倍</div>
+            <div class="muted tiny">两道验收共用这两个阈值。素材图验收每张多发一次分析请求；主图是 AI 贴图时再多发一次，本地合成的在本地核对、不花额度。文字有任何缺、多、改都不合格。色差 ΔE 越小越严，2 左右人眼基本看不出，5 以上能看出偏色；分块比较的阈值是它的 2 倍</div>
           </div>
           <div><button type="button" class="btn sm" @click="ui.act(() => jobs.openFolder())">打开输出文件夹</button></div>
         </div>

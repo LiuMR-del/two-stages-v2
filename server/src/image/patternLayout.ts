@@ -3,7 +3,8 @@ import { pickApiSize } from '../prompts/canvas'
 import { ratioDiff, ratioValue } from './whiteShape'
 
 /**
- * 素材图版面验收（本地判定，不花额度）：四边留白、圆角、边框、宽高比。
+ * 素材图版面验收（本地判定，不花额度）：四边留白、圆角、宽高比。
+ * 边框不在这里判：印在面上的边框、做旧边属于图案，和产品的金属边从像素上分不出来，交给验收模型对照竞品图判断。
  */
 
 const WORK_EDGE = 1000
@@ -94,55 +95,6 @@ function roundCorners(im: Img): number {
   return n
 }
 
-type Stat = { mean: [number, number, number]; std: number }
-
-function stripStat(im: Img, side: 'top' | 'bottom' | 'left' | 'right', from: number, width: number): Stat {
-  const sum = [0, 0, 0]
-  const sq = [0, 0, 0]
-  let n = 0
-  const add = (x: number, y: number) => {
-    const i = (y * im.w + x) * 3
-    for (let c = 0; c < 3; c++) {
-      const v = im.d[i + c]!
-      sum[c]! += v
-      sq[c]! += v * v
-    }
-    n++
-  }
-  for (let t = from; t < from + width; t++) {
-    if (side === 'top' || side === 'bottom') {
-      const y = side === 'top' ? t : im.h - 1 - t
-      for (let x = 0; x < im.w; x++) add(x, y)
-    } else {
-      const x = side === 'left' ? t : im.w - 1 - t
-      for (let y = 0; y < im.h; y++) add(x, y)
-    }
-  }
-  const mean = sum.map((s) => s / n) as [number, number, number]
-  const std = Math.max(...sq.map((s, c) => Math.sqrt(Math.max(0, s / n - mean[c]! * mean[c]!))))
-  return { mean, std }
-}
-
-const dist = (a: [number, number, number], b: [number, number, number]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
-
-/** 四边最外一圈颜色均匀、四边一致、和里面一圈明显不同 → 一圈边框（铝板金属边、相框） */
-function hasBorder(im: Img): boolean {
-  const sides = ['top', 'bottom', 'left', 'right'] as const
-  for (const frac of [0.01, 0.025]) {
-    const t = Math.max(2, Math.round(Math.min(im.w, im.h) * frac))
-    const outer = sides.map((s) => stripStat(im, s, 0, t))
-    const inner = sides.map((s) => stripStat(im, s, t, t))
-    if (outer.some((o) => o.std > 14)) continue
-    if (outer.every((o) => Math.min(...o.mean) >= WHITE_MIN)) continue
-    let spread = 0
-    for (const a of outer) for (const b of outer) spread = Math.max(spread, dist(a.mean, b.mean))
-    if (spread > 24) continue
-    const differs = outer.filter((o, i) => dist(o.mean, inner[i]!.mean) > 40).length
-    if (differs >= 3) return true
-  }
-  return false
-}
-
 const pct = (v: number) => `${Math.round(v * 100)}%`
 
 export async function checkPatternLayout(buf: Buffer, productRatio: string): Promise<LayoutResult> {
@@ -170,7 +122,6 @@ export async function checkPatternLayout(buf: Buffer, productRatio: string): Pro
     }
     const rc = roundCorners(im)
     if (rc >= 3) issues.push(`带着产品的圆角（${rc} 个角）`)
-    if (hasBorder(im)) issues.push('四周有一圈边框')
   }
 
   const target = ratioValue(productRatio)

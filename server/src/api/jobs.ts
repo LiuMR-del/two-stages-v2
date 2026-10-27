@@ -126,6 +126,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           attention: null,
           override: null,
           qc: null,
+          mainQc: null,
         }
         await jobs.create(job)
         created.push(withView(job))

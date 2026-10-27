@@ -38,7 +38,7 @@ describe('素材图文字比对（程序判定）', () => {
 
   it('模型回复的字段校验：分数是数字、数组里的空项去掉', () => {
     const v = QcAnswerSchema.parse({ source_texts: ['A', ''], pattern_texts: null, element_score: '0.9', element_issues: [] })
-    expect(v).toEqual({ source_texts: ['A'], pattern_texts: [], print_box: null, element_score: 0.9, element_issues: [] })
+    expect(v).toEqual({ source_texts: ['A'], pattern_texts: [], print_box: null, element_score: 0.9, element_issues: [], edge_missing: [], edge_extra: [] })
     expect(QcAnswerSchema.parse({ print_box: 'x', element_score: 1 }).print_box).toBeNull()
     expect(QcAnswerSchema.safeParse({ element_score: 3 }).success).toBe(false)
   })
@@ -68,10 +68,9 @@ describe('素材图版面（本地判定）', () => {
     expect(r.issues).toContain('带着产品的圆角（4 个角）')
   })
 
-  it('四周一圈金属边框 → 不合格', async () => {
-    const buf = await svg(1536, 1024, '<rect x="18" y="18" width="1500" height="988" fill="#2e86de"/><circle cx="768" cy="512" r="200" fill="#f1c40f"/>', '#b4b4b4')
-    const r = await checkPatternLayout(buf, '3:2')
-    expect(r.issues).toContain('四周有一圈边框')
+  it('四周印着一圈边框（如红色做旧边）本地不判不合格：属于图案，交给验收模型对照竞品图', async () => {
+    const buf = await svg(1536, 1024, '<rect x="18" y="18" width="1500" height="988" fill="#2e86de"/><circle cx="768" cy="512" r="200" fill="#f1c40f"/>', '#c0392b')
+    expect(await checkPatternLayout(buf, '3:2')).toMatchObject({ ok: true, issues: [] })
   })
 
   it('比例：画布能表示时检查（差 1% 以内）；4:5 这类接口画布不支持就跳过并注明', async () => {

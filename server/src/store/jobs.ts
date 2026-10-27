@@ -56,6 +56,13 @@ const QcSchema = z.object({
   textOk: z.boolean().nullable().default(null),
   textDiffs: z.array(z.string()).default([]),
   elementIssues: z.array(z.string()).default([]),
+  /** 竞品图印刷面四边有、素材图没有的（如做旧边）；素材图多出来的（如金属边） */
+  edgeMissing: z.array(z.string()).default([]),
+  edgeExtra: z.array(z.string()).default([]),
+  /** 主图验收：印刷面没铺满、露出底材 */
+  fillIssues: z.array(z.string()).default([]),
+  /** 主图验收：local = 本地合成后本地核对，ai = 发了分析请求 */
+  mode: z.enum(['local', 'ai']).optional(),
   layout: z.object({ ok: z.boolean(), issues: z.array(z.string()), ratioChecked: z.boolean(), note: z.string().nullable() }).nullable().default(null),
   /** 和竞品图印刷面的色差（2026-10-27 用户要求加） */
   color: z
@@ -122,6 +129,8 @@ export const JobSchema = z.object({
     .nullable(),
   override: z.object({ step: z.number().int(), prompt: z.string() }).nullable(),
   qc: QcSchema.nullable().default(null),
+  /** 第③步里的主图验收，字段同 qc：sourceTexts 是素材图的文字，patternTexts 是主图的文字 */
+  mainQc: QcSchema.nullable().default(null),
 })
 export type Job = z.infer<typeof JobSchema>
 export type Route = NonNullable<Job['route']>
@@ -184,6 +193,7 @@ export function markSkipped(job: Job, i: number): void {
 export function resetFrom(job: Job, n: number): void {
   if (job.steps.some((s, i) => i >= n && s.state === 'running')) throw new TransitionError('有步骤正在运行，要先中止才能重置')
   if (n <= 1) job.qc = null
+  if (n <= 2) job.mainQc = null
   for (let i = n; i < STEP_COUNT; i++) {
     const s = job.steps[i]!
     if (s.state !== 'pending') transition(job, i, 'pending')
@@ -220,7 +230,7 @@ export type JobView = { phase: 'queued' | 'running' | 'attention' | 'done'; runn
 export function viewOf(job: Job): JobView {
   const r = runningStep(job)
   if (job.attention) return { phase: 'attention', runningStep: r >= 0 ? r : null, label: '需处理' }
-  if (r >= 0) return { phase: 'running', runningStep: r, label: r === 4 ? '生成空白图中' : r === 1 && job.qc?.state === 'pending' ? '验收素材中' : `${STEP_NAMES[r]}中` }
+  if (r >= 0) return { phase: 'running', runningStep: r, label: r === 4 ? '生成空白图中' : r === 1 && job.qc?.state === 'pending' ? '验收素材中' : r === 2 && job.mainQc?.state === 'pending' ? '验收主图中' : `${STEP_NAMES[r]}中` }
   if (currentStep(job) === -1) return { phase: 'done', runningStep: null, label: '完成' }
   return { phase: 'queued', runningStep: null, label: '排队中' }
 }

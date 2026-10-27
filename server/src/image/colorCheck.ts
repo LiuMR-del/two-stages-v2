@@ -109,7 +109,17 @@ function describe(s: { L: number; a: number; b: number; C: number }): string {
   return parts.join('、')
 }
 
-export async function compareColors(source: Buffer, pattern: Buffer, box: [number, number, number, number] | null, threshold: number): Promise<ColorResult> {
+/**
+ * photo：带印刷面框的那张（竞品图或主图）；flat：平面图（素材图或铺进去的素材图）。
+ * 色偏方向默认说的是平面图相对照片（素材图验收）；judgePhoto 时反过来，说照片相对平面图（主图验收）。
+ */
+export async function compareColors(
+  source: Buffer,
+  pattern: Buffer,
+  box: [number, number, number, number] | null,
+  threshold: number,
+  judgePhoto = false,
+): Promise<ColorResult> {
   if (!box) return { checked: false, deltaE: null, gridDeltaE: null, shift: null, box: null, issues: [], note: '模型没给出竞品图印刷面的位置，这次没检查颜色' }
   const { width: SW, height: SH } = await readSize(source)
   const { width: PW, height: PH } = await readSize(pattern)
@@ -124,7 +134,8 @@ export async function compareColors(source: Buffer, pattern: Buffer, box: [numbe
   const ma = mean(a, w)
   const mb = mean(b, w)
   const chroma = (p: Lab) => Math.hypot(p[1], p[2])
-  const shift = { L: round1(mb[0] - ma[0]), a: round1(mb[1] - ma[1]), b: round1(mb[2] - ma[2]), C: round1(chroma(mb) - chroma(ma)) }
+  const [to, from] = judgePhoto ? [ma, mb] : [mb, ma]
+  const shift = { L: round1(to[0] - from[0]), a: round1(to[1] - from[1]), b: round1(to[2] - from[2]), C: round1(chroma(to) - chroma(from)) }
   const deltaE = round1(dE(ma, mb))
   const cells: number[] = []
   for (let gy = 0; gy < GRID; gy++) {

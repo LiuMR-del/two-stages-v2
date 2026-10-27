@@ -18,7 +18,21 @@ import { fidelityParams } from './params'
 import { log } from '../util/log'
 
 export function newQc(): Qc {
-  return { state: 'pending', score: null, sourceTexts: [], patternTexts: [], textOk: null, textDiffs: [], elementIssues: [], layout: null, color: null, reasons: [] }
+  return {
+    state: 'pending',
+    score: null,
+    sourceTexts: [],
+    patternTexts: [],
+    textOk: null,
+    textDiffs: [],
+    elementIssues: [],
+    edgeMissing: [],
+    edgeExtra: [],
+    fillIssues: [],
+    layout: null,
+    color: null,
+    reasons: [],
+  }
 }
 
 /**
@@ -122,6 +136,8 @@ async function runQc(ctx: StepCtx, patternFile: string): Promise<StepResult> {
     const issues = data.element_issues.length ? `：${data.element_issues.join('；')}` : ''
     reasons.push(`图案元素相似分 ${data.element_score.toFixed(2)}，低于 ${threshold.toFixed(2)}${issues}`)
   }
+  for (const m of data.edge_missing) reasons.push(`四边少了：${m}`)
+  for (const m of data.edge_extra) reasons.push(`四边多了：${m}`)
   const box = normalizeBox(data.print_box, await readSize(images[0]!))
   const color = { ...(await compareColors(srcBuf, patBuf, box, settings.patternQcDeltaE)), threshold: settings.patternQcDeltaE }
   reasons.push(...color.issues)
@@ -136,6 +152,9 @@ async function runQc(ctx: StepCtx, patternFile: string): Promise<StepResult> {
     textOk: text.ok,
     textDiffs: text.diffs,
     elementIssues: data.element_issues,
+    edgeMissing: data.edge_missing,
+    edgeExtra: data.edge_extra,
+    fillIssues: [],
     layout,
     color,
     reasons,

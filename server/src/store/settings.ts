@@ -57,6 +57,8 @@ export const SettingsSchema = z.object({
   patternQc: z.boolean().default(true),
   /** 图案元素相似分低于这个值不合格；2026-10-27 实测 Bennett 细节明显变样仍有 0.88，用户确认提到 0.9 */
   patternQcThreshold: z.number().min(0).max(1).default(0.9),
+  /** 主图生成后和素材图对比验收（本地合成在本地核对，AI 贴图发一次分析请求） */
+  mainQc: z.boolean().default(true),
   /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
   patternQcDeltaE: z.number().min(1).max(100).default(5),
 })
@@ -75,6 +77,7 @@ export const SettingsPatchSchema = z.object({
   patternQc: z.boolean().optional(),
   patternQcThreshold: z.number().min(0).max(1).optional(),
   patternQcDeltaE: z.number().min(1).max(100).optional(),
+  mainQc: z.boolean().optional(),
 })
 export type SettingsPatch = z.infer<typeof SettingsPatchSchema>
 
@@ -141,6 +144,7 @@ export class SettingsStore {
           patternQc: patch.patternQc,
           patternQcThreshold: patch.patternQcThreshold,
           patternQcDeltaE: patch.patternQcDeltaE,
+          mainQc: patch.mainQc,
         }),
         image,
         analysis,

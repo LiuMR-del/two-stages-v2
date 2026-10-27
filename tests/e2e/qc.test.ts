@@ -80,6 +80,17 @@ describe('e2e 13：素材图验收', () => {
     expect(bad.attention.message).toContain('图案元素相似分 0.88，低于 0.90：房屋的造型明显变样')
   })
 
+  it('四边的印刷边框（红色做旧边）丢了 → 进需处理', async () => {
+    w = await startWorld()
+    const api = w.api
+    await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    w.mock.script({ qc: [{ qc: { edge_missing: ['四周的红色做旧边没了'], edge_extra: ['带着安装孔'] } }] })
+    const [a] = await uploadJobs(api, ['henry.png'])
+    const bad = await waitJob(api, a.id, hasAttention('qc'))
+    expect(bad.attention.message).toBe('素材图没过验收：四边少了：四周的红色做旧边没了；四边多了：带着安装孔')
+    expect(bad.qc).toMatchObject({ edgeMissing: ['四周的红色做旧边没了'], edgeExtra: ['带着安装孔'] })
+  })
+
   it('阈值可改；关掉验收时一个验收请求都不发', async () => {
     w = await startWorld()
     const api = w.api
@@ -180,3 +191,85 @@ describe('e2e 14：主图贴图方式', () => {
     expect((await getJob(api, a.id)).plan.main.pasteMode).toBe('ai')
   })
 })
+
+const mainQcRequests = (w: World) => w.mock.log().filter((e) => e.kind === 'mainqc')
+
+describe('e2e 15：主图验收（素材图 → 主图）', () => {
+  it('AI 贴图：主图文字变了、没铺满 → 进需处理，不写进输出文件夹；仍然使用后接着跑完', async () => {
+    w = await startWorld()
+    const api = w.api
+    await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    w.mock.script({ mainqc: [{ mainqc: { pattern_texts: ['THE BENNETT FAMILY'], main_texts: ['THE BENNET FAMILY'], fill_issues: ['印刷面右边露出了金属边'] } }] })
+    const [a] = await uploadJobs(api, ['a.png'])
+    const bad = await waitJob(api, a.id, hasAttention('qc'))
+    expect(bad.attention.step).toBe(2)
+    expect(bad.attention.message).toBe('主图没过验收：文字变了：素材图 THE BENNETT FAMILY → 主图 THE BENNET FAMILY；贴图：印刷面右边露出了金属边')
+    expect(bad.steps[2].state).toBe('failed')
+    expect(bad.steps[3].state).toBe('pending')
+    expect(bad.mainQc).toMatchObject({ state: 'fail', mode: 'ai', fillIssues: ['印刷面右边露出了金属边'] })
+    expect(bad.mainQc.snapshot.images.map((i: any) => i.role)).toEqual(['素材图', '主图'])
+    const q = mainQcRequests(w)
+    expect(q).toHaveLength(1)
+    expect(q[0]!.images).toHaveLength(2)
+    expect(fs.existsSync(path.join(w.outDir, bad.outputFolder, '铝板画', '主图', 'a.png'))).toBe(false)
+
+    await api.json('POST', `/jobs/${a.id}/qc-accept`)
+    const done = await waitJob(api, a.id, isDone)
+    expect(done.mainQc.state).toBe('bypassed')
+    expect(fs.existsSync(path.join(onlyBatch(w), '铝板画', '主图', 'a.png'))).toBe(true)
+    expect(w.srv.logs()).toContain('主图没过验收')
+  })
+
+  it('AI 贴图：重做第③步后重新验收，合格就继续；颜色一致', async () => {
+    w = await startWorld()
+    const api = w.api
+    await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    w.mock.script({ mainqc: [{ mainqc: { element_score: 0.6, element_issues: ['圣诞老人不见了'] } }] })
+    const [a] = await uploadJobs(api, ['a.png'])
+    const bad = await waitJob(api, a.id, hasAttention('qc'))
+    expect(bad.attention.message).toContain('图案元素相似分 0.60，低于 0.90：圣诞老人不见了')
+    await api.json('POST', `/jobs/${a.id}/redo`, { step: 2 })
+    const done = await waitJob(api, a.id, isDone)
+    expect(done.mainQc).toMatchObject({ state: 'pass', mode: 'ai' })
+    expect(done.mainQc.color.checked).toBe(true)
+    expect(done.mainQc.color.deltaE).toBeLessThan(2)
+    expect(mains(w)).toHaveLength(2)
+    expect(mainQcRequests(w)).toHaveLength(2)
+  })
+
+  it('主图验收进行到一半服务被杀：重启后接着验收，不重新生成', async () => {
+    w = await startWorld()
+    const api = w.api
+    await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    w.mock.script({ mainqc: [{ mainqc: {}, delay: 4000 }] })
+    const [a] = await uploadJobs(api, ['a.png'])
+    await waitFor(() => mainQcRequests(w!).length === 1, { label: '主图验收请求已发出' })
+    const mid = await waitJob(api, a.id, (j) => j.view.label === '验收主图中')
+    expect(mid.view.runningStep).toBe(2)
+    expect((await api.json('GET', '/queue')).body.slots).toMatchObject({ analysis: { busy: 1 }, image: { busy: 0 } })
+    await w.restart({ kill: true })
+    expect((await waitJob(w.api, a.id, isDone)).mainQc.state).toBe('pass')
+    expect(mains(w)).toHaveLength(1)
+    expect(mainQcRequests(w)).toHaveLength(2)
+  })
+
+  it('本地合成：本地核对，不发主图验收请求；关掉主图验收也不发', async () => {
+    w = await startWorld()
+    const api = w.api
+    const c = await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2' }])
+    await api.upload('PUT', `/library/categories/${c.cid}/styles/${c.styles['']!}/white`, 'file', [{ name: 'w.png', buffer: await plate(), type: 'image/png' }])
+    const [a] = await uploadJobs(api, ['a.png'])
+    const done = await waitJob(api, a.id, isDone)
+    expect(done.mainQc).toMatchObject({ state: 'pass', mode: 'local', reasons: [] })
+    expect(done.mainQc.color.deltaE).toBeLessThan(1)
+    expect(mainQcRequests(w)).toHaveLength(0)
+
+    await api.json('PUT', '/settings', { mainQc: false })
+    await api.json('PATCH', `/library/categories/${c.cid}/styles/${c.styles['']!}`, { pasteMode: 'ai' })
+    const [b] = await uploadJobs(api, ['b.png'])
+    expect((await waitJob(api, b.id, isDone)).mainQc).toBeNull()
+    expect(mainQcRequests(w)).toHaveLength(0)
+    expect(fs.existsSync(path.join(onlyBatch(w), '铝板画', '主图', 'b.png'))).toBe(true)
+  })
+})
+

@@ -18967,7 +18967,7 @@ var require_view = __commonJS({
     "use strict";
     var debug = require_src()("express:view");
     var path20 = require("node:path");
-    var fs13 = require("node:fs");
+    var fs14 = require("node:fs");
     var dirname = path20.dirname;
     var basename = path20.basename;
     var extname = path20.extname;
@@ -19047,7 +19047,7 @@ var require_view = __commonJS({
     function tryStat(path21) {
       debug('stat "%s"', path21);
       try {
-        return fs13.statSync(path21);
+        return fs14.statSync(path21);
       } catch (e) {
         return void 0;
       }
@@ -22765,7 +22765,7 @@ var require_send = __commonJS({
     var escapeHtml = require_escape_html();
     var etag = require_etag();
     var fresh = require_fresh();
-    var fs13 = require("fs");
+    var fs14 = require("fs");
     var mime = require_mime_types();
     var ms = require_ms();
     var onFinished = require_on_finished();
@@ -23047,7 +23047,7 @@ var require_send = __commonJS({
       var i2 = 0;
       var self = this;
       debug('stat "%s"', path21);
-      fs13.stat(path21, function onstat(err2, stat) {
+      fs14.stat(path21, function onstat(err2, stat) {
         var pathEndsWithSep = path21[path21.length - 1] === sep;
         if (err2 && err2.code === "ENOENT" && !extname(path21) && !pathEndsWithSep) {
           return next(err2);
@@ -23064,7 +23064,7 @@ var require_send = __commonJS({
         }
         var p = path21 + "." + self._extensions[i2++];
         debug('stat "%s"', p);
-        fs13.stat(p, function(err3, stat) {
+        fs14.stat(p, function(err3, stat) {
           if (err3) return next(err3);
           if (stat.isDirectory()) return next();
           self.emit("file", p, stat);
@@ -23082,7 +23082,7 @@ var require_send = __commonJS({
         }
         var p = join(path21, self._index[i2]);
         debug('stat "%s"', p);
-        fs13.stat(p, function(err3, stat) {
+        fs14.stat(p, function(err3, stat) {
           if (err3) return next(err3);
           if (stat.isDirectory()) return next();
           self.emit("file", p, stat);
@@ -23094,7 +23094,7 @@ var require_send = __commonJS({
     SendStream.prototype.stream = function stream(path21, options) {
       var self = this;
       var res = this.res;
-      var stream2 = fs13.createReadStream(path21, options);
+      var stream2 = fs14.createReadStream(path21, options);
       this.emit("stream", stream2);
       stream2.pipe(res);
       function cleanup() {
@@ -37152,7 +37152,7 @@ var require_make_middleware = __commonJS({
 // node_modules/multer/storage/disk.js
 var require_disk = __commonJS({
   "node_modules/multer/storage/disk.js"(exports2, module2) {
-    var fs13 = require("fs");
+    var fs14 = require("fs");
     var os3 = require("os");
     var path20 = require("path");
     var crypto = require("crypto");
@@ -37179,7 +37179,7 @@ var require_disk = __commonJS({
       this.getFilename = opts.filename || getFilename;
       this.flush = opts.flush;
       if (typeof opts.destination === "string") {
-        fs13.mkdirSync(opts.destination, { recursive: true });
+        fs14.mkdirSync(opts.destination, { recursive: true });
         this.getDestination = function($0, $1, cb) {
           cb(null, opts.destination);
         };
@@ -37195,7 +37195,7 @@ var require_disk = __commonJS({
           if (err3) return cb(err3);
           var finalPath = path20.join(destination, filename);
           if (file2.stream.destroyed) return cb(new MulterError("STREAM_DESTROYED"));
-          var outStream = fs13.createWriteStream(finalPath);
+          var outStream = fs14.createWriteStream(finalPath);
           file2.path = finalPath;
           openStreams.set(file2, outStream);
           outStream.once("close", function() {
@@ -37217,13 +37217,13 @@ var require_disk = __commonJS({
               });
             };
             if (!that.flush) return done();
-            fs13.open(finalPath, "r+", function(err5, fd2) {
+            fs14.open(finalPath, "r+", function(err5, fd2) {
               if (err5) {
                 endFlush(file2);
                 return done(err5);
               }
-              fs13.fsync(fd2, function(syncErr) {
-                fs13.close(fd2, function(closeErr) {
+              fs14.fsync(fd2, function(syncErr) {
+                fs14.close(fd2, function(closeErr) {
                   endFlush(file2);
                   done(syncErr || closeErr);
                 });
@@ -37240,9 +37240,9 @@ var require_disk = __commonJS({
       delete file2.path;
       function unlink() {
         var flush = flushingFiles.get(file2);
-        if (!flush) return fs13.unlink(path21, cb);
+        if (!flush) return fs14.unlink(path21, cb);
         flush.onClosed = function() {
-          fs13.unlink(path21, cb);
+          fs14.unlink(path21, cb);
         };
       }
       var outStream = openStreams.get(file2);
@@ -37633,7 +37633,7 @@ function readJsonSync(file2) {
 }
 
 // server/src/server.ts
-var import_node_fs12 = __toESM(require("node:fs"), 1);
+var import_node_fs13 = __toESM(require("node:fs"), 1);
 var import_node_path19 = __toESM(require("node:path"), 1);
 var import_node_http = __toESM(require("node:http"), 1);
 var import_express = __toESM(require_express2(), 1);
@@ -57451,6 +57451,8 @@ var SettingsSchema = external_exports.object({
   patternQc: external_exports.boolean().default(true),
   /** 图案元素相似分低于这个值不合格；2026-10-27 实测 Bennett 细节明显变样仍有 0.88，用户确认提到 0.9 */
   patternQcThreshold: external_exports.number().min(0).max(1).default(0.9),
+  /** 主图生成后和素材图对比验收（本地合成在本地核对，AI 贴图发一次分析请求） */
+  mainQc: external_exports.boolean().default(true),
   /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
   patternQcDeltaE: external_exports.number().min(1).max(100).default(5)
 });
@@ -57463,7 +57465,8 @@ var SettingsPatchSchema = external_exports.object({
   blankImage: external_exports.boolean().optional(),
   patternQc: external_exports.boolean().optional(),
   patternQcThreshold: external_exports.number().min(0).max(1).optional(),
-  patternQcDeltaE: external_exports.number().min(1).max(100).optional()
+  patternQcDeltaE: external_exports.number().min(1).max(100).optional(),
+  mainQc: external_exports.boolean().optional()
 });
 function normalizeBaseUrl(u) {
   return u.trim().replace(/\/+$/, "");
@@ -57521,7 +57524,8 @@ var SettingsStore = class {
           blankImage: patch.blankImage,
           patternQc: patch.patternQc,
           patternQcThreshold: patch.patternQcThreshold,
-          patternQcDeltaE: patch.patternQcDeltaE
+          patternQcDeltaE: patch.patternQcDeltaE,
+          mainQc: patch.mainQc
         }),
         image,
         analysis
@@ -58814,7 +58818,8 @@ async function compositeLocal(white2, pattern) {
   const layer = await (0, import_sharp3.default)({ create: { width: fullW, height: fullH, channels: 3, background: "#ffffff" } }).composite([{ input: placed, raw: { width: w, height: h, channels: 3 }, left: x2, top: y }]).removeAlpha().raw().toBuffer();
   const rgba = await (0, import_sharp3.default)(layer, { raw: { width: fullW, height: fullH, channels: 3 } }).joinChannel(alpha, { raw: { width: fullW, height: fullH, channels: 1 } }).png().toBuffer();
   const out = await (0, import_sharp3.default)(white2).rotate().flatten({ background: "#ffffff" }).composite([{ input: rgba }]).png().toBuffer();
-  return { buffer: out, shape, fit: diff > COVER_TOLERANCE ? "stretch" : "cover" };
+  const placedPng = await (0, import_sharp3.default)(placed, { raw: { width: w, height: h, channels: 3 } }).png().toBuffer();
+  return { buffer: out, shape, fit: diff > COVER_TOLERANCE ? "stretch" : "cover", placed: placedPng };
 }
 
 // server/src/library/store.ts
@@ -60327,7 +60332,7 @@ function extractPromptFor(lib, cat, style) {
   const raw = cat.extractPrompt?.trim() ? cat.extractPrompt : lib.defaults.extractPrompt;
   return fillPlaceholders(raw, { category: cat.name, style: style.name, ratio: style.ratio });
 }
-var EXTRACT_CONSTRAINT = "Extract only the artwork printed on the product's face and output it as a flat, front-facing print file. The artwork fills the whole canvas edge to edge: its outer edges are the canvas edges. Do not include the product's frame, rounded corners, metal edge, thickness, mounting holes, perspective, reflections, shadows or background. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. If the artwork's proportions differ slightly from the canvas, extend its own background to fill; never crop, squeeze or drop any text.";
+var EXTRACT_CONSTRAINT = "Extract the whole printed face of the product exactly as it is printed and output it as a flat, front-facing print file. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. The printed face fills the whole canvas edge to edge: its outer edges are the canvas edges. Leave out only the physical product: its thickness and side edges, the cut-away rounded corners, mounting holes and screws, perspective, reflections, shadows and the background; where a hole or screw covers the artwork, continue the surrounding artwork. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. If the printed face's proportions differ slightly from the canvas, fit the whole printed face to the canvas; never crop, squeeze or drop any text, element or border.";
 function buildExtractRequest(prompt, ratio) {
   const [w, h] = ratioToWH(ratio);
   const c = canvasFor(w, h);
@@ -60586,6 +60591,13 @@ var QcSchema = external_exports.object({
   textOk: external_exports.boolean().nullable().default(null),
   textDiffs: external_exports.array(external_exports.string()).default([]),
   elementIssues: external_exports.array(external_exports.string()).default([]),
+  /** 竞品图印刷面四边有、素材图没有的（如做旧边）；素材图多出来的（如金属边） */
+  edgeMissing: external_exports.array(external_exports.string()).default([]),
+  edgeExtra: external_exports.array(external_exports.string()).default([]),
+  /** 主图验收：印刷面没铺满、露出底材 */
+  fillIssues: external_exports.array(external_exports.string()).default([]),
+  /** 主图验收：local = 本地合成后本地核对，ai = 发了分析请求 */
+  mode: external_exports.enum(["local", "ai"]).optional(),
   layout: external_exports.object({ ok: external_exports.boolean(), issues: external_exports.array(external_exports.string()), ratioChecked: external_exports.boolean(), note: external_exports.string().nullable() }).nullable().default(null),
   /** 和竞品图印刷面的色差（2026-10-27 用户要求加） */
   color: external_exports.object({
@@ -60640,7 +60652,9 @@ var JobSchema = external_exports.object({
     at: external_exports.string()
   }).nullable(),
   override: external_exports.object({ step: external_exports.number().int(), prompt: external_exports.string() }).nullable(),
-  qc: QcSchema.nullable().default(null)
+  qc: QcSchema.nullable().default(null),
+  /** 第③步里的主图验收，字段同 qc：sourceTexts 是素材图的文字，patternTexts 是主图的文字 */
+  mainQc: QcSchema.nullable().default(null)
 });
 var ALLOWED = {
   pending: ["running"],
@@ -60689,6 +60703,7 @@ function markSkipped(job, i2) {
 function resetFrom(job, n) {
   if (job.steps.some((s, i2) => i2 >= n && s.state === "running")) throw new TransitionError("\u6709\u6B65\u9AA4\u6B63\u5728\u8FD0\u884C\uFF0C\u8981\u5148\u4E2D\u6B62\u624D\u80FD\u91CD\u7F6E");
   if (n <= 1) job.qc = null;
+  if (n <= 2) job.mainQc = null;
   for (let i2 = n; i2 < STEP_COUNT; i2++) {
     const s = job.steps[i2];
     if (s.state !== "pending") transition(job, i2, "pending");
@@ -60715,7 +60730,7 @@ function runningStep(job) {
 function viewOf(job) {
   const r = runningStep(job);
   if (job.attention) return { phase: "attention", runningStep: r >= 0 ? r : null, label: "\u9700\u5904\u7406" };
-  if (r >= 0) return { phase: "running", runningStep: r, label: r === 4 ? "\u751F\u6210\u7A7A\u767D\u56FE\u4E2D" : r === 1 && job.qc?.state === "pending" ? "\u9A8C\u6536\u7D20\u6750\u4E2D" : `${STEP_NAMES[r]}\u4E2D` };
+  if (r >= 0) return { phase: "running", runningStep: r, label: r === 4 ? "\u751F\u6210\u7A7A\u767D\u56FE\u4E2D" : r === 1 && job.qc?.state === "pending" ? "\u9A8C\u6536\u7D20\u6750\u4E2D" : r === 2 && job.mainQc?.state === "pending" ? "\u9A8C\u6536\u4E3B\u56FE\u4E2D" : `${STEP_NAMES[r]}\u4E2D` };
   if (currentStep(job) === -1) return { phase: "done", runningStep: null, label: "\u5B8C\u6210" };
   return { phase: "queued", runningStep: null, label: "\u6392\u961F\u4E2D" };
 }
@@ -61114,7 +61129,7 @@ function describe3(s) {
   else if (s.C <= -LEAN) parts.push("\u504F\u7070");
   return parts.join("\u3001");
 }
-async function compareColors(source, pattern, box, threshold) {
+async function compareColors(source, pattern, box, threshold, judgePhoto = false) {
   if (!box) return { checked: false, deltaE: null, gridDeltaE: null, shift: null, box: null, issues: [], note: "\u6A21\u578B\u6CA1\u7ED9\u51FA\u7ADE\u54C1\u56FE\u5370\u5237\u9762\u7684\u4F4D\u7F6E\uFF0C\u8FD9\u6B21\u6CA1\u68C0\u67E5\u989C\u8272" };
   const { width: SW, height: SH } = await readSize(source);
   const { width: PW, height: PH } = await readSize(pattern);
@@ -61128,7 +61143,8 @@ async function compareColors(source, pattern, box, threshold) {
   const ma = mean(a, w);
   const mb = mean(b, w);
   const chroma = (p) => Math.hypot(p[1], p[2]);
-  const shift = { L: round1(mb[0] - ma[0]), a: round1(mb[1] - ma[1]), b: round1(mb[2] - ma[2]), C: round1(chroma(mb) - chroma(ma)) };
+  const [to, from] = judgePhoto ? [ma, mb] : [mb, ma];
+  const shift = { L: round1(to[0] - from[0]), a: round1(to[1] - from[1]), b: round1(to[2] - from[2]), C: round1(chroma(to) - chroma(from)) };
   const deltaE = round1(dE(ma, mb));
   const cells = [];
   for (let gy = 0; gy < GRID; gy++) {
@@ -61224,49 +61240,6 @@ function roundCorners(im) {
   }
   return n;
 }
-function stripStat(im, side, from, width) {
-  const sum = [0, 0, 0];
-  const sq = [0, 0, 0];
-  let n = 0;
-  const add = (x2, y) => {
-    const i2 = (y * im.w + x2) * 3;
-    for (let c = 0; c < 3; c++) {
-      const v = im.d[i2 + c];
-      sum[c] += v;
-      sq[c] += v * v;
-    }
-    n++;
-  };
-  for (let t = from; t < from + width; t++) {
-    if (side === "top" || side === "bottom") {
-      const y = side === "top" ? t : im.h - 1 - t;
-      for (let x2 = 0; x2 < im.w; x2++) add(x2, y);
-    } else {
-      const x2 = side === "left" ? t : im.w - 1 - t;
-      for (let y = 0; y < im.h; y++) add(x2, y);
-    }
-  }
-  const mean2 = sum.map((s) => s / n);
-  const std = Math.max(...sq.map((s, c) => Math.sqrt(Math.max(0, s / n - mean2[c] * mean2[c]))));
-  return { mean: mean2, std };
-}
-var dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-function hasBorder(im) {
-  const sides = ["top", "bottom", "left", "right"];
-  for (const frac of [0.01, 0.025]) {
-    const t = Math.max(2, Math.round(Math.min(im.w, im.h) * frac));
-    const outer = sides.map((s) => stripStat(im, s, 0, t));
-    const inner = sides.map((s) => stripStat(im, s, t, t));
-    if (outer.some((o) => o.std > 14)) continue;
-    if (outer.every((o) => Math.min(...o.mean) >= WHITE_MIN)) continue;
-    let spread = 0;
-    for (const a of outer) for (const b of outer) spread = Math.max(spread, dist(a.mean, b.mean));
-    if (spread > 24) continue;
-    const differs = outer.filter((o, i2) => dist(o.mean, inner[i2].mean) > 40).length;
-    if (differs >= 3) return true;
-  }
-  return false;
-}
 var pct = (v) => `${Math.round(v * 100)}%`;
 async function checkPatternLayout(buf, productRatio) {
   const meta3 = await (0, import_sharp6.default)(buf).metadata();
@@ -61292,7 +61265,6 @@ async function checkPatternLayout(buf, productRatio) {
     }
     const rc = roundCorners(im);
     if (rc >= 3) issues.push(`\u5E26\u7740\u4EA7\u54C1\u7684\u5706\u89D2\uFF08${rc} \u4E2A\u89D2\uFF09`);
-    if (hasBorder(im)) issues.push("\u56DB\u5468\u6709\u4E00\u5708\u8FB9\u6846");
   }
   const target = ratioValue(productRatio);
   const canvas = API_RATIO2[pickApiSize(target, 1)];
@@ -61312,9 +61284,11 @@ async function checkPatternLayout(buf, productRatio) {
 var QC_SYSTEM = `\u4F60\u662F\u7D20\u6750\u56FE\u9A8C\u6536\u52A9\u624B\u3002\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u56FE\u7247\u662F\u4ECE\u5B83\u63D0\u53D6\u51FA\u6765\u7684\u5E73\u9762\u7D20\u6750\u56FE\uFF08\u53EA\u4FDD\u7559\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u56FE\u6848\uFF09\u3002\u8BF7\u5B8C\u6210\u4E24\u4EF6\u4E8B\uFF0C\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
 1. \u9010\u5B57\u6284\u5199\u6587\u5B57\uFF1A\u5206\u522B\u628A\u7B2C\u4E00\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u6240\u6709\u6587\u5B57\u3001\u7B2C\u4E8C\u5F20\u56FE\u91CC\u7684\u6240\u6709\u6587\u5B57\u9010\u5B57\u6284\u4E0B\u6765\u3002\u7167\u539F\u6837\u6284\uFF0C\u4E0D\u7FFB\u8BD1\u3001\u4E0D\u7EA0\u9519\u3001\u4E0D\u8865\u5168\u3001\u4E0D\u6539\u5927\u5C0F\u5199\uFF1B\u6309\u4ECE\u4E0A\u5230\u4E0B\u3001\u4ECE\u5DE6\u5230\u53F3\u7684\u987A\u5E8F\uFF0C\u6BCF\u4E00\u884C\uFF08\u6216\u8FDE\u5728\u4E00\u8D77\u7684\u4E00\u5C0F\u6BB5\uFF09\u4F5C\u4E3A\u6570\u7EC4\u91CC\u7684\u4E00\u9879\u3002\u5546\u54C1\u5370\u5237\u9762\u4EE5\u5916\u7684\u6587\u5B57\uFF08\u80CC\u666F\u3001\u6C34\u5370\u3001\u5305\u88C5\u3001\u4EF7\u683C\u6807\u7B7E\uFF09\u4E0D\u8981\u6284\u3002\u6CA1\u6709\u6587\u5B57\u7ED9\u7A7A\u6570\u7EC4\u3002
 2. \u6807\u51FA\u5370\u5237\u9762\u4F4D\u7F6E\uFF1A\u7ED9\u51FA\u7B2C\u4E00\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\uFF08\u5370\u7740\u56FE\u6848\u7684\u90A3\u4E00\u9762\uFF0C\u4E0D\u542B\u8FB9\u6846\u3001\u80CC\u666F\uFF09\u7684\u5916\u63A5\u77E9\u5F62 print_box\uFF0C\u683C\u5F0F [\u5DE6, \u4E0A, \u53F3, \u4E0B]\uFF0C\u7528 0\uFF5E1 \u7684\u6BD4\u4F8B\u8868\u793A\uFF08\u76F8\u5BF9\u7B2C\u4E00\u5F20\u56FE\u7684\u5BBD\u548C\u9AD8\uFF09\u3002
-3. \u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF1A\u6BD4\u5BF9\u4E24\u5F20\u56FE\u5370\u5237\u9762\u4E0A\u7684\u4E3B\u8981\u5143\u7D20\uFF08\u4EBA\u7269\u3001\u52A8\u7269\u3001\u5EFA\u7B51\u3001\u7269\u54C1\u3001\u88C5\u9970\uFF0C\u5982\u661F\u661F\u3001\u96EA\u82B1\u7403\uFF09\uFF0C\u770B\u7D20\u6750\u56FE\u6709\u6CA1\u6709\u7F3A\u5931\u3001\u591A\u51FA\u6216\u660E\u663E\u53D8\u6837\u7684\u5143\u7D20\u3002\u7ED9 0\uFF5E1 \u7684\u76F8\u4F3C\u5206\uFF081 \u8868\u793A\u5B8C\u5168\u4E00\u81F4\uFF09\uFF0C\u5E76\u7528\u4E2D\u6587\u77ED\u53E5\u5217\u51FA\u53D1\u73B0\u7684\u95EE\u9898\uFF0C\u6CA1\u6709\u95EE\u9898\u7ED9\u7A7A\u6570\u7EC4\u3002\u7D20\u6750\u56FE\u53BB\u6389\u4E86\u5546\u54C1\u5916\u5F62\u3001\u8FB9\u6846\u3001\u900F\u89C6\u3001\u5149\u5F71\u548C\u80CC\u666F\u662F\u6B63\u5E38\u7684\uFF0C\u4E0D\u8981\u56E0\u6B64\u6263\u5206\uFF1B\u6587\u5B57\u5DEE\u5F02\u4E0D\u7528\u5199\u8FDB\u5143\u7D20\u95EE\u9898\u3002
+3. \u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF1A\u6BD4\u5BF9\u4E24\u5F20\u56FE\u5370\u5237\u9762\u4E0A\u7684\u4E3B\u8981\u5143\u7D20\uFF08\u4EBA\u7269\u3001\u52A8\u7269\u3001\u5EFA\u7B51\u3001\u7269\u54C1\u3001\u88C5\u9970\uFF0C\u5982\u661F\u661F\u3001\u96EA\u82B1\u7403\uFF09\uFF0C\u770B\u7D20\u6750\u56FE\u6709\u6CA1\u6709\u7F3A\u5931\u3001\u591A\u51FA\u6216\u660E\u663E\u53D8\u6837\u7684\u5143\u7D20\u3002\u7ED9 0\uFF5E1 \u7684\u76F8\u4F3C\u5206\uFF081 \u8868\u793A\u5B8C\u5168\u4E00\u81F4\uFF09\uFF0C\u5E76\u7528\u4E2D\u6587\u77ED\u53E5\u5217\u51FA\u53D1\u73B0\u7684\u95EE\u9898\uFF0C\u6CA1\u6709\u95EE\u9898\u7ED9\u7A7A\u6570\u7EC4\u3002\u6587\u5B57\u5DEE\u5F02\u4E0D\u7528\u5199\u8FDB\u5143\u7D20\u95EE\u9898\u3002
+4. \u6BD4\u5BF9\u56DB\u8FB9\uFF1A\u5370\u5237\u9762\u4E0A\u770B\u5F97\u5230\u7684\u90FD\u5C5E\u4E8E\u56FE\u6848\uFF0C\u5305\u62EC\u56DB\u5468\u5370\u5237\u7684\u8FB9\u6846\u548C\u7EBF\u6846\u3001\u505A\u65E7\u8FB9\u3001\u9508\u8FF9\u3001\u5212\u75D5\u3002\u9010\u6761\u5217\u51FA\u7B2C\u4E00\u5F20\u56FE\u5370\u5237\u9762\u56DB\u8FB9\u6709\u3001\u7D20\u6750\u56FE\u91CC\u5374\u6CA1\u6709\u7684\u5185\u5BB9\uFF08edge_missing\uFF0C\u5982\u300C\u56DB\u5468\u7684\u7EA2\u8272\u505A\u65E7\u8FB9\u6CA1\u4E86\u300D\uFF09\uFF0C\u4EE5\u53CA\u7D20\u6750\u56FE\u56DB\u8FB9\u591A\u51FA\u6765\u3001\u7B2C\u4E00\u5F20\u56FE\u5370\u5237\u9762\u4E0A\u6CA1\u6709\u7684\u4E1C\u897F\uFF08edge_extra\uFF0C\u5982\u300C\u591A\u4E86\u4E00\u5708\u91D1\u5C5E\u8FB9\u300D\u300C\u5E26\u7740\u5706\u89D2\u300D\u300C\u5E26\u7740\u5B89\u88C5\u5B54\u6216\u87BA\u4E1D\u300D\u300C\u5E26\u7740\u80CC\u666F\u300D\uFF09\u3002\u6CA1\u6709\u5C31\u7ED9\u7A7A\u6570\u7EC4\u3002
+\u7D20\u6750\u56FE\u53BB\u6389\u4E86\u5546\u54C1\u7684\u539A\u5EA6\u548C\u4FA7\u8FB9\u3001\u5706\u89D2\u5916\u7684\u7A7A\u767D\u3001\u5B89\u88C5\u5B54\u548C\u87BA\u4E1D\u3001\u900F\u89C6\u3001\u53CD\u5149\u3001\u9634\u5F71\u548C\u80CC\u666F\u662F\u6B63\u5E38\u7684\uFF0C\u4E0D\u8981\u56E0\u6B64\u6263\u5206\u3002
 \u8F93\u51FA\u683C\u5F0F\uFF1A
-{"source_texts": ["\u7B2C\u4E00\u5F20\u56FE\u7684\u6587\u5B57"], "pattern_texts": ["\u7B2C\u4E8C\u5F20\u56FE\u7684\u6587\u5B57"], "print_box": [0.1, 0.2, 0.9, 0.8], "element_score": 0.95, "element_issues": []}`;
+{"source_texts": ["\u7B2C\u4E00\u5F20\u56FE\u7684\u6587\u5B57"], "pattern_texts": ["\u7B2C\u4E8C\u5F20\u56FE\u7684\u6587\u5B57"], "print_box": [0.1, 0.2, 0.9, 0.8], "element_score": 0.95, "element_issues": [], "edge_missing": [], "edge_extra": []}`;
 var QC_USER = "\u7B2C\u4E00\u5F20\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u662F\u63D0\u53D6\u51FA\u6765\u7684\u7D20\u6750\u56FE\u3002\u8BF7\u6309\u8981\u6C42\u6284\u5199\u6587\u5B57\u3001\u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF0C\u53EA\u8F93\u51FA JSON\u3002";
 var strList = external_exports.array(external_exports.unknown()).nullish().transform((a) => (a ?? []).map((x2) => String(x2 ?? "").trim()).filter(Boolean));
 var QcAnswerSchema = external_exports.object({
@@ -61322,12 +61296,32 @@ var QcAnswerSchema = external_exports.object({
   pattern_texts: strList,
   print_box: external_exports.array(external_exports.coerce.number()).nullish().catch(null).transform((v) => v ?? null),
   element_score: external_exports.coerce.number().min(0).max(1),
-  element_issues: strList
+  element_issues: strList,
+  edge_missing: strList,
+  edge_extra: strList
+});
+var MAIN_QC_SYSTEM = `\u4F60\u662F\u4E3B\u56FE\u9A8C\u6536\u52A9\u624B\u3002\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u7D20\u6750\u56FE\uFF08\u5E73\u9762\u56FE\u6848\uFF09\uFF0C\u7B2C\u4E8C\u5F20\u56FE\u7247\u662F\u628A\u7D20\u6750\u56FE\u8D34\u5230\u5546\u54C1\u4E0A\u751F\u6210\u7684\u4E3B\u56FE\u3002\u8BF7\u5B8C\u6210\u4E0B\u9762\u51E0\u4EF6\u4E8B\uFF0C\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
+1. \u9010\u5B57\u6284\u5199\u6587\u5B57\uFF1A\u5206\u522B\u628A\u7B2C\u4E00\u5F20\u56FE\u91CC\u7684\u6240\u6709\u6587\u5B57\u3001\u7B2C\u4E8C\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u6240\u6709\u6587\u5B57\u9010\u5B57\u6284\u4E0B\u6765\u3002\u7167\u539F\u6837\u6284\uFF0C\u4E0D\u7FFB\u8BD1\u3001\u4E0D\u7EA0\u9519\u3001\u4E0D\u8865\u5168\u3001\u4E0D\u6539\u5927\u5C0F\u5199\uFF1B\u6309\u4ECE\u4E0A\u5230\u4E0B\u3001\u4ECE\u5DE6\u5230\u53F3\u7684\u987A\u5E8F\uFF0C\u6BCF\u4E00\u884C\uFF08\u6216\u8FDE\u5728\u4E00\u8D77\u7684\u4E00\u5C0F\u6BB5\uFF09\u4F5C\u4E3A\u6570\u7EC4\u91CC\u7684\u4E00\u9879\u3002\u6CA1\u6709\u6587\u5B57\u7ED9\u7A7A\u6570\u7EC4\u3002
+2. \u6807\u51FA\u5370\u5237\u9762\u4F4D\u7F6E\uFF1A\u7ED9\u51FA\u7B2C\u4E8C\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\u7684\u5916\u63A5\u77E9\u5F62 print_box\uFF0C\u683C\u5F0F [\u5DE6, \u4E0A, \u53F3, \u4E0B]\uFF0C\u7528 0\uFF5E1 \u7684\u6BD4\u4F8B\u8868\u793A\u3002
+3. \u6BD4\u5BF9\u56FE\u6848\u5143\u7D20\uFF1A\u7B2C\u4E8C\u5F20\u56FE\u5370\u5237\u9762\u4E0A\u7684\u56FE\u6848\u548C\u7B2C\u4E00\u5F20\u56FE\u6BD4\uFF0C\u4E3B\u8981\u5143\u7D20\uFF08\u4EBA\u7269\u3001\u52A8\u7269\u3001\u5EFA\u7B51\u3001\u7269\u54C1\u3001\u88C5\u9970\u3001\u56DB\u5468\u7684\u8FB9\u6846\u548C\u505A\u65E7\u8FB9\uFF09\u6709\u6CA1\u6709\u7F3A\u5931\u3001\u591A\u51FA\u6216\u660E\u663E\u53D8\u6837\u3002\u7ED9 0\uFF5E1 \u7684\u76F8\u4F3C\u5206\uFF081 \u8868\u793A\u5B8C\u5168\u4E00\u81F4\uFF09\uFF0C\u5E76\u7528\u4E2D\u6587\u77ED\u53E5\u5217\u51FA\u95EE\u9898\uFF0C\u6CA1\u6709\u95EE\u9898\u7ED9\u7A7A\u6570\u7EC4\u3002
+4. \u68C0\u67E5\u8D34\u56FE\uFF1A\u5370\u5237\u9762\u6709\u6CA1\u6709\u88AB\u7D20\u6750\u56FE\u5B8C\u6574\u94FA\u6EE1\uFF08\u9732\u51FA\u7A7A\u767D\u3001\u91D1\u5C5E\u8FB9\u3001\u5E95\u6750\u7B97\u6CA1\u94FA\u6EE1\uFF09\uFF1B\u5370\u5237\u9762\u4EE5\u5185\u6709\u6CA1\u6709\u900F\u51FA\u5546\u54C1\u539F\u6765\u7684\u91D1\u5C5E\u3001\u6728\u7EB9\u7B49\u6750\u8D28\u989C\u8272\uFF08\u5305\u62EC\u7D20\u6750\u56FE\u91CC\u767D\u8272\u3001\u6D45\u8272\u7684\u5730\u65B9\uFF09\u3002\u6709\u95EE\u9898\u5C31\u7528\u4E2D\u6587\u77ED\u53E5\u5199\u8FDB fill_issues\uFF0C\u6CA1\u6709\u7ED9\u7A7A\u6570\u7EC4\u3002
+\u900F\u89C6\u3001\u5149\u5F71\u3001\u53CD\u5149\u3001\u5B89\u88C5\u5B54\u548C\u87BA\u4E1D\u662F\u6B63\u5E38\u7684\uFF0C\u4E0D\u8981\u56E0\u6B64\u6263\u5206\u3002
+\u8F93\u51FA\u683C\u5F0F\uFF1A
+{"pattern_texts": ["\u7B2C\u4E00\u5F20\u56FE\u7684\u6587\u5B57"], "main_texts": ["\u7B2C\u4E8C\u5F20\u56FE\u7684\u6587\u5B57"], "print_box": [0.1, 0.2, 0.9, 0.8], "element_score": 0.95, "element_issues": [], "fill_issues": []}`;
+var MAIN_QC_USER = "\u7B2C\u4E00\u5F20\u662F\u7D20\u6750\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u662F\u8D34\u597D\u7684\u4E3B\u56FE\u3002\u8BF7\u6309\u8981\u6C42\u6284\u5199\u6587\u5B57\u3001\u6BD4\u5BF9\u56FE\u6848\u3001\u68C0\u67E5\u8D34\u56FE\uFF0C\u53EA\u8F93\u51FA JSON\u3002";
+var MainQcAnswerSchema = external_exports.object({
+  pattern_texts: strList,
+  main_texts: strList,
+  print_box: external_exports.array(external_exports.coerce.number()).nullish().catch(null).transform((v) => v ?? null),
+  element_score: external_exports.coerce.number().min(0).max(1),
+  element_issues: strList,
+  fill_issues: strList
 });
 function normalizeText(s) {
   return s.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}]/gu, " ").replace(/\s+/g, " ").trim();
 }
-function compareTexts(source, pattern) {
+function compareTexts(source, pattern, names = { from: "\u539F\u56FE", to: "\u7D20\u6750\u56FE" }) {
+  const { from, to } = names;
   const a = source.map((t) => ({ raw: t, n: normalizeText(t) })).filter((t) => t.n);
   const b = pattern.map((t) => ({ raw: t, n: normalizeText(t) })).filter((t) => t.n);
   const words = (xs) => xs.map((x2) => x2.n).join(" ");
@@ -61341,10 +61335,10 @@ function compareTexts(source, pattern) {
   }
   const diffs = [];
   const n = Math.min(srcOnly.length, rest.length);
-  for (let i2 = 0; i2 < n; i2++) diffs.push(`\u6587\u5B57\u53D8\u4E86\uFF1A\u539F\u56FE ${srcOnly[i2].raw} \u2192 \u7D20\u6750\u56FE ${rest[i2].raw}`);
-  for (const t of srcOnly.slice(n)) diffs.push(`\u7D20\u6750\u56FE\u7F3A\u5C11\u6587\u5B57\uFF1A${t.raw}`);
-  for (const t of rest.slice(n)) diffs.push(`\u7D20\u6750\u56FE\u591A\u51FA\u6587\u5B57\uFF1A${t.raw}`);
-  if (!diffs.length) diffs.push(`\u6587\u5B57\u987A\u5E8F\u53D8\u4E86\uFF1A\u539F\u56FE ${a.map((x2) => x2.raw).join(" / ")} \u2192 \u7D20\u6750\u56FE ${b.map((x2) => x2.raw).join(" / ")}`);
+  for (let i2 = 0; i2 < n; i2++) diffs.push(`\u6587\u5B57\u53D8\u4E86\uFF1A${from} ${srcOnly[i2].raw} \u2192 ${to} ${rest[i2].raw}`);
+  for (const t of srcOnly.slice(n)) diffs.push(`${to}\u7F3A\u5C11\u6587\u5B57\uFF1A${t.raw}`);
+  for (const t of rest.slice(n)) diffs.push(`${to}\u591A\u51FA\u6587\u5B57\uFF1A${t.raw}`);
+  if (!diffs.length) diffs.push(`\u6587\u5B57\u987A\u5E8F\u53D8\u4E86\uFF1A${from} ${a.map((x2) => x2.raw).join(" / ")} \u2192 ${to} ${b.map((x2) => x2.raw).join(" / ")}`);
   return { ok: false, diffs };
 }
 
@@ -61377,7 +61371,21 @@ function fidelityParams(settings, size) {
 
 // server/src/pipeline/step1Extract.ts
 function newQc() {
-  return { state: "pending", score: null, sourceTexts: [], patternTexts: [], textOk: null, textDiffs: [], elementIssues: [], layout: null, color: null, reasons: [] };
+  return {
+    state: "pending",
+    score: null,
+    sourceTexts: [],
+    patternTexts: [],
+    textOk: null,
+    textDiffs: [],
+    elementIssues: [],
+    edgeMissing: [],
+    edgeExtra: [],
+    fillIssues: [],
+    layout: null,
+    color: null,
+    reasons: []
+  };
 }
 var step1Extract = async (ctx) => {
   if (!ctx.job.route) {
@@ -61470,6 +61478,8 @@ async function runQc(ctx, patternFile) {
     const issues = data.element_issues.length ? `\uFF1A${data.element_issues.join("\uFF1B")}` : "";
     reasons.push(`\u56FE\u6848\u5143\u7D20\u76F8\u4F3C\u5206 ${data.element_score.toFixed(2)}\uFF0C\u4F4E\u4E8E ${threshold.toFixed(2)}${issues}`);
   }
+  for (const m of data.edge_missing) reasons.push(`\u56DB\u8FB9\u5C11\u4E86\uFF1A${m}`);
+  for (const m of data.edge_extra) reasons.push(`\u56DB\u8FB9\u591A\u4E86\uFF1A${m}`);
   const box = normalizeBox(data.print_box, await readSize(images[0]));
   const color = { ...await compareColors(srcBuf, patBuf, box, settings.patternQcDeltaE), threshold: settings.patternQcDeltaE };
   reasons.push(...color.issues);
@@ -61484,6 +61494,9 @@ async function runQc(ctx, patternFile) {
     textOk: text.ok,
     textDiffs: text.diffs,
     elementIssues: data.element_issues,
+    edgeMissing: data.edge_missing,
+    edgeExtra: data.edge_extra,
+    fillIssues: [],
     layout,
     color,
     reasons,
@@ -61504,22 +61517,44 @@ async function runQc(ctx, patternFile) {
 }
 
 // server/src/pipeline/step2Main.ts
+var import_node_fs11 = __toESM(require("node:fs"), 1);
 var import_promises8 = __toESM(require("node:fs/promises"), 1);
 var import_node_path14 = __toESM(require("node:path"), 1);
 var LOCAL_PROMPT = "\u672C\u5730\u5408\u6210\uFF0C\u672A\u8C03\u7528 AI";
+var LOCAL_MAX_DELTA_E = 2;
 async function finish(ctx, buf) {
   let out = await capEdge(await flattenWhite(buf), 2e3);
   if (ctx.env.settings().padSquare) out = await padSquare(out);
   const capped = await capBytes(out);
   if (capped.shrunk) log.warn(`\u4E3B\u56FE\u8D85\u8FC7 9.5MB\uFF0C\u5DF2\u7B49\u6BD4\u7F29\u5C0F\uFF1A${ctx.job.source.originalName}`);
   await writeJobImage(ctx.dir, "main", JOB_FILES.main, capped.buffer);
-  await writeOutput(ctx.env.outputDir(), ctx.job, "main", capped.buffer);
+  return capped.buffer;
+}
+function qcFailed(ctx, qc) {
+  log.warn(`\u300C${ctx.job.source.originalName}\u300D\u4E3B\u56FE\u6CA1\u8FC7\u9A8C\u6536\uFF1A${qc.reasons.join("\uFF1B")}`);
+  return {
+    kind: "attention",
+    state: "failed",
+    attention: { kind: "qc", step: 2, message: `\u4E3B\u56FE\u6CA1\u8FC7\u9A8C\u6536\uFF1A${qc.reasons.join("\uFF1B")}` },
+    patch: (job) => job.mainQc = qc
+  };
 }
 var step2Main = async (ctx) => {
   const plan = ctx.job.plan;
   const route = ctx.job.route;
   if (!plan || !route) {
     return { kind: "attention", state: "pending", attention: { kind: "nomatch", step: 2, message: "\u8FD8\u6CA1\u6709\u786E\u5B9A\u8981\u7528\u7684\u6A21\u7248\uFF0C\u8BF7\u91CD\u65B0\u8BC6\u522B" } };
+  }
+  const mainFile = import_node_path14.default.join(ctx.dir, JOB_FILES.main);
+  if (ctx.job.mainQc?.state === "pending" && !import_node_fs11.default.existsSync(mainFile)) {
+    return { kind: "requeue", patch: (job) => job.mainQc = null };
+  }
+  if (ctx.job.mainQc?.state === "pending") {
+    if (!ctx.env.settings().mainQc) {
+      await writeOutput(ctx.env.outputDir(), ctx.job, "main", await import_promises8.default.readFile(mainFile));
+      return { kind: "done", output: JOB_FILES.main, patch: (job) => job.mainQc = null };
+    }
+    return runMainQc(ctx, mainFile);
   }
   const main2 = plan.main;
   let planFile = null;
@@ -61559,16 +61594,25 @@ var step2Main = async (ctx) => {
   const res = await ctx.retry(
     () => editImage(ctx.env.settings().image, { images: inputs, prefix: req.prefix, prompt, size: req.size, signal: ctx.signal }, ctx.env.onFidelityDowngrade)
   );
-  await finish(ctx, res.buffer);
-  return {
-    kind: "done",
-    output: JOB_FILES.main,
-    patch: (job) => {
-      const s = job.steps[2].snapshot;
-      if (s) s.params = res.params;
-      if (useOverride) job.override = null;
-    }
+  const out = await finish(ctx, res.buffer);
+  const qcOn = ctx.env.settings().mainQc;
+  if (!qcOn) await writeOutput(ctx.env.outputDir(), ctx.job, "main", out);
+  const patch = (job) => {
+    const s = job.steps[2].snapshot;
+    if (s) s.params = res.params;
+    if (useOverride) job.override = null;
   };
+  if (qcOn) {
+    return {
+      kind: "requeue",
+      patch: (job) => {
+        patch(job);
+        job.mainQc = { ...newQc(), mode: "ai" };
+        job.steps[2].attempts = 0;
+      }
+    };
+  }
+  return { kind: "done", output: JOB_FILES.main, patch: (job) => (job.mainQc = null, patch(job)) };
 };
 async function pasteLocal(ctx, whiteBuf, whiteHash, patternBuf, why) {
   let r;
@@ -61590,14 +61634,76 @@ async function pasteLocal(ctx, whiteBuf, whiteHash, patternBuf, why) {
     mode: "local",
     params: { why, shape: r.shape.reason, fit: r.fit === "stretch" ? "\u7D20\u6750\u56FE\u8F7B\u5FAE\u62C9\u4F38\u5230\u4EA7\u54C1\u5916\u5F62" : "\u7D20\u6750\u56FE\u7B49\u6BD4\u94FA\u6EE1\u4EA7\u54C1\u5916\u5F62", bbox: r.shape.bbox }
   });
-  await finish(ctx, r.buffer);
-  return {
-    kind: "done",
-    output: JOB_FILES.main,
-    patch: (job) => {
-      if (job.override?.step === 2) job.override = null;
-    }
+  const clearOverride = (job) => {
+    if (job.override?.step === 2) job.override = null;
   };
+  const out = await finish(ctx, r.buffer);
+  if (!ctx.env.settings().mainQc) {
+    await writeOutput(ctx.env.outputDir(), ctx.job, "main", out);
+    return { kind: "done", output: JOB_FILES.main, patch: (job) => (job.mainQc = null, clearOverride(job)) };
+  }
+  const { width, height } = await readSize(r.buffer);
+  const b = r.shape.bbox;
+  const color = await compareColors(r.buffer, r.placed, [b.x / width, b.y / height, (b.x + b.w) / width, (b.y + b.h) / height], LOCAL_MAX_DELTA_E);
+  const reasons = color.issues.length ? [`\u672C\u5730\u5408\u6210\u7684\u4E3B\u56FE\u548C\u7D20\u6750\u56FE\u5BF9\u4E0D\u4E0A\uFF08\u0394E ${color.deltaE}\uFF0C\u5206\u5757 ${color.gridDeltaE}\uFF09\uFF0C\u8BF7\u91CD\u65B0\u5408\u6210\u6216\u6539\u7528 AI \u8D34\u56FE`] : [];
+  const qc = { ...newQc(), state: reasons.length ? "fail" : "pass", at: (/* @__PURE__ */ new Date()).toISOString(), mode: "local", color: { ...color, issues: [], threshold: LOCAL_MAX_DELTA_E }, reasons };
+  if (reasons.length) return { ...qcFailed(ctx, qc), patch: (job) => (job.mainQc = qc, clearOverride(job)) };
+  await writeOutput(ctx.env.outputDir(), ctx.job, "main", out);
+  return { kind: "done", output: JOB_FILES.main, patch: (job) => (job.mainQc = qc, clearOverride(job)) };
+}
+async function runMainQc(ctx, mainFile) {
+  const settings = ctx.env.settings();
+  const threshold = settings.patternQcThreshold;
+  const patBuf = await import_promises8.default.readFile(import_node_path14.default.join(ctx.dir, JOB_FILES.pattern));
+  const mainBuf = await import_promises8.default.readFile(mainFile);
+  const images = [await shrinkForAnalysis(patBuf), await shrinkForAnalysis(mainBuf)];
+  const snapshot = {
+    images: [
+      { no: 1, role: "\u7D20\u6750\u56FE", sha256: sha256(patBuf) },
+      { no: 2, role: "\u4E3B\u56FE", sha256: sha256(mainBuf) }
+    ],
+    prefix: "",
+    prompt: MAIN_QC_SYSTEM,
+    model: settings.analysis.model,
+    params: { user: MAIN_QC_USER }
+  };
+  ctx.commit((job) => {
+    if (job.mainQc) job.mainQc.snapshot = snapshot;
+  });
+  const { data, raw } = await ctx.retry(
+    () => chatJson(settings.analysis, { system: MAIN_QC_SYSTEM, user: MAIN_QC_USER, images, signal: ctx.signal }, MainQcAnswerSchema)
+  );
+  const text = compareTexts(data.pattern_texts, data.main_texts, { from: "\u7D20\u6750\u56FE", to: "\u4E3B\u56FE" });
+  const reasons = [...text.diffs];
+  if (data.element_score < threshold) {
+    const issues = data.element_issues.length ? `\uFF1A${data.element_issues.join("\uFF1B")}` : "";
+    reasons.push(`\u56FE\u6848\u5143\u7D20\u76F8\u4F3C\u5206 ${data.element_score.toFixed(2)}\uFF0C\u4F4E\u4E8E ${threshold.toFixed(2)}${issues}`);
+  }
+  for (const f2 of data.fill_issues) reasons.push(`\u8D34\u56FE\uFF1A${f2}`);
+  const box = normalizeBox(data.print_box, await readSize(images[1]));
+  const color = { ...await compareColors(mainBuf, patBuf, box, settings.patternQcDeltaE, true), threshold: settings.patternQcDeltaE };
+  reasons.push(...color.issues.map((i2) => i2.replace("\u989C\u8272\u504F\u4E86\uFF1A", "\u4E3B\u56FE\u989C\u8272\u504F\u4E86\uFF1A")));
+  const qc = {
+    ...newQc(),
+    state: reasons.length ? "fail" : "pass",
+    at: (/* @__PURE__ */ new Date()).toISOString(),
+    mode: "ai",
+    threshold,
+    score: data.element_score,
+    sourceTexts: data.pattern_texts,
+    patternTexts: data.main_texts,
+    textOk: text.ok,
+    textDiffs: text.diffs,
+    elementIssues: data.element_issues,
+    fillIssues: data.fill_issues,
+    color,
+    reasons,
+    snapshot,
+    raw
+  };
+  if (reasons.length) return qcFailed(ctx, qc);
+  await writeOutput(ctx.env.outputDir(), ctx.job, "main", mainBuf);
+  return { kind: "done", output: JOB_FILES.main, patch: (job) => job.mainQc = qc };
 }
 
 // server/src/pipeline/step3Info.ts
@@ -61743,7 +61849,8 @@ var step4Blank = async (ctx) => {
 
 // server/src/scheduler/scheduler.ts
 var import_promises10 = __toESM(require("node:fs/promises"), 1);
-var kindOf = (step, job) => step === 0 || step === 3 || step === 1 && job?.qc?.state === "pending" ? "analysis" : "image";
+var kindOf = (step, job) => step === 0 || step === 3 || step === 1 && job?.qc?.state === "pending" || step === 2 && job?.mainQc?.state === "pending" ? "analysis" : "image";
+var phaseName = (job, i2) => i2 === 1 && job.qc?.state === "pending" ? "\u7D20\u6750\u56FE\u9A8C\u6536" : i2 === 2 && job.mainQc?.state === "pending" ? "\u4E3B\u56FE\u9A8C\u6536" : STEP_NAMES[i2];
 var DEFAULT_HANDLERS = [step0Route, step1Extract, step2Main, step3Info, step4Blank];
 var AUTH_MESSAGE = { image: "\u751F\u56FE\u63A5\u53E3 Key \u65E0\u6548\u6216\u65E0\u6743\u9650", analysis: "\u5206\u6790\u63A5\u53E3 Key \u65E0\u6548\u6216\u65E0\u6743\u9650" };
 var Scheduler = class {
@@ -61900,7 +62007,7 @@ var Scheduler = class {
           j.steps[i2].attempts = n;
           if (err2) j.steps[i2].error = err2.message;
         }),
-        onRetryWait: (n, ms, err2) => log.warn(`\u300C${job.source.originalName}\u300D${i2 === 1 && job.qc?.state === "pending" ? "\u7D20\u6750\u56FE\u9A8C\u6536" : STEP_NAMES[i2]}\u7B2C ${n} \u6B21\u5931\u8D25\uFF08${err2.message}\uFF09\uFF0C${Math.round(ms / 1e3)} \u79D2\u540E\u91CD\u8BD5`)
+        onRetryWait: (n, ms, err2) => log.warn(`\u300C${job.source.originalName}\u300D${phaseName(job, i2)}\u7B2C ${n} \u6B21\u5931\u8D25\uFF08${err2.message}\uFF09\uFF0C${Math.round(ms / 1e3)} \u79D2\u540E\u91CD\u8BD5`)
       }),
       setSnapshot: (s) => update((j) => j.steps[i2].snapshot = s),
       commit: (patch) => {
@@ -61996,7 +62103,7 @@ var Scheduler = class {
     } else if (e instanceof AiError) {
       const attempts = job.steps[i2].attempts;
       const tail = RETRYABLE.has(e.type) && attempts >= MAX_ATTEMPTS ? `\u91CD\u8BD5 ${MAX_ATTEMPTS - 1} \u6B21\u4ECD\u5931\u8D25\uFF08${e.message}\uFF09` : `${ERROR_LABEL[e.type]}\uFF1A${e.message}`;
-      attention = { kind: "failed", step: i2, message: `${i2 === 1 && job.qc?.state === "pending" ? "\u7D20\u6750\u56FE\u9A8C\u6536" : name}\u5931\u8D25\uFF1A${tail}` };
+      attention = { kind: "failed", step: i2, message: `${phaseName(job, i2)}\u5931\u8D25\uFF1A${tail}` };
     } else {
       attention = { kind: "failed", step: i2, message: `${name}\u5931\u8D25\uFF1A${e?.message ?? String(e)}` };
       log.error(`\u300C${job.source.originalName}\u300D${name}\u51FA\u9519\uFF1A${e?.stack ?? e}`);
@@ -62154,21 +62261,26 @@ var Scheduler = class {
       return this.d.jobs.get(jobId);
     });
   }
-  /** 素材图没过验收，用户选「仍然使用」：跳过这次验收，后面的步骤接着跑 */
+  /** 素材图或主图没过验收，用户选「仍然使用」：跳过这次验收，后面的步骤接着跑 */
   async acceptQc(jobId) {
     return this.hold(jobId, async (job) => {
-      if (job.attention?.kind !== "qc") throw new HttpError(400, "\u8FD9\u5F20\u56FE\u7684\u7D20\u6750\u56FE\u4E0D\u9700\u8981\u5904\u7406");
-      const buf = await import_promises10.default.readFile(this.d.jobs.fileOf(jobId, JOB_FILES.pattern)).catch(() => null);
-      if (!buf) throw new HttpError(400, "\u7D20\u6750\u56FE\u6587\u4EF6\u4E0D\u5728\u4E86\uFF0C\u8BF7\u91CD\u65B0\u63D0\u53D6");
-      await writeOutput(this.env.outputDir(), job, "pattern", buf);
+      const step = job.attention?.kind === "qc" ? job.attention.step : -1;
+      if (step !== 1 && step !== 2) throw new HttpError(400, "\u8FD9\u5F20\u56FE\u4E0D\u9700\u8981\u5904\u7406\u9A8C\u6536");
+      const kind = step === 1 ? "pattern" : "main";
+      const label = step === 1 ? "\u7D20\u6750\u56FE" : "\u4E3B\u56FE";
+      const buf = await import_promises10.default.readFile(this.d.jobs.fileOf(jobId, JOB_FILES[kind])).catch(() => null);
+      if (!buf) throw new HttpError(400, `${label}\u6587\u4EF6\u4E0D\u5728\u4E86\uFF0C\u8BF7\u91CD\u505A\u8FD9\u4E00\u6B65`);
+      await writeOutput(this.env.outputDir(), job, kind, buf);
+      const reasons = (step === 1 ? job.qc : job.mainQc)?.reasons.join("\uFF1B") ?? "";
       this.d.jobs.update(jobId, (j) => {
-        markDone(j, 1);
-        j.steps[1].output = JOB_FILES.pattern;
-        delete j.steps[1].error;
-        if (j.qc) j.qc.state = "bypassed";
+        markDone(j, step);
+        j.steps[step].output = JOB_FILES[kind];
+        delete j.steps[step].error;
+        const q = step === 1 ? j.qc : j.mainQc;
+        if (q) q.state = "bypassed";
         j.attention = null;
       });
-      log.info(`\u300C${job.source.originalName}\u300D\u7D20\u6750\u56FE\u6CA1\u8FC7\u9A8C\u6536\uFF08${job.qc?.reasons.join("\uFF1B") ?? ""}\uFF09\uFF0C\u6309\u4F60\u7684\u9009\u62E9\u4ECD\u7136\u4F7F\u7528`);
+      log.info(`\u300C${job.source.originalName}\u300D${label}\u6CA1\u8FC7\u9A8C\u6536\uFF08${reasons}\uFF09\uFF0C\u6309\u4F60\u7684\u9009\u62E9\u4ECD\u7136\u4F7F\u7528`);
       return this.d.jobs.get(jobId);
     });
   }
@@ -62196,7 +62308,7 @@ var Scheduler = class {
 };
 
 // server/src/api/jobs.ts
-var import_node_fs11 = __toESM(require("node:fs"), 1);
+var import_node_fs12 = __toESM(require("node:fs"), 1);
 var import_promises11 = __toESM(require("node:fs/promises"), 1);
 var import_node_path18 = __toESM(require("node:path"), 1);
 var import_sharp7 = __toESM(require("sharp"), 1);
@@ -62296,7 +62408,8 @@ function registerJobs(r, ctx) {
           info: null,
           attention: null,
           override: null,
-          qc: null
+          qc: null,
+          mainQc: null
         };
         await jobs.create(job);
         created.push(withView(job));
@@ -62351,7 +62464,7 @@ function registerJobs(r, ctx) {
     if (!["source", "pattern", "main", "blank"].includes(kind)) throw new HttpError(400, "\u6587\u4EF6\u7C7B\u578B\u53EA\u80FD\u662F source\u3001pattern\u3001main\u3001blank");
     const dir = jobs.dirOf(job.id);
     const file2 = req.query.size === "thumb" ? import_node_path18.default.join(dir, "thumbs", `${kind}.webp`) : import_node_path18.default.join(dir, kind === "source" ? job.source.file : JOB_FILES[kind]);
-    if (!import_node_fs11.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");
+    if (!import_node_fs12.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(file2);
   });
@@ -62371,7 +62484,7 @@ function registerJobs(r, ctx) {
 // server/src/server.ts
 function readVersion(toolDir) {
   try {
-    return JSON.parse(import_node_fs12.default.readFileSync(import_node_path19.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
+    return JSON.parse(import_node_fs13.default.readFileSync(import_node_path19.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
   } catch {
     return "0.0.0";
   }
@@ -62449,7 +62562,7 @@ function createApp(ctx) {
   });
   app.use("/api", api);
   const webDir = ctx.paths.webDir;
-  if (import_node_fs12.default.existsSync(import_node_path19.default.join(webDir, "index.html"))) {
+  if (import_node_fs13.default.existsSync(import_node_path19.default.join(webDir, "index.html"))) {
     app.use(import_express.default.static(webDir, { index: "index.html" }));
     app.get("/{*rest}", (_req, res) => res.sendFile(import_node_path19.default.join(webDir, "index.html")));
   } else {

@@ -144,6 +144,8 @@ describe('提取请求', () => {
     expect(r.size).toBe('1024x1536')
     // 意思不能少：铺满、不带产品边框圆角、不重画、比例差一点补背景不裁文字
     for (const k of ['edge to edge', 'rounded corners', 'Do not rearrange, redraw', 'never crop, squeeze or drop any text']) expect(EXTRACT_CONSTRAINT).toContain(k)
+    // 2026-10-27：印在面上的边框、做旧边属于图案，要保留
+    expect(EXTRACT_CONSTRAINT).toContain('printed borders and frame lines, distressed or weathered edges')
   })
 })
 

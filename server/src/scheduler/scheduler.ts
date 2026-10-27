@@ -37,9 +37,13 @@ import { ops } from '../library/store'
 import { KeyedMutex } from '../util/mutex'
 import { readJsonSync, writeFileAtomicSync } from '../store/atomic'
 
-/** 第②步提取完、等验收时，这一步占的是分析并发 */
-export const kindOf = (step: number, job?: Pick<Job, 'qc'>): ApiKind =>
-  step === 0 || step === 3 || (step === 1 && job?.qc?.state === 'pending') ? 'analysis' : 'image'
+/** 第②步提取完、第③步生成完，等验收时这一步占的是分析并发 */
+export const kindOf = (step: number, job?: Pick<Job, 'qc' | 'mainQc'>): ApiKind =>
+  step === 0 || step === 3 || (step === 1 && job?.qc?.state === 'pending') || (step === 2 && job?.mainQc?.state === 'pending') ? 'analysis' : 'image'
+
+/** 正在验收时，日志和提示里用验收的名字 */
+const phaseName = (job: Job, i: number) =>
+  i === 1 && job.qc?.state === 'pending' ? '素材图验收' : i === 2 && job.mainQc?.state === 'pending' ? '主图验收' : STEP_NAMES[i]
 
 const DEFAULT_HANDLERS: StepHandler[] = [step0Route, step1Extract, step2Main, step3Info, step4Blank]
 
@@ -238,7 +242,7 @@ export class Scheduler {
               if (err) j.steps[i]!.error = err.message
             }),
           onRetryWait: (n, ms, err) =>
-            log.warn(`「${job.source.originalName}」${i === 1 && job.qc?.state === 'pending' ? '素材图验收' : STEP_NAMES[i]}第 ${n} 次失败（${err.message}），${Math.round(ms / 1000)} 秒后重试`),
+            log.warn(`「${job.source.originalName}」${phaseName(job, i)}第 ${n} 次失败（${err.message}），${Math.round(ms / 1000)} 秒后重试`),
         }),
       setSnapshot: (s) => update((j) => (j.steps[i]!.snapshot = s)),
       commit: (patch) => {
@@ -342,7 +346,7 @@ export class Scheduler {
     } else if (e instanceof AiError) {
       const attempts = job.steps[i]!.attempts
       const tail = RETRYABLE.has(e.type) && attempts >= MAX_ATTEMPTS ? `重试 ${MAX_ATTEMPTS - 1} 次仍失败（${e.message}）` : `${ERROR_LABEL[e.type]}：${e.message}`
-      attention = { kind: 'failed', step: i, message: `${i === 1 && job.qc?.state === 'pending' ? '素材图验收' : name}失败：${tail}` }
+      attention = { kind: 'failed', step: i, message: `${phaseName(job, i)}失败：${tail}` }
     } else {
       attention = { kind: 'failed', step: i, message: `${name}失败：${(e as Error)?.message ?? String(e)}` }
       log.error(`「${job.source.originalName}」${name}出错：${(e as Error)?.stack ?? e}`)
@@ -513,21 +517,26 @@ export class Scheduler {
     })
   }
 
-  /** 素材图没过验收，用户选「仍然使用」：跳过这次验收，后面的步骤接着跑 */
+  /** 素材图或主图没过验收，用户选「仍然使用」：跳过这次验收，后面的步骤接着跑 */
   async acceptQc(jobId: string): Promise<Job> {
     return this.hold(jobId, async (job) => {
-      if (job.attention?.kind !== 'qc') throw new HttpError(400, '这张图的素材图不需要处理')
-      const buf = await fsp.readFile(this.d.jobs.fileOf(jobId, JOB_FILES.pattern)).catch(() => null)
-      if (!buf) throw new HttpError(400, '素材图文件不在了，请重新提取')
-      await writeOutput(this.env.outputDir(), job, 'pattern', buf)
+      const step = job.attention?.kind === 'qc' ? job.attention.step : -1
+      if (step !== 1 && step !== 2) throw new HttpError(400, '这张图不需要处理验收')
+      const kind = step === 1 ? 'pattern' : 'main'
+      const label = step === 1 ? '素材图' : '主图'
+      const buf = await fsp.readFile(this.d.jobs.fileOf(jobId, JOB_FILES[kind])).catch(() => null)
+      if (!buf) throw new HttpError(400, `${label}文件不在了，请重做这一步`)
+      await writeOutput(this.env.outputDir(), job, kind, buf)
+      const reasons = (step === 1 ? job.qc : job.mainQc)?.reasons.join('；') ?? ''
       this.d.jobs.update(jobId, (j) => {
-        markDone(j, 1)
-        j.steps[1]!.output = JOB_FILES.pattern
-        delete j.steps[1]!.error
-        if (j.qc) j.qc.state = 'bypassed'
+        markDone(j, step)
+        j.steps[step]!.output = JOB_FILES[kind]
+        delete j.steps[step]!.error
+        const q = step === 1 ? j.qc : j.mainQc
+        if (q) q.state = 'bypassed'
         j.attention = null
       })
-      log.info(`「${job.source.originalName}」素材图没过验收（${job.qc?.reasons.join('；') ?? ''}），按你的选择仍然使用`)
+      log.info(`「${job.source.originalName}」${label}没过验收（${reasons}），按你的选择仍然使用`)
       return this.d.jobs.get(jobId)!
     })
   }

@@ -246,7 +246,7 @@ export class LocalPasteError extends Error {}
  * 素材图铺满产品外接矩形（比例差 3% 以内等比居中裁切，3%～7% 拉伸），只在轮廓内显示；安装孔保留白底图原样。
  * 画布就是白底图原尺寸。
  */
-export async function compositeLocal(white: Buffer, pattern: Buffer): Promise<{ buffer: Buffer; shape: WhiteShape; fit: 'cover' | 'stretch' }> {
+export async function compositeLocal(white: Buffer, pattern: Buffer): Promise<{ buffer: Buffer; shape: WhiteShape; fit: 'cover' | 'stretch'; placed: Buffer }> {
   const { shape, mask, fullW, fullH } = await analyze(white)
   if (!shape.ok || !shape.bbox || !mask) throw new LocalPasteError(`白底图不适合本地合成：${shape.reason}`)
   const pm = await sharp(pattern).metadata()
@@ -287,5 +287,7 @@ export async function compositeLocal(white: Buffer, pattern: Buffer): Promise<{ 
     .png()
     .toBuffer()
   const out = await sharp(white).rotate().flatten({ background: '#ffffff' }).composite([{ input: rgba }]).png().toBuffer()
-  return { buffer: out, shape, fit: diff > COVER_TOLERANCE ? 'stretch' : 'cover' }
+  // 铺进外接矩形的素材图，给主图验收在本地核对用
+  const placedPng = await sharp(placed, { raw: { width: w, height: h, channels: 3 } }).png().toBuffer()
+  return { buffer: out, shape, fit: diff > COVER_TOLERANCE ? 'stretch' : 'cover', placed: placedPng }
 }

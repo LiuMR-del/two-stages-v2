@@ -64,6 +64,7 @@ export type Settings = {
   patternQc: boolean
   patternQcThreshold: number
   patternQcDeltaE: number
+  mainQc: boolean
 }
 
 export type StepState = 'pending' | 'running' | 'done' | 'skipped' | 'failed'
@@ -97,6 +98,10 @@ export type Qc = {
   textOk: boolean | null
   textDiffs: string[]
   elementIssues: string[]
+  edgeMissing: string[]
+  edgeExtra: string[]
+  fillIssues: string[]
+  mode?: 'local' | 'ai'
   layout: null | { ok: boolean; issues: string[]; ratioChecked: boolean; note: string | null }
   color: null | {
     checked: boolean
@@ -146,6 +151,8 @@ export type Job = {
   attention: null | { kind: AttentionKind; step: number; message: string; guess?: string; at: string }
   override: null | { step: number; prompt: string }
   qc: Qc | null
+  /** 主图验收：sourceTexts 是素材图的文字，patternTexts 是主图的文字 */
+  mainQc: Qc | null
   /** 服务端算好的展示状态，前端不再自己判断 */
   view: JobView
 }

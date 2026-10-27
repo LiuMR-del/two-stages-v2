@@ -21,6 +21,8 @@ export type Behavior =
       info?: Record<string, unknown>
       /** 素材图验收的回复（source_texts / pattern_texts / element_score / element_issues） */
       qc?: Record<string, unknown>
+      /** 主图验收的回复（pattern_texts / main_texts / element_score / fill_issues） */
+      mainqc?: Record<string, unknown>
       format?: 'b64' | 'url' | 'binary'
       /** 先等这么久再响应，用来制造“运行到一半”的状态 */
       delay?: number
@@ -34,7 +36,7 @@ export type MockLogEntry = {
   fields: Record<string, string>
   images: { field: string; width: number; height: number; sha256: string; bytes: number }[]
   prompt?: string
-  kind?: 'route' | 'info' | 'qc' | 'ping' | 'other'
+  kind?: 'route' | 'info' | 'qc' | 'mainqc' | 'ping' | 'other'
   system?: string
   userText?: string[]
   messageCount?: number
@@ -45,7 +47,7 @@ export type MockRelay = {
   port: number
   url: string
   /** route / info / qc 只被对应类型的分析请求消费，优先于 chat */
-  script(s: { image?: Behavior[]; chat?: Behavior[]; route?: Behavior[]; info?: Behavior[]; qc?: Behavior[] }): void
+  script(s: { image?: Behavior[]; chat?: Behavior[]; route?: Behavior[]; info?: Behavior[]; qc?: Behavior[]; mainqc?: Behavior[] }): void
   setDefaultDelay(ms: number): void
   log(): MockLogEntry[]
   reset(): void
@@ -66,7 +68,8 @@ function parseSize(size: string | undefined): [number, number] {
 }
 
 /** 默认验收合格 */
-const DEFAULT_QC = { source_texts: ['HAPPY FAMILY'], pattern_texts: ['Happy Family'], print_box: [0, 0, 1, 1], element_score: 0.95, element_issues: [] }
+const DEFAULT_QC = { source_texts: ['HAPPY FAMILY'], pattern_texts: ['Happy Family'], print_box: [0, 0, 1, 1], element_score: 0.95, element_issues: [], edge_missing: [], edge_extra: [] }
+const DEFAULT_MAINQC = { pattern_texts: ['HAPPY FAMILY'], main_texts: ['Happy Family'], print_box: [0, 0, 1, 1], element_score: 0.95, element_issues: [], fill_issues: [] }
 
 const DEFAULT_INFO = {
   scene: '温馨客厅里挂着的定制相框，适合节日送礼',
@@ -84,7 +87,14 @@ function defaultRoute(system: string) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export async function startMockRelay(opts: { port?: number } = {}): Promise<MockRelay> {
-  const queues: { image: Behavior[]; chat: Behavior[]; route: Behavior[]; info: Behavior[]; qc: Behavior[] } = { image: [], chat: [], route: [], info: [], qc: [] }
+  const queues: { image: Behavior[]; chat: Behavior[]; route: Behavior[]; info: Behavior[]; qc: Behavior[]; mainqc: Behavior[] } = {
+    image: [],
+    chat: [],
+    route: [],
+    info: [],
+    qc: [],
+    mainqc: [],
+  }
   const entries: MockLogEntry[] = []
   const stored = new Map<string, Buffer>()
   let defaultDelay = 0
@@ -102,6 +112,7 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     if (Array.isArray(body.route)) queues.route.push(...body.route)
     if (Array.isArray(body.info)) queues.info.push(...body.info)
     if (Array.isArray(body.qc)) queues.qc.push(...body.qc)
+    if (Array.isArray(body.mainqc)) queues.mainqc.push(...body.mainqc)
     if (typeof body.defaultDelayMs === 'number') defaultDelay = body.defaultDelayMs
     res.json({ ok: true, pending: { image: queues.image.length, chat: queues.chat.length, route: queues.route.length, info: queues.info.length, qc: queues.qc.length } })
   })
@@ -168,10 +179,12 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     const [w, h] = parseSize(fields.size)
     const key = (fields.prompt ?? '') + images.map((i) => i.sha256).join()
     let background = colorFor(key)
-    // 提取素材图：颜色跟竞品图一样（只按提示词微调 ±2），默认能过素材图验收的色差检查
-    if ((fields.prompt ?? '').includes('竞品商品图') && files[0]) {
+    // 提取素材图跟竞品图同色、生成主图跟素材图同色（只按提示词微调 ±2），默认能过验收的色差检查
+    const p = fields.prompt ?? ''
+    const like = p.includes('竞品商品图') || p.includes('第一张图片是素材图') ? files[0] : p.includes('第二张图片是素材图') ? files[1] : undefined
+    if (like) {
       try {
-        const st = await sharp(files[0].buffer).stats()
+        const st = await sharp(like.buffer).stats()
         const jitter = (createHash('sha256').update(key).digest()[0]! % 5) - 2
         const ch = (i: number) => Math.max(0, Math.min(255, Math.round(st.channels[i]!.mean) + jitter))
         background = { r: ch(0), g: ch(1), b: ch(2) }
@@ -198,6 +211,7 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     const system = String(messages.find((m) => m.role === 'system')?.content ?? '')
     const userText: string[] = []
     const images: MockLogEntry['images'] = []
+    const imageBufs: Buffer[] = []
     for (const m of messages.filter((x) => x.role === 'user')) {
       const parts = Array.isArray(m.content) ? m.content : [{ type: 'text', text: m.content }]
       for (const p of parts) {
@@ -205,6 +219,7 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
         if (p.type === 'image_url') {
           const url = String(p.image_url?.url ?? '')
           const buf = Buffer.from(url.replace(/^data:[^,]*,/, ''), 'base64')
+          imageBufs.push(buf)
           let width = 0
           let height = 0
           try {
@@ -224,14 +239,16 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
         ? 'info'
         : system.includes('素材图验收助手')
           ? 'qc'
-          : body.max_tokens === 1
+          : system.includes('主图验收助手')
+            ? 'mainqc'
+            : body.max_tokens === 1
           ? 'ping'
           : 'other'
     if (kind === 'ping') {
       entries.push({ at: Date.now(), endpoint: 'chat/completions', behavior: 'ok', status: 200, fields: { model: String(body.model) }, images, kind, system, userText, messageCount: messages.length, maxTokens: body.max_tokens })
       return void res.json({ model: body.model, choices: [{ message: { role: 'assistant', content: 'h' } }] })
     }
-    const specific = kind === 'route' ? queues.route : kind === 'info' ? queues.info : kind === 'qc' ? queues.qc : null
+    const specific = kind === 'route' ? queues.route : kind === 'info' ? queues.info : kind === 'qc' ? queues.qc : kind === 'mainqc' ? queues.mainqc : null
     const behavior: Behavior = specific?.shift() ?? queues.chat.shift() ?? 'ok'
     const entry: MockLogEntry = {
       at: Date.now(),
@@ -259,14 +276,29 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       entry.status = 400
       return void res.status(400).json(errorBody('content_policy_violation: rejected by moderation'))
     }
+    // 主图验收：印刷面框按主图里非白的区域给（主图补方时两边有白边）
+    let mainBox: number[] | null = null
+    if (kind === 'mainqc' && imageBufs[1]) {
+      try {
+        const { info } = await sharp(imageBufs[1]).trim({ background: '#ffffff', threshold: 10 }).toBuffer({ resolveWithObject: true })
+        const m = await sharp(imageBufs[1]).metadata()
+        const x0 = -(info.trimOffsetLeft ?? 0)
+        const y0 = -(info.trimOffsetTop ?? 0)
+        mainBox = [x0 / m.width!, y0 / m.height!, (x0 + info.width) / m.width!, (y0 + info.height) / m.height!]
+      } catch {
+        mainBox = null
+      }
+    }
     let content: string
     if (behavior === 'badJson') content = '抱歉，我无法按格式输出。'
     else if (b.route) content = JSON.stringify({ reason: '模拟判断', guess: '模拟品类', ...b.route })
     else if (b.info) content = '```json\n' + JSON.stringify(b.info) + '\n```'
     else if (b.qc) content = JSON.stringify({ ...DEFAULT_QC, ...b.qc })
+    else if (b.mainqc) content = JSON.stringify({ ...DEFAULT_MAINQC, print_box: mainBox ?? DEFAULT_MAINQC.print_box, ...b.mainqc })
     else if (kind === 'route') content = JSON.stringify(defaultRoute(system))
     else if (kind === 'info') content = '这是分析结果：\n```json\n' + JSON.stringify(DEFAULT_INFO) + '\n```'
     else if (kind === 'qc') content = JSON.stringify(DEFAULT_QC)
+    else if (kind === 'mainqc') content = JSON.stringify({ ...DEFAULT_MAINQC, print_box: mainBox ?? DEFAULT_MAINQC.print_box })
     else content = '{}'
     res.json({ model: body.model, choices: [{ index: 0, message: { role: 'assistant', content } }] })
   })
@@ -285,6 +317,7 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       if (s.route) queues.route.push(...s.route)
       if (s.info) queues.info.push(...s.info)
       if (s.qc) queues.qc.push(...s.qc)
+      if (s.mainqc) queues.mainqc.push(...s.mainqc)
     },
     setDefaultDelay(ms) {
       defaultDelay = ms

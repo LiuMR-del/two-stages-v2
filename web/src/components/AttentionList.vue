@@ -24,7 +24,7 @@ function title(j: Job) {
   if (a.kind === 'nomatch') return '没找到对应品类'
   if (a.kind === 'nowhite') return '缺白底图'
   if (a.kind === 'refused') return '内容被拒'
-  if (a.kind === 'qc') return '素材图没过验收'
+  if (a.kind === 'qc') return a.step === 2 ? '主图没过验收' : '素材图没过验收'
   return `${STEP_NAMES[a.step]}失败`
 }
 
@@ -60,15 +60,20 @@ async function acceptQc(j: Job) {
 }
 
 function reExtract(j: Job) {
-  ui.sheet = { jobId: j.id, step: 1, redo: true }
+  ui.sheet = { jobId: j.id, step: j.attention!.step, redo: true }
+}
+
+/** 第②步验收：竞品图对素材图；第③步验收：素材图对主图 */
+function qcPair(j: Job) {
+  return j.attention!.step === 2
+    ? { qc: j.mainQc, a: { kind: 'pattern' as const, label: '素材图', step: 1 }, b: { kind: 'main' as const, label: '主图', step: 2 } }
+    : { qc: j.qc, a: { kind: 'source' as const, label: '竞品图', step: 0 }, b: { kind: 'pattern' as const, label: '素材图', step: 1 } }
 }
 
 function viewQc(j: Job, index: number) {
+  const { a, b } = qcPair(j)
   ui.view(
-    [
-      { src: jobs.fileUrl(j, 'source', false), label: '竞品图', step: 0 },
-      { src: jobs.fileUrl(j, 'pattern', false), label: '素材图', step: 1 },
-    ],
+    [a, b].map((x) => ({ src: jobs.fileUrl(j, x.kind, false), label: x.label, step: x.step })),
     index,
     { title: j.source.originalName, jobId: j.id },
   )
@@ -101,22 +106,18 @@ function goUpload(j: Job) {
       </button>
       <div class="why">
         <b>{{ title(j) }}</b> <span class="muted small">{{ j.source.originalName }}</span>
-        <div v-if="j.attention!.kind !== 'qc' || !j.qc?.reasons.length" class="muted small">{{ j.attention!.message }}</div>
+        <div v-if="j.attention!.kind !== 'qc' || !qcPair(j).qc?.reasons.length" class="muted small">{{ j.attention!.message }}</div>
         <div v-else class="qc">
           <div class="cmp">
-            <button type="button" class="tile" aria-label="查看竞品图大图" @click="viewQc(j, 0)">
-              <ImageSlot state="image" :img="jobs.fileUrl(j, 'source')" :size="72" />
-              <span class="tiny muted">竞品图</span>
-            </button>
-            <button type="button" class="tile" aria-label="查看素材图大图" @click="viewQc(j, 1)">
-              <ImageSlot state="image" :img="jobs.fileUrl(j, 'pattern')" :size="72" white />
-              <span class="tiny muted">素材图</span>
+            <button v-for="(x, i) in [qcPair(j).a, qcPair(j).b]" :key="x.kind" type="button" class="tile" :aria-label="'查看' + x.label + '大图'" @click="viewQc(j, i)">
+              <ImageSlot state="image" :img="jobs.fileUrl(j, x.kind)" :size="72" :white="x.kind !== 'source'" />
+              <span class="tiny muted">{{ x.label }}</span>
             </button>
           </div>
           <ul class="small">
-            <li v-for="r in j.qc!.reasons" :key="r">{{ r }}</li>
+            <li v-for="r in qcPair(j).qc!.reasons" :key="r">{{ r }}</li>
           </ul>
-          <div v-if="j.qc!.score !== null" class="muted tiny">图案相似分 {{ j.qc!.score.toFixed(2) }}（低于 {{ (j.qc!.threshold ?? 0.9).toFixed(2) }} 不合格）</div>
+          <div v-if="qcPair(j).qc!.score !== null" class="muted tiny">图案相似分 {{ qcPair(j).qc!.score!.toFixed(2) }}（低于 {{ (qcPair(j).qc!.threshold ?? 0.9).toFixed(2) }} 不合格）</div>
         </div>
       </div>
       <div class="fix">
@@ -133,7 +134,7 @@ function goUpload(j: Job) {
         </template>
         <button v-else-if="j.attention!.kind === 'nowhite'" type="button" class="btn sm pri" @click="goUpload(j)">去上传白底图</button>
         <template v-else-if="j.attention!.kind === 'qc'">
-          <button type="button" class="btn sm pri" @click="reExtract(j)">重新提取</button>
+          <button type="button" class="btn sm pri" @click="reExtract(j)">{{ j.attention!.step === 2 ? '重新生成' : '重新提取' }}</button>
           <button type="button" class="btn sm" @click="acceptQc(j)">仍然使用</button>
           <select :value="picks[j.id] ?? ''" aria-label="换品类" @change="picks[j.id] = ($event.target as HTMLSelectElement).value">
             <option value="">换品类…</option>
