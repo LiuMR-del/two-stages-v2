@@ -3,16 +3,23 @@ import type { Job } from '../store/jobs'
 import { readJsonSync, writeFileAtomic } from '../store/atomic'
 import { batchDir, outputRel, safeName } from './output'
 
-const HEADER = ['原文件名', '品类', '款式', '场景', '关键词', '可定制项', '主图文件']
+const BASE_HEADER = ['原文件名', '品类', '款式', '场景', '关键词', '可定制项', '主图文件']
+const PARENT_HEADER = ['父体主题', '父体SKU', '父体ASIN', '建议变体名', '父体把握', '父体状态']
+const HEADER = [...BASE_HEADER, ...PARENT_HEADER]
 
 function cell(v: string): string {
   return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
 }
 
 const hasInfo = (j: Job) => j.steps[3]!.state === 'done' && !!j.info && !!j.route
+const hasParent = (j: Job) => j.parent !== null
 
-function rowOf(j: Job): string[] {
-  return [
+function parentStatus(status: NonNullable<Job['parent']>['status']): string {
+  return { matched: '已匹配', unsure: '待确认', none: '没有合适的父体', new: '建议新建' }[status]
+}
+
+function rowOf(j: Job, includeParent = false): string[] {
+  const row = [
     j.source.originalName,
     j.route!.categoryName,
     j.route!.styleName,
@@ -21,20 +28,38 @@ function rowOf(j: Job): string[] {
     j.info!.customizable.join('、'),
     path.join(safeName(j.route!.categoryName), outputRel('main', j.outputBase)),
   ]
+  if (!includeParent) return row
+  const p = j.parent
+  row.push(
+    p?.theme ?? '',
+    p?.sku ?? '',
+    p?.asin ?? '',
+    p?.naming?.next ?? '',
+    p?.confidence === null || p?.confidence === undefined ? '' : p.confidence.toFixed(2),
+    p ? parentStatus(p.status) : '',
+  )
+  return row
 }
 
-function render(rows: string[][]): string {
-  return '\uFEFF' + [HEADER, ...rows].map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n'
+function render(rows: string[][], includeParent = false): string {
+  const header = includeParent ? HEADER : BASE_HEADER
+  return '\uFEFF' + [header, ...rows].map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n'
 }
 
 function csvOf(jobs: Job[]): string {
-  return render(jobs.filter(hasInfo).map(rowOf))
+  const includeParent = jobs.some(hasParent)
+  return render(jobs.filter(hasInfo).map((j) => rowOf(j, includeParent)), includeParent)
 }
 
 /** 界面上按天导出 */
 export const csvForDay = (jobs: Job[], day: string) => csvOf(jobs.filter((j) => j.outputDay === day))
 
 type SavedRow = { id: string; createdAt: string; row: string[] }
+
+function normalizeRow(row: SavedRow, includeParent: boolean): SavedRow {
+  if (!includeParent || row.row.length >= HEADER.length) return row
+  return { ...row, row: [...row.row, ...Array(HEADER.length - row.row.length).fill('')] }
+}
 
 export const CSV_NAME = '识别信息.csv'
 
@@ -46,11 +71,14 @@ export async function writeBatchCsv(outputDir: string, jobs: Job[], folder: stri
   const inFolder = jobs.filter((j) => j.outputFolder === folder)
   const saved = new Map<string, SavedRow>()
   for (const r of (rowsFile ? readJsonSync<SavedRow[]>(rowsFile) : null) ?? []) saved.set(r.id, r)
+  const includeParent = inFolder.some(hasParent) || [...saved.values()].some((r) => r.row.length >= HEADER.length)
   for (const j of inFolder) {
-    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j) })
+    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent) })
     else saved.delete(j.id)
   }
-  const rows = [...saved.values()].sort((a, b) => (a.createdAt === b.createdAt ? (a.id < b.id ? -1 : 1) : a.createdAt < b.createdAt ? -1 : 1))
+  const rows = [...saved.values()]
+    .map((r) => normalizeRow(r, includeParent))
+    .sort((a, b) => (a.createdAt === b.createdAt ? (a.id < b.id ? -1 : 1) : a.createdAt < b.createdAt ? -1 : 1))
   if (rowsFile) await writeFileAtomic(rowsFile, JSON.stringify(rows))
-  await writeFileAtomic(path.join(batchDir(outputDir, folder), CSV_NAME), render(rows.map((r) => r.row)))
+  await writeFileAtomic(path.join(batchDir(outputDir, folder), CSV_NAME), render(rows.map((r) => r.row), includeParent))
 }

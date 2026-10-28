@@ -70,7 +70,12 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
 
   r.patch('/library/categories/:cid', async (req, res) => {
     const b = parseBody(
-      z.object({ name: z.string().optional(), hint: z.string().max(500).optional(), extractPrompt: z.string().nullable().optional() }),
+      z.object({
+        name: z.string().optional(),
+        hint: z.string().max(500).optional(),
+        extractPrompt: z.string().nullable().optional(),
+        parentTab: z.string().max(200).nullable().optional(),
+      }),
       req.body,
     )
     await store.mutate((d) => ops.patchCategory(d, p(req, 'cid'), b))

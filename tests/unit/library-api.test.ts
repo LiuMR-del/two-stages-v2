@@ -52,6 +52,12 @@ describe('模版库接口', () => {
     expect(long.status).toBe(400)
   })
 
+  it('品类可设置父体表标签页，空值恢复同名', async () => {
+    const set = await api.json('PATCH', `/library/categories/${cid}`, { parentTab: '帆布画' })
+    expect(set.body.library.categories.find((c: any) => c.id === cid).parentTab).toBe('帆布画')
+    const clear = await api.json('PATCH', `/library/categories/${cid}`, { parentTab: '  ' })
+    expect(clear.body.library.categories.find((c: any) => c.id === cid).parentTab).toBeNull()
+  })
   it('建款式：比例校验；加第二个款式时给空名款式补名字', async () => {
     const bad = await api.json('POST', `/library/categories/${cid}/styles`, { name: '横版', ratio: '3/2' })
     expect(bad.status).toBe(400)

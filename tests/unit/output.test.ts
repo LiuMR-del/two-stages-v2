@@ -176,6 +176,48 @@ describe('暂停队列', () => {
 })
 
 describe('识别信息 CSV', () => {
+  it('父体结果启用六列；none 和建议新建也保留状态', async () => {
+    dir = tmpDir()
+    const rows = path.join(dir, 'data', 'batches', 'p.json')
+    const j = routed('p', 'p.png')
+    j.outputFolder = 'p'
+    j.steps[3]!.state = 'done'
+    j.info = { scene: '场景', keywords: ['k'], customizable: [], blankItems: [], blankItemsEn: [] }
+    j.parent = {
+      status: 'new', message: null, tab: '铝板画', readAt: new Date().toISOString(), sku: 'HJ-cn-yklgj5-Snowman', asin: null, theme: 'Snowman', confidence: null, reason: null, manual: false,
+      candidates: [], naming: { attribute: 'color', existing: [], groups: [], next: 'Design 01', note: '需要手动创建', key: 'Design ##', number: 1 },
+      proposal: { sku: 'HJ-cn-yklgj5-Snowman', prefix: 'HJ-cn-yklgj5', theme: 'Snowman', basedOn: ['HJ-cn-yklgj-Christmas'], themeCandidates: ['Snowman'] },
+    }
+    await writeBatchCsv(dir, [j], 'p', rows)
+    const text = fs.readFileSync(path.join(dir, 'p', '识别信息.csv'), 'utf8')
+    expect(text).toContain('父体主题,父体SKU,父体ASIN,建议变体名,父体把握,父体状态')
+    expect(text).toContain('Snowman,HJ-cn-yklgj5-Snowman,,Design 01,,建议新建')
+    const none = { ...j, id: 'none', parent: { ...j.parent, status: 'none' as const, sku: null, theme: null, naming: null, proposal: null, message: '没有合适的父体' } }
+    await writeBatchCsv(dir, [none], 'p', rows)
+    expect(fs.readFileSync(path.join(dir, 'p', '识别信息.csv'), 'utf8')).toContain(',,,,,,没有合适的父体')
+  })
+
+  it('旧保存行在出现父体结果时补足六列并保留', async () => {
+    dir = tmpDir()
+    const rows = path.join(dir, 'data', 'batches', 'p.json')
+    const old = routed('old', 'old.png')
+    old.outputFolder = 'p'
+    old.steps[3]!.state = 'done'
+    old.info = { scene: '旧场景', keywords: ['k'], customizable: [], blankItems: [], blankItemsEn: [] }
+    await writeBatchCsv(dir, [old], 'p', rows)
+    const current = routed('current', 'current.png')
+    current.outputFolder = 'p'
+    current.steps[3]!.state = 'done'
+    current.info = { scene: '新场景', keywords: ['k'], customizable: [], blankItems: [], blankItemsEn: [] }
+    current.parent = { status: 'matched', message: null, tab: '铝板画', readAt: new Date().toISOString(), sku: 'P', asin: 'A', theme: 'T', confidence: 0.9, reason: null, manual: false, candidates: [], naming: { attribute: 'color', existing: [], groups: [], next: 'Design 01', note: null, key: 'Design ##', number: 1 }, proposal: null }
+    await writeBatchCsv(dir, [current], 'p', rows)
+    const saved = JSON.parse(fs.readFileSync(rows, 'utf8')) as { row: string[] }[]
+    expect(saved).toHaveLength(2)
+    expect(saved.every((r) => r.row).valueOf()).toBeTruthy()
+    expect(saved[0].row).toHaveLength(13)
+    expect(saved[0].row.slice(7)).toEqual(['', '', '', '', '', ''])
+  })
+
   it('清除已完成后同一文件夹再加图，CSV 里前面的行不丢；队列里的图重做后行更新', async () => {
     dir = tmpDir()
     const rows = path.join(dir, 'data', 'batches', 'b.json')

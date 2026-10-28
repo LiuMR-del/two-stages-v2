@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { FolderOpen, RotateCcw, TriangleAlert, X } from '@lucide/vue'
+import { FolderOpen, RotateCcw, Search, TriangleAlert, X, Copy } from '@lucide/vue'
 import ImageSlot, { type SlotState } from './ImageSlot.vue'
 import RecipeCard, { type RecipeSlot } from './RecipeCard.vue'
 import { useJobs, STEP_NAMES, PARENT_STEP, type FileKind } from '../stores/jobs'
 import { activeTemplateName, useLibrary } from '../stores/library'
+import { useSettings } from '../stores/settings'
 import { useUi } from '../stores/ui'
 import { imageUrl } from '../api'
+import { api } from '../api'
 import type { Job } from '../types'
 
 const jobs = useJobs()
 const lib = useLibrary()
+const settings = useSettings()
 const ui = useUi()
 
 const job = computed<Job | undefined>(() => (ui.sheet ? jobs.byId[ui.sheet.jobId] : undefined))
@@ -95,7 +98,38 @@ async function shift(delta: 1 | -1) {
 }
 
 const PARENT_STATUS: Record<string, string> = { matched: '已匹配', unsure: '待确认', none: '没有合适的父体', new: '建议新建' }
+const parentPickBusy = ref(false)
+const parentSearchOpen = ref(false)
+const parentSearchBusy = ref(false)
+const parentSearch = ref<{ title: string; rows: { tab: string; sku: string; asin: string; theme: string }[]; failed: { tab: string; message: string }[] } | null>(null)
+const parentTab = ref('')
 
+async function copy(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    ta.remove()
+  }
+  ui.toast('已复制')
+}
+async function pickParent(sku: string) {
+  if (!job.value) return
+  parentPickBusy.value = true
+  const r = await ui.act(() => jobs.setParent(job.value!.id, sku))
+  parentPickBusy.value = false
+  if (r) ui.toast('已切换父体，变体名已重新计算')
+}
+async function searchParents() {
+  parentSearchBusy.value = true
+  const r = await ui.act(() => api.get<{ title: string; rows: { tab: string; sku: string; asin: string; theme: string }[]; failed: { tab: string; message: string }[] }>(`/parent/rows${parentTab.value ? `?tab=${encodeURIComponent(parentTab.value)}` : ''}`))
+  parentSearch.value = r ?? null
+  parentSearchBusy.value = false
+}
 const QC_STATE: Record<string, string> = { pending: '等待验收', pass: '验收合格', fail: '没过验收', bypassed: '没过验收，已选择仍然使用' }
 const qc = computed(() => (step.value === 1 ? (job.value?.qc ?? null) : step.value === 2 ? (job.value?.mainQc ?? null) : null))
 const isMain = computed(() => step.value === 2)
@@ -274,29 +308,45 @@ async function openFolder() {
             </dd>
             <template v-if="job.parent.sku">
               <dt>父体</dt>
-              <dd>{{ job.parent.sku }}<span class="muted small"> · {{ job.parent.theme || '—' }} · {{ job.parent.asin || (job.parent.status === 'new' ? '需手动创建' : '—') }}</span></dd>
+              <dd><span>{{ job.parent.sku }}</span><button type="button" class="cp" aria-label="复制父体 SKU" @click="copy(job.parent.sku)"><Copy aria-hidden="true" /></button><span class="muted small"> · {{ job.parent.theme || '—' }} · {{ job.parent.asin || (job.parent.status === 'new' ? '需手动创建' : '—') }}</span></dd>
+            </template>
+            <template v-if="job.parent.proposal">
+              <dt>建议新建</dt>
+              <dd class="small">
+                <div>前缀：{{ job.parent.proposal.prefix }} · 主题：{{ job.parent.proposal.theme }}</div>
+                <div>参照表里 SKU：{{ job.parent.proposal.basedOn.join('、') || '—' }}</div>
+                <div>试过的主题：{{ job.parent.proposal.themeCandidates.join('、') || '—' }}</div>
+                <div class="muted">飞书表和店铺里都还没有，需要你手动创建</div>
+              </dd>
             </template>
             <template v-if="job.parent.naming">
-              <dt>下一个变体名</dt>
+              <dt>变体命名</dt>
               <dd>
-                <b style="font-weight: 500">{{ job.parent.naming.next ?? '需要手动起名' }}</b>
-                <template v-if="job.parent.naming.number !== null">
-                  <button type="button" class="btn txt sm" aria-label="变体名往后调一格" title="往后调一格（跳过占着的号）" @click="shift(1)">▲</button>
-                  <button type="button" class="btn txt sm" aria-label="变体名往前调一格" title="往前调一格（跳过占着的号）" @click="shift(-1)">▼</button>
-                </template>
-                <span v-if="job.parent.confidence !== null" class="muted small"> · 把握 {{ job.parent.confidence.toFixed(2) }}</span>
+                <div class="muted small">父体 ASIN：{{ job.parent.asin || (job.parent.status === 'new' ? '需手动创建' : '—') }} · 变体属性：{{ job.parent.naming.attribute }} · 现有 {{ job.parent.naming.existing.length }} 个子体</div>
+                <div class="kids"><span v-for="kid in job.parent.naming.existing" :key="kid" class="pill">{{ kid }}</span><span v-if="job.parent.naming.next" class="pill ac next-name">{{ job.parent.naming.next }}</span></div>
+                <div v-for="group in job.parent.naming.groups" :key="group.pattern" class="muted small">{{ group.pattern }}：{{ group.count }} 个</div>
+                <div class="row" style="margin-top: 8px"><span class="muted">推荐变体名</span><b class="name">{{ job.parent.naming.next ?? '需要手动起名' }}</b><button v-if="job.parent.naming.next" type="button" class="cp" aria-label="复制推荐变体名" @click="copy(job.parent.naming.next)"><Copy aria-hidden="true" /></button><template v-if="job.parent.naming.number !== null"><button type="button" class="btn txt sm" aria-label="变体名往后调一格" title="往后调一格（跳过占着的号）" @click="shift(1)">▲</button><button type="button" class="btn txt sm" aria-label="变体名往前调一格" title="往前调一格（跳过占着的号）" @click="shift(-1)">▼</button></template><span v-if="job.parent.confidence !== null" class="pill" :class="{ ac: job.parent.confidence >= 0.7, am: job.parent.confidence < 0.7 }">{{ job.parent.confidence >= 0.7 ? '把握' : '待确认' }} · {{ job.parent.confidence.toFixed(2) }}</span></div>
                 <div v-if="job.parent.naming.note" class="muted tiny">{{ job.parent.naming.note }}</div>
               </dd>
-              <dt>现有子体</dt>
-              <dd class="small">{{ job.parent.naming.existing.join('、') || '（没有）' }}<span class="muted"> · {{ job.parent.naming.groups.map((g) => `${g.pattern} ×${g.count}`).join('，') }}</span></dd>
             </template>
             <template v-if="job.parent.candidates.length">
-              <dt>候选</dt>
-              <dd class="small">{{ job.parent.candidates.map((c) => `${c.theme || c.sku}（${c.sku}）`).join('；') }}</dd>
+              <dt>候选父体</dt>
+              <dd>
+                <button v-for="candidate in job.parent.candidates" :key="candidate.sku" type="button" class="cand" :aria-pressed="job.parent.sku === candidate.sku" :disabled="parentPickBusy" @click="pickParent(candidate.sku)"><span class="s"><b>{{ candidate.theme || candidate.sku }}</b> · {{ candidate.sku }}<span class="muted small"> · {{ candidate.asin }}</span></span><span class="pill" :class="{ ac: candidate.confidence !== null && candidate.confidence >= 0.7, am: candidate.confidence !== null && candidate.confidence < 0.7 }">{{ candidate.confidence === null ? '—' : candidate.confidence.toFixed(2) }}</span></button>
+              </dd>
             </template>
             <dt>标签页</dt>
             <dd class="small">「{{ job.parent.tab }}」 · {{ new Date(job.parent.readAt).toLocaleTimeString() }} 读取</dd>
           </dl>
+          <div v-else-if="rec!.state === 'done'" class="none">没有父体结果，可以搜索并手动选择</div>
+          <div v-if="rec!.state === 'done'" class="parent-search">
+            <div class="row"><button type="button" class="btn sm" @click="parentSearchOpen = !parentSearchOpen"><Search aria-hidden="true" />搜索别的父体</button><select v-if="parentSearchOpen" v-model="parentTab" aria-label="搜索父体标签页"><option value="">所有标签页</option><option v-for="tab in (settings.settings?.parent.tabs ?? [])" :key="tab" :value="tab">{{ tab }}</option></select><button v-if="parentSearchOpen" type="button" class="btn sm" :disabled="parentSearchBusy" @click="searchParents">{{ parentSearchBusy ? '搜索中…' : '搜索' }}</button></div>
+            <div v-if="parentSearch" class="search-results">
+              <div v-if="parentSearch.failed.length" class="warn">读不了的标签页：{{ parentSearch.failed.map((f) => `${f.tab}（${f.message}）`).join('；') }}</div>
+              <button v-for="row in parentSearch.rows" :key="row.tab + row.sku" type="button" class="cand" :disabled="parentPickBusy" @click="pickParent(row.sku)"><span class="s"><b>{{ row.theme || row.sku }}</b> · {{ row.sku }} · {{ row.asin }}</span><span class="muted small">{{ row.tab }}</span></button>
+              <div v-if="!parentSearch.rows.length && !parentSearch.failed.length" class="muted small">没有找到父体</div>
+            </div>
+          </div>
           <details v-if="rec!.snapshot" style="margin-top: 8px">
             <summary class="small">实际发给分析模型的内容</summary>
             <pre class="raw">{{ rec!.snapshot.prompt }}

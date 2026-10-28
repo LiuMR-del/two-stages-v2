@@ -170,6 +170,9 @@ describe('e2e 2：运行到一半追加图片', () => {
     // 识别父体默认关闭：第 6 步跳过，一个飞书、店铺、父体匹配请求都没有
     for (const j of all) expect(j.steps[5]).toMatchObject({ state: 'skipped', note: '识别父体没有打开，可以在设置里打开' })
     for (const j of all) expect(j.parent).toBeNull()
+    const csvFile = path.join(onlyBatch(w), '识别信息.csv')
+    await waitFor(() => fs.existsSync(csvFile))
+    expect(fs.readFileSync(csvFile, 'utf8')).not.toContain('父体主题,父体SKU')
     expect(w.mock.parent.calls).toEqual([])
     expect(w.mock.log().filter((e) => e.kind === 'parent')).toEqual([])
     await waitFor(async () => (await api.json('GET', '/queue')).body.slots.image.busy === 0)

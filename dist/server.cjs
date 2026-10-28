@@ -58925,6 +58925,7 @@ var ops = {
     if (p.name !== void 0) c.name = checkCategoryName(lib, p.name, cid);
     if (p.hint !== void 0) c.hint = p.hint;
     if (p.extractPrompt !== void 0) c.extractPrompt = p.extractPrompt;
+    if (p.parentTab !== void 0) c.parentTab = p.parentTab?.trim() || null;
     return c;
   },
   deleteCategory(lib, cid) {
@@ -60607,7 +60608,12 @@ function registerLibrary(r, ctx) {
   });
   r.patch("/library/categories/:cid", async (req, res) => {
     const b = parseBody(
-      external_exports.object({ name: external_exports.string().optional(), hint: external_exports.string().max(500).optional(), extractPrompt: external_exports.string().nullable().optional() }),
+      external_exports.object({
+        name: external_exports.string().optional(),
+        hint: external_exports.string().max(500).optional(),
+        extractPrompt: external_exports.string().nullable().optional(),
+        parentTab: external_exports.string().max(200).nullable().optional()
+      }),
       req.body
     );
     await store.mutate((d) => ops.patchCategory(d, p(req, "cid"), b));
@@ -61146,13 +61152,19 @@ async function readClipboardFiles() {
 
 // server/src/pipeline/csv.ts
 var import_node_path9 = __toESM(require("node:path"), 1);
-var HEADER = ["\u539F\u6587\u4EF6\u540D", "\u54C1\u7C7B", "\u6B3E\u5F0F", "\u573A\u666F", "\u5173\u952E\u8BCD", "\u53EF\u5B9A\u5236\u9879", "\u4E3B\u56FE\u6587\u4EF6"];
+var BASE_HEADER = ["\u539F\u6587\u4EF6\u540D", "\u54C1\u7C7B", "\u6B3E\u5F0F", "\u573A\u666F", "\u5173\u952E\u8BCD", "\u53EF\u5B9A\u5236\u9879", "\u4E3B\u56FE\u6587\u4EF6"];
+var PARENT_HEADER = ["\u7236\u4F53\u4E3B\u9898", "\u7236\u4F53SKU", "\u7236\u4F53ASIN", "\u5EFA\u8BAE\u53D8\u4F53\u540D", "\u7236\u4F53\u628A\u63E1", "\u7236\u4F53\u72B6\u6001"];
+var HEADER = [...BASE_HEADER, ...PARENT_HEADER];
 function cell(v) {
   return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 var hasInfo = (j) => j.steps[3].state === "done" && !!j.info && !!j.route;
-function rowOf(j) {
-  return [
+var hasParent = (j) => j.parent !== null;
+function parentStatus(status) {
+  return { matched: "\u5DF2\u5339\u914D", unsure: "\u5F85\u786E\u8BA4", none: "\u6CA1\u6709\u5408\u9002\u7684\u7236\u4F53", new: "\u5EFA\u8BAE\u65B0\u5EFA" }[status];
+}
+function rowOf(j, includeParent = false) {
+  const row = [
     j.source.originalName,
     j.route.categoryName,
     j.route.styleName,
@@ -61161,26 +61173,44 @@ function rowOf(j) {
     j.info.customizable.join("\u3001"),
     import_node_path9.default.join(safeName(j.route.categoryName), outputRel("main", j.outputBase))
   ];
+  if (!includeParent) return row;
+  const p = j.parent;
+  row.push(
+    p?.theme ?? "",
+    p?.sku ?? "",
+    p?.asin ?? "",
+    p?.naming?.next ?? "",
+    p?.confidence === null || p?.confidence === void 0 ? "" : p.confidence.toFixed(2),
+    p ? parentStatus(p.status) : ""
+  );
+  return row;
 }
-function render(rows) {
-  return "\uFEFF" + [HEADER, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
+function render(rows, includeParent = false) {
+  const header = includeParent ? HEADER : BASE_HEADER;
+  return "\uFEFF" + [header, ...rows].map((r) => r.map(cell).join(",")).join("\r\n") + "\r\n";
 }
 function csvOf(jobs) {
-  return render(jobs.filter(hasInfo).map(rowOf));
+  const includeParent = jobs.some(hasParent);
+  return render(jobs.filter(hasInfo).map((j) => rowOf(j, includeParent)), includeParent);
 }
 var csvForDay = (jobs, day) => csvOf(jobs.filter((j) => j.outputDay === day));
+function normalizeRow(row, includeParent) {
+  if (!includeParent || row.row.length >= HEADER.length) return row;
+  return { ...row, row: [...row.row, ...Array(HEADER.length - row.row.length).fill("")] };
+}
 var CSV_NAME = "\u8BC6\u522B\u4FE1\u606F.csv";
 async function writeBatchCsv(outputDir, jobs, folder, rowsFile) {
   const inFolder = jobs.filter((j) => j.outputFolder === folder);
   const saved = /* @__PURE__ */ new Map();
   for (const r of (rowsFile ? readJsonSync(rowsFile) : null) ?? []) saved.set(r.id, r);
+  const includeParent = inFolder.some(hasParent) || [...saved.values()].some((r) => r.row.length >= HEADER.length);
   for (const j of inFolder) {
-    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j) });
+    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent) });
     else saved.delete(j.id);
   }
-  const rows = [...saved.values()].sort((a, b) => a.createdAt === b.createdAt ? a.id < b.id ? -1 : 1 : a.createdAt < b.createdAt ? -1 : 1);
+  const rows = [...saved.values()].map((r) => normalizeRow(r, includeParent)).sort((a, b) => a.createdAt === b.createdAt ? a.id < b.id ? -1 : 1 : a.createdAt < b.createdAt ? -1 : 1);
   if (rowsFile) await writeFileAtomic(rowsFile, JSON.stringify(rows));
-  await writeFileAtomic(import_node_path9.default.join(batchDir(outputDir, folder), CSV_NAME), render(rows.map((r) => r.row)));
+  await writeFileAtomic(import_node_path9.default.join(batchDir(outputDir, folder), CSV_NAME), render(rows.map((r) => r.row), includeParent));
 }
 
 // server/src/api/misc.ts

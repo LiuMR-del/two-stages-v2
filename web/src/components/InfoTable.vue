@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Copy, Download } from '@lucide/vue'
 import ImageSlot from './ImageSlot.vue'
-import { useJobs } from '../stores/jobs'
+import { PARENT_STEP, useJobs } from '../stores/jobs'
 import { useUi } from '../stores/ui'
 import type { Job } from '../types'
 
@@ -19,6 +19,16 @@ function today() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const day = ref(today())
+const showParent = computed(() => jobs.withInfo.some((j) => j.parent !== null))
+const parentLabel: Record<string, string> = { matched: '已匹配', unsure: '待确认', none: '没有合适的父体', new: '建议新建' }
+
+async function shiftParent(j: Job, delta: 1 | -1) {
+  await ui.act(() => jobs.shiftParent(j.id, delta))
+}
+
+function openParent(j: Job) {
+  ui.sheet = { jobId: j.id, step: PARENT_STEP }
+}
 
 async function copy(text: string) {
   try {
@@ -45,10 +55,10 @@ async function copy(text: string) {
     <div style="overflow-x: auto">
       <table class="tbl">
         <thead>
-          <tr><th>主图</th><th>场景</th><th>搜索关键词</th><th>可定制项</th></tr>
+          <tr><th>主图</th><th>场景</th><th>搜索关键词</th><th>可定制项</th><th v-if="showParent">父体</th><th v-if="showParent">下一个变体名</th></tr>
         </thead>
         <tbody>
-          <tr v-if="!jobs.withInfo.length"><td colspan="4" class="none">主图生成后，这里汇总每张图的场景、关键词和可定制项</td></tr>
+          <tr v-if="!jobs.withInfo.length"><td :colspan="showParent ? 6 : 4" class="none">主图生成后，这里汇总每张图的场景、关键词和可定制项</td></tr>
           <tr v-for="j in jobs.withInfo" :key="j.id">
             <td>
               <button type="button" class="tile" :aria-label="'查看 ' + j.source.originalName + ' 的主图大图'" title="点击看大图" @click="viewMain(j)">
@@ -65,6 +75,24 @@ async function copy(text: string) {
             <td>
               {{ j.info!.customizable.length ? j.info!.customizable.join('，') : '无' }}
               <button v-if="j.info!.customizable.length" type="button" class="cp" aria-label="复制可定制项" @click="copy(j.info!.customizable.join('，'))"><Copy aria-hidden="true" /></button>
+            </td>
+            <td v-if="showParent">
+              <template v-if="j.parent">
+                <div v-if="j.parent.sku" class="parent-main">
+                  <span class="sku">{{ j.parent.sku }}</span>
+                  <button type="button" class="cp" aria-label="复制父体 SKU" @click="copy(j.parent.sku)"><Copy aria-hidden="true" /></button>
+                </div>
+                <div class="muted small">{{ j.parent.theme || j.parent.message || '—' }}<template v-if="j.parent.asin"> · {{ j.parent.asin }}</template><template v-else-if="j.parent.status === 'new'"> · 需手动创建</template></div>
+                <div class="row"><span class="pill" :class="{ ac: j.parent.status === 'matched', am: j.parent.status === 'unsure', bl: j.parent.status === 'new' }">{{ parentLabel[j.parent.status] }}</span><button v-if="j.parent.status === 'none'" type="button" class="btn txt sm" @click="openParent(j)">手动选 ›</button><button v-else type="button" class="btn txt sm" @click="openParent(j)">详情 ›</button></div>
+              </template>
+              <span v-else class="muted small">尚未匹配</span>
+            </td>
+            <td v-if="showParent">
+              <template v-if="j.parent?.naming?.next">
+                <div class="parent-main"><b class="name">{{ j.parent.naming.next }}</b><button type="button" class="cp" aria-label="复制推荐变体名" @click="copy(j.parent.naming.next)"><Copy aria-hidden="true" /></button></div>
+                <div class="row"><span v-if="j.parent.confidence !== null" class="pill" :class="{ ac: j.parent.confidence >= 0.7, am: j.parent.confidence < 0.7 }">{{ j.parent.confidence >= 0.7 ? '把握' : '待确认' }} · {{ j.parent.confidence.toFixed(2) }}</span><template v-if="j.parent.naming.number !== null"><button type="button" class="btn txt sm" aria-label="变体名往后调一格" @click="shiftParent(j, 1)">▲</button><button type="button" class="btn txt sm" aria-label="变体名往前调一格" @click="shiftParent(j, -1)">▼</button></template></div>
+              </template>
+              <template v-else><span class="muted small">{{ j.parent?.message || '待确认' }}</span><button v-if="j.parent" type="button" class="btn txt sm" @click="openParent(j)">去确认 ›</button></template>
             </td>
           </tr>
         </tbody>

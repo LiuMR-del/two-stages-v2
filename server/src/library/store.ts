@@ -175,11 +175,12 @@ export const ops = {
     return c
   },
 
-  patchCategory(lib: Library, cid: string, p: { name?: string; hint?: string; extractPrompt?: string | null }): Category {
+  patchCategory(lib: Library, cid: string, p: { name?: string; hint?: string; extractPrompt?: string | null; parentTab?: string | null }): Category {
     const c = findCat(lib, cid)
     if (p.name !== undefined) c.name = checkCategoryName(lib, p.name, cid)
     if (p.hint !== undefined) c.hint = p.hint
     if (p.extractPrompt !== undefined) c.extractPrompt = p.extractPrompt
+    if (p.parentTab !== undefined) c.parentTab = p.parentTab?.trim() || null
     return c
   },
 

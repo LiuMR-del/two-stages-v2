@@ -3,12 +3,14 @@ import { computed, ref, watch } from 'vue'
 import { Check, Lock, ScanSearch, Trash2 } from '@lucide/vue'
 import { api, imageUrl } from '../api'
 import { activeTemplateName, useLibrary } from '../stores/library'
+import { useSettings } from '../stores/settings'
 import { useUi } from '../stores/ui'
 import AutoText from './AutoText.vue'
 import RecipeCard, { type RecipeSlot } from './RecipeCard.vue'
 import type { Category, ExtractRecipe, PasteMode, Recipe, Style } from '../types'
 
 const lib = useLibrary()
+const settings = useSettings()
 const ui = useUi()
 
 const cat = computed(() => lib.category(ui.libSel) as Category)
@@ -67,7 +69,16 @@ const saveStyleName = (sid: string) => saver((v) => api.patch(`${base.value}/sty
 const saveStyleRatio = (sid: string) => saver((v) => api.patch(`${base.value}/styles/${sid}`, { ratio: v }))
 const saveTplName = (tid: string) => saver((v) => api.patch(tplPath(tid), { name: v }))
 const saveTplCanvas = (tid: string) => saver((v) => api.patch(tplPath(tid), { canvasRatio: v.trim() || null }))
-const saveExtract = saver((v) => api.patch(base.value, { extractPrompt: v }))
+const saveExtract = saver((v) => api.patch(base.value, { extractPrompt: v } ))
+
+const parentTabs = computed(() => {
+  const current = cat.value.parentTab
+  const tabs = settings.settings?.parent.tabs ?? []
+  return current && !tabs.includes(current) ? [current, ...tabs] : tabs
+})
+async function saveParentTab(value: string) {
+  await ui.act(() => lib.mutate(() => api.patch(base.value, { parentTab: value || null })))
+}
 
 const PASTE_LABEL = { local: '本地合成', ai: 'AI 贴图' } as const
 async function savePaste(mode: PasteMode) {
@@ -310,6 +321,15 @@ function coverageOf(s: Style): { dot: string; text: string } {
             <button type="button" class="btn sm" @click="estimated = null">关闭</button>
           </div>
         </template>
+
+        <span class="k">父体表标签页</span>
+        <div class="v edit-row">
+          <select :value="cat.parentTab ?? ''" aria-label="父体表标签页" @change="saveParentTab(($event.target as HTMLSelectElement).value)">
+            <option value="">同名（{{ cat.name }}）</option>
+            <option v-for="tab in parentTabs" :key="tab" :value="tab">{{ tab }}</option>
+          </select>
+          <span v-if="!settings.settings?.parent.tabs.length" class="muted tiny">先去设置里点「读一下试试」</span>
+        </div>
 
         <span class="k">{{ singleUnnamed ? '主图模版' : styleLabel(style) + ' 的主图模版' }}</span>
         <div class="v">

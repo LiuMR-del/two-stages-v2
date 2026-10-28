@@ -19,6 +19,7 @@ export type Category = {
   name: string
   hint: string
   extractPrompt: string | null
+  parentTab: string | null
   styles: Style[]
 }
 export type Library = {

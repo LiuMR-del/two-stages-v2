@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { startMockRelay, type MockRelay } from '../../scripts/mock-relay'
 import { startInProcess } from '../inprocess'
 import { makeCategory, uploadJobs, waitJob, isDone, getJob } from './harness'
@@ -85,6 +87,10 @@ describe('e2e 17：第 6 步匹配父体', () => {
     expect(a.steps[5].snapshot.images.map((i: any) => i.role)).toEqual(['竞品图'])
     expect(a.steps[5].snapshot.params.user).toContain('1｜圣诞节婴儿｜HJ-cn-yklgj-Christmas Baby')
     expect(parentReqs()).toHaveLength(3)
+    const csvFile = path.join(srv.ctx.settings.get().outputDir, done[0].outputFolder, '识别信息.csv')
+    const csv = fs.readFileSync(csvFile, 'utf8')
+    expect(csv).toContain('父体主题,父体SKU,父体ASIN,建议变体名,父体把握,父体状态')
+    expect(csv).toContain('HJ-cn-yklgj-Christmas Baby')
     // 只读：对店铺除了换 token 全是 GET，对飞书除了换 token 全是 GET
     expect(mock.parent.calls.filter((c) => c.method !== 'GET' && c.path !== '/token' && c.path !== '/auth/v3/tenant_access_token/internal')).toEqual([])
   })
