@@ -179,6 +179,12 @@ export function registerJobs(r: Router, ctx: AppContext): void {
     res.json({ job: withView(await scheduler.setParent(id(req), b.sku)) })
   })
 
+  /** 变体名上下调一格：delta 1 往后、-1 往前 */
+  r.post('/jobs/:id/parent/shift', async (req, res) => {
+    const b = parseBody(z.object({ delta: z.union([z.literal(1), z.literal(-1)]) }), req.body)
+    res.json({ job: withView(await scheduler.shiftParentNumber(id(req), b.delta)) })
+  })
+
   r.post('/jobs/:id/qc-accept', async (req, res) => {
     res.json({ job: withView(await scheduler.acceptQc(id(req))) })
   })

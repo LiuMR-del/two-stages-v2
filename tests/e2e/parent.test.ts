@@ -154,7 +154,7 @@ describe('e2e 17：第 6 步匹配父体', () => {
     expect((await api.json('GET', '/queue')).body.parentPaused).toBeNull()
   })
 
-  it('手动换父体：只重算命名，标 manual；换走后原来的号释放，删任务也释放', async () => {
+  it('手动换父体：只重算命名，标 manual；换走后原来的号释放；删任务不释放（同一批里还占着）', async () => {
     const api = srv.api
     await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
     mock.script({ parent: [1, 2].map(() => ({ parent: { pick: 1, confidence: 0.9 } })) })
@@ -171,10 +171,10 @@ describe('e2e 17：第 6 步匹配父体', () => {
     mock.script({ parent: [{ parent: { pick: 1, confidence: 0.9 } }] })
     await api.json('POST', `/jobs/${second.id}/redo`, { step: 5 })
     expect((await waitJob(api, second.id, (j) => isDone(j) && j.parent)).parent.naming.next).toBe('Design 05')
-    // 删掉 second，再让 first 换回 Christmas Baby：拿到 05
+    // 删掉 second：它的 05 在同一批里还占着，first 换回 Christmas Baby 拿到 06
     await api.json('DELETE', `/jobs/${second.id}`)
     const back = await api.json('POST', `/jobs/${first.id}/parent`, { sku: 'HJ-cn-yklgj-Christmas Baby' })
-    expect(back.body.job.parent.naming.next).toBe('Design 05')
+    expect(back.body.job.parent.naming.next).toBe('Design 06')
   })
 
   it('手动换父体失败（店铺一直限流）：什么都不改，原来的号还占着，别的图不会拿到同一个号', async () => {
@@ -198,6 +198,42 @@ describe('e2e 17：第 6 步匹配父体', () => {
     mock.script({ parent: [{ parent: { pick: null, confidence: 0.1, new_themes: [] } }] })
     const [a] = await uploadJobs(api, ['a.png'])
     expect((await waitJob(api, a.id, isDone)).parent).toMatchObject({ status: 'none', message: 'AI 认为表里没有合适的父体，但没给出新主题；可以手动选父体，或点「重新匹配」' })
+  })
+
+  it('同一批里「清除已完成」后号还占着，新图接着往后排；清空队列开新文件夹后重新算', async () => {
+    const api = srv.api
+    await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    const first = await uploadJobs(api, ['a.png', 'b.png', 'c.png'])
+    await Promise.all(first.map((j) => waitJob(api, j.id, isDone)))
+    expect((await api.json('POST', '/jobs/clear-done')).body.removed).toBe(3)
+    const more = await uploadJobs(api, ['d.png', 'e.png'])
+    const md = await Promise.all(more.map((j) => waitJob(api, j.id, isDone)))
+    expect(md.map((d) => d.parent.naming.next).sort()).toEqual(['Design 08', 'Design 09'])
+    // 单张删除也不释放（CSV 里还有这一行）
+    await api.json('DELETE', `/jobs/${md[0].id}`)
+    const [f] = await uploadJobs(api, ['f.png'])
+    expect((await waitJob(api, f.id, isDone)).parent.naming.next).toBe('Design 10')
+    // 清空队列开新文件夹：只看店铺和新队列
+    await api.json('POST', '/jobs/clear-all')
+    const [g] = await uploadJobs(api, ['g.png'])
+    const gd = await waitJob(api, g.id, isDone)
+    expect(gd.outputFolder).not.toBe(md[1].outputFolder)
+    expect(gd.parent.naming.next).toBe('Design 05')
+  })
+
+  it('变体名上下调：跳过店铺里已有的和别的图占着的号；往下没有空号时报错', async () => {
+    const api = srv.api
+    await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    const js = await uploadJobs(api, ['a.png', 'b.png', 'c.png'])
+    const ds = await Promise.all(js.map((j) => waitJob(api, j.id, isDone)))
+    const five = ds.find((d) => d.parent.naming.next === 'Design 05')!
+    const up = await api.json('POST', `/jobs/${five.id}/parent/shift`, { delta: 1 })
+    expect(up.body.job.parent.naming).toMatchObject({ next: 'Design 08', number: 8 })
+    const down = await api.json('POST', `/jobs/${five.id}/parent/shift`, { delta: -1 })
+    expect(down.body.job.parent.naming.next).toBe('Design 05')
+    const none = await api.json('POST', `/jobs/${five.id}/parent/shift`, { delta: -1 })
+    expect(none.status).toBe(400)
+    expect(none.body.error).toBe('再往下都被占了，没有更小的可用编号')
   })
 
   it('关掉开关：还没跑到第 6 步的图直接跳过，已经匹配好的保留', async () => {

@@ -90,6 +90,10 @@ function colorText(q: NonNullable<Job['qc']>): string {
   return `${head}；素材图比竞品图：亮度 ${sign(s.L)}、红绿 ${sign(s.a)}、黄蓝 ${sign(s.b)}、鲜艳度 ${sign(s.C)}`
 }
 
+async function shift(delta: 1 | -1) {
+  await ui.act(() => jobs.shiftParent(job.value!.id, delta))
+}
+
 const PARENT_STATUS: Record<string, string> = { matched: '已匹配', unsure: '待确认', none: '没有合适的父体', new: '建议新建' }
 
 const QC_STATE: Record<string, string> = { pending: '等待验收', pass: '验收合格', fail: '没过验收', bypassed: '没过验收，已选择仍然使用' }
@@ -276,6 +280,10 @@ async function openFolder() {
               <dt>下一个变体名</dt>
               <dd>
                 <b style="font-weight: 500">{{ job.parent.naming.next ?? '需要手动起名' }}</b>
+                <template v-if="job.parent.naming.number !== null">
+                  <button type="button" class="btn txt sm" aria-label="变体名往后调一格" title="往后调一格（跳过占着的号）" @click="shift(1)">▲</button>
+                  <button type="button" class="btn txt sm" aria-label="变体名往前调一格" title="往前调一格（跳过占着的号）" @click="shift(-1)">▼</button>
+                </template>
                 <span v-if="job.parent.confidence !== null" class="muted small"> · 把握 {{ job.parent.confidence.toFixed(2) }}</span>
                 <div v-if="job.parent.naming.note" class="muted tiny">{{ job.parent.naming.note }}</div>
               </dd>

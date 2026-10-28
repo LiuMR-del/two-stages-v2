@@ -26,9 +26,10 @@ import { step2Main } from '../pipeline/step2Main'
 import { step3Info } from '../pipeline/step3Info'
 import { step4Blank } from '../pipeline/step4Blank'
 import { step5Parent } from '../pipeline/step5Parent'
-import { bindExisting, guard, ParentPauseError, parentSkipReason } from '../parent/match'
+import { bindExisting, guard, ParentPauseError, parentSkipReason, shiftNumber } from '../parent/match'
 import type { FeishuSheets } from '../parent/feishu'
 import type { SpapiClient } from '../parent/spapi'
+import type { Reservations } from '../parent/reservations'
 import { resolvePlan } from '../pipeline/plan'
 import { assignOutputBase, writeOutput } from '../pipeline/output'
 import { JOB_FILES } from '../pipeline/files'
@@ -74,7 +75,7 @@ export type SchedulerDeps = {
   /** 记住「暂停队列」，重启后仍然暂停；不给就只记在内存里 */
   stateFile?: string
   /** 第 6 步用的飞书读表和 SP-API；单元测试不给时第 6 步一律当作凭证问题 */
-  parent?: { sheets: FeishuSheets; spapi: SpapiClient }
+  parent?: { sheets: FeishuSheets; spapi: SpapiClient; reservations?: Reservations }
   /** 每批识别信息 CSV 的行记在这里，移出队列的图的行不丢 */
   csvRowsDir?: string
 }
@@ -112,6 +113,7 @@ export class Scheduler {
         spapi: d.parent?.spapi ?? (null as unknown as SpapiClient),
         mutex: this.parentLock,
         jobs: () => d.jobs.list(),
+        reservations: d.parent?.reservations,
       },
     }
   }
@@ -659,6 +661,20 @@ export class Scheduler {
     } finally {
       this.settingParent.delete(jobId)
     }
+  }
+
+  /** 变体名上下调一格（跳过占着的号） */
+  async shiftParentNumber(jobId: string, delta: 1 | -1): Promise<Job> {
+    return this.hold(jobId, async (job) => {
+      if (job.steps[PARENT_STEP]!.state === 'running') throw new HttpError(400, '「匹配父体」正在跑，等它跑完再调')
+      try {
+        await shiftNumber(this.env.parent, job, delta, (r) => this.d.jobs.update(jobId, (j) => (j.parent = r)))
+      } catch (e) {
+        throw new HttpError(400, (e as Error).message)
+      }
+      void this.rewriteCsv(job.outputFolder)
+      return this.d.jobs.get(jobId)!
+    })
   }
 
   async remove(jobId: string): Promise<void> {

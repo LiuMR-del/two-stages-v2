@@ -10,6 +10,7 @@ import { BatchFolders } from './pipeline/output'
 import { FeishuSheets } from './parent/feishu'
 import { SpapiClient } from './parent/spapi'
 import { registerParent } from './api/parent'
+import { Reservations } from './parent/reservations'
 import { Limiter } from './ai/limiter'
 import { registerSettings } from './api/settings'
 import { registerMisc } from './api/misc'
@@ -42,7 +43,12 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     backupsDir: paths.libraryBackupsDir,
   })
   library.onChange((lib) => bus.emit('library', { library: lib, checks: computeChecks(lib) }))
-  const jobs = new JobStore(paths.jobsDir, (job) => bus.emit('job', { job: withView(job) }))
+  // 每批分出去的变体号记在 data/batches 里，图移出队列后还占着
+  const reservations = new Reservations(path.join(paths.dataDir, 'batches'))
+  const jobs = new JobStore(paths.jobsDir, (job) => {
+    reservations.sync(job)
+    bus.emit('job', { job: withView(job) })
+  })
   let scheduler: Scheduler | null = null
   const limiter = new Limiter(() => scheduler?.tick())
   const sheets = new FeishuSheets(settings)
@@ -55,7 +61,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     bus,
     stateFile: path.join(paths.dataDir, 'queue.json'),
     csvRowsDir: path.join(paths.dataDir, 'batches'),
-    parent: { sheets, spapi },
+    parent: { sheets, spapi, reservations },
   })
   const sched = scheduler
   library.onChange(() => sched.onLibraryChanged())

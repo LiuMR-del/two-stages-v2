@@ -107,6 +107,8 @@ export const useJobs = defineStore('jobs', () => {
     resolve: (id: string, categoryId: string, styleId: string) => post(`/jobs/${id}/resolve`, { categoryId, styleId }),
     createCategory: (id: string) => post(`/jobs/${id}/create-category`),
     retry: (id: string) => post(`/jobs/${id}/retry`),
+    /** 变体名上下调一格（跳过占着的号） */
+    shiftParent: (id: string, delta: 1 | -1) => post(`/jobs/${id}/parent/shift`, { delta }),
     /** 素材图没过验收，仍然使用 */
     acceptQc: (id: string) => post(`/jobs/${id}/qc-accept`),
     clearDone: () => post('/jobs/clear-done'),
