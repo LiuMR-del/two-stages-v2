@@ -61270,10 +61270,11 @@ function normalizeRow(saved, includeParent) {
   return { ...saved, row, v: ROW_VERSION };
 }
 var CSV_NAME = "\u8BC6\u522B\u4FE1\u606F.csv";
-async function writeBatchCsv(outputDir, jobs, folder, rowsFile) {
+async function writeBatchCsv(outputDir, jobs, folder, rowsFile, drop = []) {
   const inFolder = jobs.filter((j) => j.outputFolder === folder);
   const saved = /* @__PURE__ */ new Map();
   for (const r of (rowsFile ? readJsonSync(rowsFile) : null) ?? []) saved.set(r.id, normalizeRow(r, false));
+  for (const id of drop) saved.delete(id);
   const includeParent = inFolder.some(hasParent) || [...saved.values()].some((r) => r.row.length >= HEADER.length);
   for (const j of inFolder) {
     if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent), v: ROW_VERSION });
@@ -63601,8 +63602,8 @@ var Scheduler = class {
     if (r.kind === "done" && (i2 === 3 || i2 === PARENT_STEP)) void this.rewriteCsv(this.d.jobs.get(jobId).outputFolder);
   }
   /** 同一批的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
-  rewriteCsv(folder) {
-    return this.csvLock.run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, this.d.csvRowsDir && import_node_path19.default.join(this.d.csvRowsDir, `${folder}.json`))).catch((e) => log.error(`\u5199\u8BC6\u522B\u4FE1\u606F CSV \u5931\u8D25\uFF1A${e.message}`));
+  rewriteCsv(folder, drop = []) {
+    return this.csvLock.run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, this.d.csvRowsDir && import_node_path19.default.join(this.d.csvRowsDir, `${folder}.json`), drop)).catch((e) => log.error(`\u5199\u8BC6\u522B\u4FE1\u606F CSV \u5931\u8D25\uFF1A${e.message}`));
   }
   applyError(jobId, i2, k, e) {
     const name = STEP_NAMES[i2];
@@ -63927,11 +63928,32 @@ var Scheduler = class {
       return this.d.jobs.get(jobId);
     });
   }
-  async remove(jobId) {
+  /**
+   * 移出队列。deleteOutputs（队列里单张「删除」，用户 2026-10-29 要求）：
+   * 连同已经存到输出文件夹的素材图、主图、空白图和 CSV 里这一行一起删；SKU 不收回。
+   * 「清除已完成」「清空队列」不删输出文件。
+   */
+  async remove(jobId, opts = {}) {
     await this.hold(jobId, async () => {
       await this.abortRunning(jobId);
+      const job = this.d.jobs.get(jobId);
       await this.d.jobs.remove(jobId);
       this.d.bus.emit("job-removed", { id: jobId });
+      if (opts.deleteOutputs && job.route) {
+        const dir = categoryDir(this.env.outputDir(), job);
+        const gone = [];
+        for (const kind of ["pattern", "main", "blank"]) {
+          const file2 = import_node_path19.default.join(dir, outputRel(kind, job.outputBase));
+          try {
+            await import_promises11.default.unlink(file2);
+            gone.push(OUTPUT_FOLDER[kind]);
+          } catch (e) {
+            if (e.code !== "ENOENT") log.warn(`\u5220\u9664\u8F93\u51FA\u6587\u4EF6\u5931\u8D25\uFF1A${file2}\uFF1A${e.message}`);
+          }
+        }
+        if (job.info) await this.rewriteCsv(job.outputFolder, [jobId]);
+        log.info(`\u5220\u9664\u300C${job.source.originalName}\u300D${gone.length ? `\uFF0C\u8FDE\u540C\u8F93\u51FA\u6587\u4EF6\u5939\u91CC\u7684${gone.join("\u3001")}` : ""}`);
+      }
     });
   }
   async clearDone() {
@@ -64073,7 +64095,7 @@ function registerJobs(r, ctx) {
     res.json({ removed });
   });
   r.delete("/jobs/:id", async (req, res) => {
-    await scheduler.remove(id(req));
+    await scheduler.remove(id(req), { deleteOutputs: true });
     res.json({ ok: true });
   });
   r.post("/jobs/:id/pause", async (req, res) => {

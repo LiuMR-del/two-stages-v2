@@ -32,7 +32,7 @@ import type { FeishuSheets } from '../parent/feishu'
 import type { SpapiClient } from '../parent/spapi'
 import type { Reservations } from '../parent/reservations'
 import { resolvePlan } from '../pipeline/plan'
-import { assignOutputBase, outputRel, safeName, writeOutput } from '../pipeline/output'
+import { assignOutputBase, categoryDir, OUTPUT_FOLDER, outputRel, safeName, writeOutput } from '../pipeline/output'
 import { SkuCounter } from '../pipeline/sku'
 import { JOB_FILES } from '../pipeline/files'
 import fsp from 'node:fs/promises'
@@ -375,9 +375,9 @@ export class Scheduler {
   }
 
   /** 同一批的 CSV 串行重写，内容在真正写的时候才生成，后写的一定是最新的 */
-  rewriteCsv(folder: string): Promise<void> {
+  rewriteCsv(folder: string, drop: string[] = []): Promise<void> {
     return this.csvLock
-      .run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, this.d.csvRowsDir && path.join(this.d.csvRowsDir, `${folder}.json`)))
+      .run(folder, () => writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, this.d.csvRowsDir && path.join(this.d.csvRowsDir, `${folder}.json`), drop))
       .catch((e) => log.error(`写识别信息 CSV 失败：${(e as Error).message}`))
   }
 
@@ -723,11 +723,32 @@ export class Scheduler {
     })
   }
 
-  async remove(jobId: string): Promise<void> {
+  /**
+   * 移出队列。deleteOutputs（队列里单张「删除」，用户 2026-10-29 要求）：
+   * 连同已经存到输出文件夹的素材图、主图、空白图和 CSV 里这一行一起删；SKU 不收回。
+   * 「清除已完成」「清空队列」不删输出文件。
+   */
+  async remove(jobId: string, opts: { deleteOutputs?: boolean } = {}): Promise<void> {
     await this.hold(jobId, async () => {
       await this.abortRunning(jobId)
+      const job = this.d.jobs.get(jobId)!
       await this.d.jobs.remove(jobId)
       this.d.bus.emit('job-removed', { id: jobId })
+      if (opts.deleteOutputs && job.route) {
+        const dir = categoryDir(this.env.outputDir(), job)
+        const gone: string[] = []
+        for (const kind of ['pattern', 'main', 'blank'] as const) {
+          const file = path.join(dir, outputRel(kind, job.outputBase))
+          try {
+            await fsp.unlink(file)
+            gone.push(OUTPUT_FOLDER[kind])
+          } catch (e) {
+            if ((e as NodeJS.ErrnoException).code !== 'ENOENT') log.warn(`删除输出文件失败：${file}：${(e as Error).message}`)
+          }
+        }
+        if (job.info) await this.rewriteCsv(job.outputFolder, [jobId])
+        log.info(`删除「${job.source.originalName}」${gone.length ? `，连同输出文件夹里的${gone.join('、')}` : ''}`)
+      }
     })
   }
 

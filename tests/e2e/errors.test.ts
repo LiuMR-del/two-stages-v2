@@ -1,5 +1,7 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { startWorld, makeCategory, uploadJobs, waitJob, isDone, imageRequests, getJob, type World } from './harness'
+import { startWorld, makeCategory, uploadJobs, waitJob, isDone, imageRequests, getJob, onlyBatch, type World } from './harness'
 import { waitFor } from '../helpers'
 
 let w: World | null = null
@@ -114,5 +116,32 @@ describe('任务接口的其他情况', () => {
     expect(c.body.removed).toBe(1)
     expect((await api.json('GET', '/jobs')).body.jobs).toEqual([])
     expect((await api.json('DELETE', `/jobs/${b.id}`)).status).toBe(404)
+  })
+
+  it('队列里单张删除：连同输出文件夹里的图和 CSV 这一行一起删；「清除已完成」不删文件', async () => {
+    w = await startWorld({ image: 2, analysis: 2 })
+    const api = w.api
+    await makeCategory(api, '地垫', [{ name: '', ratio: '3:2', white: [1200, 800] }])
+    const [a, b] = await uploadJobs(api, ['a.png', 'b.png'])
+    await waitJob(api, a.id, isDone, 'a 完成')
+    await waitJob(api, b.id, isDone, 'b 完成')
+    const dir = path.join(onlyBatch(w), '地垫')
+    const csvFile = path.join(onlyBatch(w), '识别信息.csv')
+    await waitFor(() => fs.existsSync(csvFile) && fs.readFileSync(csvFile, 'utf8').trim().split('\r\n').length === 3, { label: 'CSV 写完 2 行' })
+    const files = (n: string) => ['素材图', '主图', '空白图'].map((k) => path.join(dir, k, `${n}.png`)).filter((f) => fs.existsSync(f))
+    const aFiles = files('a')
+    expect(aFiles.length).toBeGreaterThanOrEqual(2)
+    const bCount = files('b').length
+
+    expect((await api.json('DELETE', `/jobs/${a.id}`)).status).toBe(200)
+    for (const f of aFiles) expect(fs.existsSync(f), f).toBe(false)
+    expect(files('b')).toHaveLength(bCount)
+    const lines = fs.readFileSync(csvFile, 'utf8').trim().split('\r\n')
+    expect(lines).toHaveLength(2)
+    expect(lines[1]!.startsWith('b.png,')).toBe(true)
+
+    expect((await api.json('POST', '/jobs/clear-done')).body.removed).toBe(1)
+    expect(files('b')).toHaveLength(bCount)
+    expect(fs.readFileSync(csvFile, 'utf8').trim().split('\r\n')).toHaveLength(2)
   })
 })

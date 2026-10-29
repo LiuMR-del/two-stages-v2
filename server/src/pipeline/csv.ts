@@ -73,10 +73,12 @@ export const CSV_NAME = '识别信息.csv'
  * 每批文件夹里放一份，只含这一批的图；主图文件路径相对这个文件夹。
  * 「清除已完成」后新图还进同一个文件夹，所以已经移出队列的图的行记在 rowsFile 里，重写时保留。
  */
-export async function writeBatchCsv(outputDir: string, jobs: Job[], folder: string, rowsFile?: string): Promise<void> {
+/** drop：用户在队列里删掉的图，它的行也从 CSV 里去掉（移出队列的图的行保留） */
+export async function writeBatchCsv(outputDir: string, jobs: Job[], folder: string, rowsFile?: string, drop: string[] = []): Promise<void> {
   const inFolder = jobs.filter((j) => j.outputFolder === folder)
   const saved = new Map<string, SavedRow>()
   for (const r of (rowsFile ? readJsonSync<SavedRow[]>(rowsFile) : null) ?? []) saved.set(r.id, normalizeRow(r, false))
+  for (const id of drop) saved.delete(id)
   const includeParent = inFolder.some(hasParent) || [...saved.values()].some((r) => r.row.length >= HEADER.length)
   for (const j of inFolder) {
     if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent), v: ROW_VERSION })

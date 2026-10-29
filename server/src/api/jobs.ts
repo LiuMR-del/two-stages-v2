@@ -149,7 +149,8 @@ export function registerJobs(r: Router, ctx: AppContext): void {
   })
 
   r.delete('/jobs/:id', async (req, res) => {
-    await scheduler.remove(id(req))
+    // 队列里单张删除：连同已经生成的输出文件一起删
+    await scheduler.remove(id(req), { deleteOutputs: true })
     res.json({ ok: true })
   })
 

@@ -152,7 +152,7 @@ function goUpload(j: Job) {
           <button type="button" class="btn sm pri" @click="retry(j)">重试</button>
           <button type="button" class="btn sm" @click="ui.sheet = { jobId: j.id, step: j.attention!.step }">查看详情</button>
         </template>
-        <button type="button" class="ib" aria-label="删除" title="删除这张图" @click="remove(j)"><Trash2 aria-hidden="true" /></button>
+        <button type="button" class="ib" aria-label="删除" title="删除这张图，连同已经生成的文件" @click="remove(j)"><Trash2 aria-hidden="true" /></button>
       </div>
     </div>
   </div>
