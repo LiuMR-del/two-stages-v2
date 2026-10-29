@@ -154,6 +154,8 @@ export const JobSchema = z.object({
   deformed: z.boolean().default(false),
   /** 子体 SKU（品类填了材质缩写才有）；有的话输出文件名就用它 */
   sku: z.string().nullable().default(null),
+  /** 用户单独暂停了这张图：调度器不再派发它，点「继续」后从停下的那一步接着跑 */
+  paused: z.boolean().default(false),
   route: z
     .object({
       categoryId: z.string(),
@@ -299,13 +301,14 @@ export function runningStep(job: Job): number {
 
 // ---- 展示状态只在后端算一份 ----
 
-export type JobView = { phase: 'queued' | 'running' | 'attention' | 'done'; runningStep: number | null; label: string }
+export type JobView = { phase: 'queued' | 'paused' | 'running' | 'attention' | 'done'; runningStep: number | null; label: string }
 
 export function viewOf(job: Job): JobView {
   const r = runningStep(job)
   if (job.attention) return { phase: 'attention', runningStep: r >= 0 ? r : null, label: '需处理' }
   if (r >= 0) return { phase: 'running', runningStep: r, label: r === 4 ? '生成空白图中' : r === 1 && job.qc?.state === 'pending' ? '验收素材中' : r === 2 && job.mainQc?.state === 'pending' ? '验收主图中' : r === PARENT_STEP ? '匹配父体中' : `${STEP_NAMES[r]}中` }
   if (currentStep(job) === -1) return { phase: 'done', runningStep: null, label: '完成' }
+  if (job.paused) return { phase: 'paused', runningStep: null, label: '已暂停' }
   return { phase: 'queued', runningStep: null, label: '排队中' }
 }
 

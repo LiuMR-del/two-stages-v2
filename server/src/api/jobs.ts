@@ -110,6 +110,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           outputFolder: folder,
           outputBase: baseNameOf(name),
           sku: null,
+          paused: false,
           route: null,
           plan: null,
           steps: newSteps(),
@@ -150,6 +151,15 @@ export function registerJobs(r: Router, ctx: AppContext): void {
   r.delete('/jobs/:id', async (req, res) => {
     await scheduler.remove(id(req))
     res.json({ ok: true })
+  })
+
+  /** 单张图暂停 / 继续（和顶上的「暂停队列」互不影响） */
+  r.post('/jobs/:id/pause', async (req, res) => {
+    res.json({ job: withView(await scheduler.setPaused(id(req), true)) })
+  })
+
+  r.post('/jobs/:id/resume', async (req, res) => {
+    res.json({ job: withView(await scheduler.setPaused(id(req), false)) })
   })
 
   r.post('/jobs/:id/redo', async (req, res) => {

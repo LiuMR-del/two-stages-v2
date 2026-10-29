@@ -103,6 +103,9 @@ export const useJobs = defineStore('jobs', () => {
     fromClipboard: () =>
       api.post<{ supported: boolean; copied: number; jobs: Job[]; errors: { name: string; error: string }[] }>('/jobs/from-clipboard'),
     remove: (id: string) => api.del(`/jobs/${id}`),
+    /** 单张图暂停 / 继续 */
+    pauseJob: (id: string) => post(`/jobs/${id}/pause`),
+    resumeJob: (id: string) => post(`/jobs/${id}/resume`),
     redo: (id: string, body: { step: number; prompt?: string; categoryId?: string; styleId?: string; wholePhoto?: boolean }) => post(`/jobs/${id}/redo`, body),
     resolve: (id: string, categoryId: string, styleId: string) => post(`/jobs/${id}/resolve`, { categoryId, styleId }),
     createCategory: (id: string) => post(`/jobs/${id}/create-category`),

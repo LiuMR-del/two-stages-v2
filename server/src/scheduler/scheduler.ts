@@ -221,7 +221,7 @@ export class Scheduler {
   }
 
   private dispatchableStep(job: Job): number {
-    if (job.attention || this.holds.has(job.id)) return -1
+    if (job.attention || job.paused || this.holds.has(job.id)) return -1
     const i = currentStep(job)
     if (i < 0 || job.steps[i]!.state !== 'pending') return -1
     // 识别父体关着 / 缺设置：doTick 里直接跳过，不受分析接口暂停影响
@@ -512,6 +512,7 @@ export class Scheduler {
       this.applyPatch(jobId, (j) => {
         resetFrom(j, n)
         j.attention = null
+        j.paused = false
         j.override = p.prompt?.trim() ? { step: n, prompt: p.prompt } : null
         if (p.wholePhoto && n >= 1) j.face = null
         if (n <= 3) j.info = null
@@ -699,6 +700,25 @@ export class Scheduler {
         throw new HttpError(400, (e as Error).message)
       }
       void this.rewriteCsv(job.outputFolder)
+      return this.d.jobs.get(jobId)!
+    })
+  }
+
+  /**
+   * 单张图暂停 / 继续。暂停时正在跑的那一步立即中止（退回待运行，次数不变），
+   * 继续后从这一步重新开始；已经完成的图不能暂停。
+   */
+  async setPaused(jobId: string, paused: boolean): Promise<Job> {
+    return this.hold(jobId, async (job) => {
+      if (paused && isFinished(job)) throw new HttpError(400, '这张图已经跑完了，不用暂停')
+      if (paused) {
+        this.d.jobs.update(jobId, (j) => (j.paused = true))
+        await this.abortRunning(jobId)
+        log.info(`「${job.source.originalName}」已暂停`)
+      } else if (job.paused) {
+        this.d.jobs.update(jobId, (j) => (j.paused = false))
+        log.info(`「${job.source.originalName}」继续`)
+      }
       return this.d.jobs.get(jobId)!
     })
   }

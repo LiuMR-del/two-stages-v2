@@ -6,7 +6,7 @@ import { LibraryStore } from '../../server/src/library/store'
 import { SettingsStore } from '../../server/src/store/settings'
 import { Limiter } from '../../server/src/ai/limiter'
 import { Bus } from '../../server/src/events/bus'
-import { AiError } from '../../server/src/ai/errors'
+import { AiError, CancelledError } from '../../server/src/ai/errors'
 import type { StepHandler, StepResult } from '../../server/src/pipeline/types'
 import { rmDir, tmpDir, waitFor } from '../helpers'
 import { fakeJob } from '../jobfixture'
@@ -24,6 +24,7 @@ function handler(step: number): StepHandler {
   return (ctx) =>
     new Promise<StepResult>((resolve, reject) => {
       started.push({ jobId: ctx.job.id, step, resolve, reject })
+      ctx.signal.addEventListener('abort', () => reject(new CancelledError()))
     })
 }
 
@@ -180,5 +181,42 @@ describe('调度器', () => {
     expect(jobs.get('a')!.steps[4]!.state).toBe('skipped')
     expect(startedKeys()).toEqual(['a:3'])
     expect(sched.isIdle()).toBe(true)
+  })
+
+  it('单张图暂停：排队的跳过、别的图照常；继续后接着跑', async () => {
+    await setup({ image: 1, analysis: 1 })
+    await addJob('a', 0)
+    await addJob('b', 0)
+    await sched.setPaused('a', true)
+    await flush()
+    expect(startedKeys()).toEqual(['b:1'])
+    expect(jobs.get('a')!.paused).toBe(true)
+    finish('b', 1)
+    await flush()
+    // b 的 ③ 先跑，a 还停着
+    expect(startedKeys()).toEqual(['b:1', 'b:2'])
+    await sched.setPaused('a', false)
+    finish('b', 2)
+    await flush()
+    expect(startedKeys()).toContain('a:1')
+    expect(jobs.get('a')!.paused).toBe(false)
+  })
+
+  it('暂停正在跑的图：这一步中止退回待运行，继续后从这一步重来；跑完的图不能暂停', async () => {
+    await setup({ image: 1, analysis: 1 })
+    await addJob('a', 0)
+    await addJob('done', 5)
+    sched.tick()
+    await flush()
+    expect(startedKeys()).toEqual(['a:1'])
+    await sched.setPaused('a', true)
+    await flush()
+    expect(jobs.get('a')!.steps[1]!.state).toBe('pending')
+    expect(sched.isRunning('a')).toBe(false)
+    expect(sched.isIdle()).toBe(true)
+    await sched.setPaused('a', false)
+    await flush()
+    expect(startedKeys()).toEqual(['a:1', 'a:1'])
+    await expect(sched.setPaused('done', true)).rejects.toThrow('已经跑完')
   })
 })

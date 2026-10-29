@@ -61469,6 +61469,8 @@ var JobSchema = external_exports.object({
   deformed: external_exports.boolean().default(false),
   /** 子体 SKU（品类填了材质缩写才有）；有的话输出文件名就用它 */
   sku: external_exports.string().nullable().default(null),
+  /** 用户单独暂停了这张图：调度器不再派发它，点「继续」后从停下的那一步接着跑 */
+  paused: external_exports.boolean().default(false),
   route: external_exports.object({
     categoryId: external_exports.string(),
     styleId: external_exports.string(),
@@ -61587,6 +61589,7 @@ function viewOf(job) {
   if (job.attention) return { phase: "attention", runningStep: r >= 0 ? r : null, label: "\u9700\u5904\u7406" };
   if (r >= 0) return { phase: "running", runningStep: r, label: r === 4 ? "\u751F\u6210\u7A7A\u767D\u56FE\u4E2D" : r === 1 && job.qc?.state === "pending" ? "\u9A8C\u6536\u7D20\u6750\u4E2D" : r === 2 && job.mainQc?.state === "pending" ? "\u9A8C\u6536\u4E3B\u56FE\u4E2D" : r === PARENT_STEP ? "\u5339\u914D\u7236\u4F53\u4E2D" : `${STEP_NAMES[r]}\u4E2D` };
   if (currentStep(job) === -1) return { phase: "done", runningStep: null, label: "\u5B8C\u6210" };
+  if (job.paused) return { phase: "paused", runningStep: null, label: "\u5DF2\u6682\u505C" };
   return { phase: "queued", runningStep: null, label: "\u6392\u961F\u4E2D" };
 }
 var withView = (job) => ({ ...job, view: viewOf(job) });
@@ -63462,7 +63465,7 @@ var Scheduler = class {
     });
   }
   dispatchableStep(job) {
-    if (job.attention || this.holds.has(job.id)) return -1;
+    if (job.attention || job.paused || this.holds.has(job.id)) return -1;
     const i2 = currentStep(job);
     if (i2 < 0 || job.steps[i2].state !== "pending") return -1;
     if (i2 === PARENT_STEP && parentSkipReason(this.d.settings.get())) return i2;
@@ -63724,6 +63727,7 @@ var Scheduler = class {
       this.applyPatch(jobId, (j) => {
         resetFrom(j, n);
         j.attention = null;
+        j.paused = false;
         j.override = p.prompt?.trim() ? { step: n, prompt: p.prompt } : null;
         if (p.wholePhoto && n >= 1) j.face = null;
         if (n <= 3) j.info = null;
@@ -63905,6 +63909,24 @@ var Scheduler = class {
       return this.d.jobs.get(jobId);
     });
   }
+  /**
+   * 单张图暂停 / 继续。暂停时正在跑的那一步立即中止（退回待运行，次数不变），
+   * 继续后从这一步重新开始；已经完成的图不能暂停。
+   */
+  async setPaused(jobId, paused) {
+    return this.hold(jobId, async (job) => {
+      if (paused && isFinished(job)) throw new HttpError(400, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u8DD1\u5B8C\u4E86\uFF0C\u4E0D\u7528\u6682\u505C");
+      if (paused) {
+        this.d.jobs.update(jobId, (j) => j.paused = true);
+        await this.abortRunning(jobId);
+        log.info(`\u300C${job.source.originalName}\u300D\u5DF2\u6682\u505C`);
+      } else if (job.paused) {
+        this.d.jobs.update(jobId, (j) => j.paused = false);
+        log.info(`\u300C${job.source.originalName}\u300D\u7EE7\u7EED`);
+      }
+      return this.d.jobs.get(jobId);
+    });
+  }
   async remove(jobId) {
     await this.hold(jobId, async () => {
       await this.abortRunning(jobId);
@@ -64015,6 +64037,7 @@ function registerJobs(r, ctx) {
           outputFolder: folder,
           outputBase: baseNameOf(name),
           sku: null,
+          paused: false,
           route: null,
           plan: null,
           steps: newSteps(),
@@ -64052,6 +64075,12 @@ function registerJobs(r, ctx) {
   r.delete("/jobs/:id", async (req, res) => {
     await scheduler.remove(id(req));
     res.json({ ok: true });
+  });
+  r.post("/jobs/:id/pause", async (req, res) => {
+    res.json({ job: withView(await scheduler.setPaused(id(req), true)) });
+  });
+  r.post("/jobs/:id/resume", async (req, res) => {
+    res.json({ job: withView(await scheduler.setPaused(id(req), false)) });
   });
   r.post("/jobs/:id/redo", async (req, res) => {
     const b = parseBody(

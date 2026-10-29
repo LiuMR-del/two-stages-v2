@@ -45,6 +45,7 @@ svg.lucide { width: 15px; height: 15px; flex: none; }
 .ib { border: 0; background: transparent; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: var(--sub); }
 .ib:hover { background: var(--sf2); color: var(--tx); }
 .ib.sm { width: 26px; height: 26px; border-radius: 7px; }
+.ib.del, .ib.del:hover { background: var(--rd-soft); color: var(--rd); }
 .btn { border: 1px solid var(--hair); background: var(--sf); border-radius: 9px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .btn:hover:not([disabled]) { border-color: var(--faint); }
 .btn.pri { background: var(--ac); border-color: var(--ac); color: var(--ac-ink); }
@@ -124,7 +125,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 .notice.rd { background: var(--rd-soft); color: var(--rd); }
 .notice .btn { margin-left: auto; }
 .jobs { display: flex; flex-direction: column; }
-.job { display: grid; grid-template-columns: minmax(220px, 1.1fr) minmax(0, 1.6fr) 130px; gap: 18px; align-items: center; padding: 14px 18px; border-top: 1px solid var(--hair); }
+.job { display: grid; grid-template-columns: minmax(220px, 1.1fr) minmax(0, 1.6fr) 190px; gap: 18px; align-items: center; padding: 14px 18px; border-top: 1px solid var(--hair); }
 .job:first-child { border-top: 0; }
 .src { display: flex; gap: 12px; align-items: center; min-width: 0; }
 .src .nm { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }

@@ -157,6 +157,8 @@ export type Job = {
   deformed?: boolean
   /** 子体 SKU；品类没填材质缩写时为 null */
   sku: string | null
+  /** 单独暂停了这张图 */
+  paused?: boolean
   route: null | {
     categoryId: string
     styleId: string
@@ -193,7 +195,7 @@ export type Job = {
   view: JobView
 }
 export type JobView = {
-  phase: 'queued' | 'running' | 'attention' | 'done'
+  phase: 'queued' | 'paused' | 'running' | 'attention' | 'done'
   runningStep: number | null
   label: string
 }
