@@ -1,4 +1,5 @@
-const FORCE = /照片|相片|头像|合照|名字|姓名|日期|年份|纪念日/
+// 2026-10-29 加号码、首字母、队名：帆布画识别出「名字、球衣号码」，空白图却留着号码（原来只认照片、名字、日期）
+const FORCE = /照片|相片|头像|合照|名字|姓名|日期|年份|纪念日|号码|编号|首字母|缩写|队名/
 const BLOCK = /诗|句|文案|字体|颜色|风格/
 
 const EN_MAP: [RegExp, string][] = [
@@ -7,6 +8,10 @@ const EN_MAP: [RegExp, string][] = [
   [/名字|姓名/, 'the name text'],
   [/日期|年份|纪念日/, 'the date text'],
   [/宠物/, 'the pet portrait'],
+  [/球衣号/, 'the jersey number'],
+  [/号码|编号/, 'the personalized number text'],
+  [/首字母|缩写/, 'the personalized initials'],
+  [/队名/, 'the team name text'],
 ]
 
 /**

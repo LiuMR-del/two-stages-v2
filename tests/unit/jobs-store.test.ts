@@ -59,6 +59,9 @@ describe('decideBlankItems', () => {
   it('兜底：customizable 里的照片、名字、日期类强制加入', () => {
     expect(decideBlankItems(['名字', '照片', '祝福语'], [])).toEqual({ zh: ['名字', '照片'], en: ['the name text', 'the personal photo'] })
     expect(decideBlankItems(['纪念日', '头像'], ['头像'])).toEqual({ zh: ['头像', '纪念日'], en: ['the personal photo', 'the date text'] })
+    // 2026-10-29：模型只把「名字」挑进 blank_items，球衣号码漏了 → 兜底补上
+    expect(decideBlankItems(['名字', '球衣号码'], ['名字'])).toEqual({ zh: ['名字', '球衣号码'], en: ['the name text', 'the jersey number'] })
+    expect(decideBlankItems(['门牌号码', '首字母', '队名'], []).en).toEqual(['the personalized number text', 'the personalized initials', 'the team name text'])
   })
   it('拦截：诗、句、文案、字体、颜色、风格一律剔除', () => {
     expect(decideBlankItems(['诗句', '名字'], ['诗句', '文案', '字体颜色', '图案风格', '名字']).zh).toEqual(['名字'])
