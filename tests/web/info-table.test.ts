@@ -24,7 +24,7 @@ function job(id: string, p: ParentResult | null): Job {
   return {
     id, createdAt: '2026-10-28T00:00:00.000Z', order: 1,
     source: { file: 'source.png', originalName: `${id}.png`, width: 100, height: 100, sha256: 'x' },
-    outputDay: '2026-10-28', outputFolder: '主图生成-2026-10-28', outputBase: id,
+    outputDay: '2026-10-28', outputFolder: '主图生成-2026-10-28', outputBase: id, sku: null,
     route: { categoryId: 'c', styleId: 's', categoryName: '毛毯', styleName: '', ratio: '1:1', confidence: 0.9, reason: null, manual: false },
     plan: null, steps: [{ state: 'done', attempts: 1 }, { state: 'done', attempts: 1 }, { state: 'done', attempts: 1 }, { state: 'done', attempts: 1 }, { state: 'skipped', attempts: 0 }, { state: 'done', attempts: 1 }],
     info: { scene: '家庭场景', keywords: ['throw blanket'], customizable: [], blankItems: [], blankItemsEn: [] }, attention: null, override: null, qc: null, face: null, parent: p, mainQc: null,
@@ -32,11 +32,11 @@ function job(id: string, p: ParentResult | null): Job {
   }
 }
 
-async function render(parentResult: ParentResult | null): Promise<string> {
+async function render(parentResult: ParentResult | null, sku: string | null = null): Promise<string> {
   const pinia = createPinia()
   setActivePinia(pinia)
   const jobs = useJobs()
-  jobs.byId = { j: job('j', parentResult) }
+  jobs.byId = { j: { ...job('j', parentResult), sku } }
   jobs.queue = { paused: null, parentPaused: null, slots: { image: { busy: 0, limit: 1 }, analysis: { busy: 0, limit: 1 } } }
   useUi()
   const app = createSSRApp(InfoTable)
@@ -69,5 +69,15 @@ describe('识别信息表 · 父体列', () => {
     expect(newer).toContain('建议新建')
     expect(newer).toContain('HJ-mtfl5-Love')
     expect(newer).toContain('需手动创建')
+  })
+})
+
+describe('识别信息表 · SKU 列', () => {
+  it('有 SKU 时显示 SKU 列和复制按钮；都没有时不显示', async () => {
+    const html = await render(null, 'HJ-mtfl671029101')
+    expect(html).toContain('<th>SKU</th>')
+    expect(html).toContain('HJ-mtfl671029101')
+    expect(html).toContain('复制 SKU')
+    expect(await render(null)).not.toContain('<th>SKU</th>')
   })
 })

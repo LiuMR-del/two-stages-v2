@@ -36,6 +36,15 @@ describe('设置接口', () => {
     expect(r.body).toMatchObject({ ok: true, pid: process.pid })
   })
 
+  it('SKU 命名：默认 HJ / 7；部分保存不冲掉另一项；格式不对报错', async () => {
+    expect((await j('GET', '/settings')).body.sku).toEqual({ store: 'HJ', region: '7' })
+    expect((await j('PUT', '/settings', { sku: { region: ' 8 ' } })).body.sku).toEqual({ store: 'HJ', region: '8' })
+    expect((await j('PUT', '/settings', { sku: { store: 'H J' } })).status).toBe(400)
+    expect((await j('PUT', '/settings', { parent: { creatorMark: '1-' } })).status).toBe(400)
+    expect((await j('PUT', '/settings', { parent: { creatorMark: '1' } })).body.parent.creatorMark).toBe('1')
+    await j('PUT', '/settings', { sku: { region: '7' } })
+  })
+
   it('没填地址时测试连接给出提示', async () => {
     const r = await j('POST', '/settings/test', { kind: 'image' })
     expect(r.body).toEqual({ ok: false, message: '请先填写地址和 Key' })

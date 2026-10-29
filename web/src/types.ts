@@ -20,6 +20,8 @@ export type Category = {
   hint: string
   extractPrompt: string | null
   parentTab: string | null
+  /** 子体 SKU 的材质缩写，如 mtfl */
+  skuCode: string | null
   styles: Style[]
 }
 export type Library = {
@@ -66,6 +68,8 @@ export type Settings = {
   patternQcThreshold: number
   patternQcDeltaE: number
   mainQc: boolean
+  /** 子体 SKU 的店铺缩写、地区标识；专属号用 parent.creatorMark */
+  sku: { store: string; region: string }
   /** 父体匹配；密钥、token 都是打码后的（••••末 4 位） */
   parent: {
     enabled: boolean
@@ -149,6 +153,8 @@ export type Job = {
   outputDay: string
   outputFolder: string
   outputBase: string
+  /** 子体 SKU；品类没填材质缩写时为 null */
+  sku: string | null
   route: null | {
     categoryId: string
     styleId: string

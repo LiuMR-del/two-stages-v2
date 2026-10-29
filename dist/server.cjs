@@ -18967,7 +18967,7 @@ var require_view = __commonJS({
     "use strict";
     var debug = require_src()("express:view");
     var path22 = require("node:path");
-    var fs15 = require("node:fs");
+    var fs16 = require("node:fs");
     var dirname = path22.dirname;
     var basename = path22.basename;
     var extname = path22.extname;
@@ -19047,7 +19047,7 @@ var require_view = __commonJS({
     function tryStat(path23) {
       debug('stat "%s"', path23);
       try {
-        return fs15.statSync(path23);
+        return fs16.statSync(path23);
       } catch (e) {
         return void 0;
       }
@@ -22765,7 +22765,7 @@ var require_send = __commonJS({
     var escapeHtml = require_escape_html();
     var etag = require_etag();
     var fresh = require_fresh();
-    var fs15 = require("fs");
+    var fs16 = require("fs");
     var mime = require_mime_types();
     var ms = require_ms();
     var onFinished = require_on_finished();
@@ -23047,7 +23047,7 @@ var require_send = __commonJS({
       var i2 = 0;
       var self = this;
       debug('stat "%s"', path23);
-      fs15.stat(path23, function onstat(err2, stat) {
+      fs16.stat(path23, function onstat(err2, stat) {
         var pathEndsWithSep = path23[path23.length - 1] === sep;
         if (err2 && err2.code === "ENOENT" && !extname(path23) && !pathEndsWithSep) {
           return next(err2);
@@ -23064,7 +23064,7 @@ var require_send = __commonJS({
         }
         var p = path23 + "." + self._extensions[i2++];
         debug('stat "%s"', p);
-        fs15.stat(p, function(err3, stat) {
+        fs16.stat(p, function(err3, stat) {
           if (err3) return next(err3);
           if (stat.isDirectory()) return next();
           self.emit("file", p, stat);
@@ -23082,7 +23082,7 @@ var require_send = __commonJS({
         }
         var p = join(path23, self._index[i2]);
         debug('stat "%s"', p);
-        fs15.stat(p, function(err3, stat) {
+        fs16.stat(p, function(err3, stat) {
           if (err3) return next(err3);
           if (stat.isDirectory()) return next();
           self.emit("file", p, stat);
@@ -23094,7 +23094,7 @@ var require_send = __commonJS({
     SendStream.prototype.stream = function stream(path23, options) {
       var self = this;
       var res = this.res;
-      var stream2 = fs15.createReadStream(path23, options);
+      var stream2 = fs16.createReadStream(path23, options);
       this.emit("stream", stream2);
       stream2.pipe(res);
       function cleanup() {
@@ -37152,7 +37152,7 @@ var require_make_middleware = __commonJS({
 // node_modules/multer/storage/disk.js
 var require_disk = __commonJS({
   "node_modules/multer/storage/disk.js"(exports2, module2) {
-    var fs15 = require("fs");
+    var fs16 = require("fs");
     var os3 = require("os");
     var path22 = require("path");
     var crypto = require("crypto");
@@ -37179,7 +37179,7 @@ var require_disk = __commonJS({
       this.getFilename = opts.filename || getFilename;
       this.flush = opts.flush;
       if (typeof opts.destination === "string") {
-        fs15.mkdirSync(opts.destination, { recursive: true });
+        fs16.mkdirSync(opts.destination, { recursive: true });
         this.getDestination = function($0, $1, cb) {
           cb(null, opts.destination);
         };
@@ -37195,7 +37195,7 @@ var require_disk = __commonJS({
           if (err3) return cb(err3);
           var finalPath = path22.join(destination, filename);
           if (file2.stream.destroyed) return cb(new MulterError("STREAM_DESTROYED"));
-          var outStream = fs15.createWriteStream(finalPath);
+          var outStream = fs16.createWriteStream(finalPath);
           file2.path = finalPath;
           openStreams.set(file2, outStream);
           outStream.once("close", function() {
@@ -37217,13 +37217,13 @@ var require_disk = __commonJS({
               });
             };
             if (!that.flush) return done();
-            fs15.open(finalPath, "r+", function(err5, fd2) {
+            fs16.open(finalPath, "r+", function(err5, fd2) {
               if (err5) {
                 endFlush(file2);
                 return done(err5);
               }
-              fs15.fsync(fd2, function(syncErr) {
-                fs15.close(fd2, function(closeErr) {
+              fs16.fsync(fd2, function(syncErr) {
+                fs16.close(fd2, function(closeErr) {
                   endFlush(file2);
                   done(syncErr || closeErr);
                 });
@@ -37240,9 +37240,9 @@ var require_disk = __commonJS({
       delete file2.path;
       function unlink() {
         var flush = flushingFiles.get(file2);
-        if (!flush) return fs15.unlink(path23, cb);
+        if (!flush) return fs16.unlink(path23, cb);
         flush.onClosed = function() {
-          fs15.unlink(path23, cb);
+          fs16.unlink(path23, cb);
         };
       }
       var outStream = openStreams.get(file2);
@@ -37633,7 +37633,45 @@ function readJsonSync(file2) {
 }
 
 // server/src/server.ts
-var import_node_fs14 = __toESM(require("node:fs"), 1);
+var import_node_fs15 = __toESM(require("node:fs"), 1);
+
+// server/src/pipeline/sku.ts
+function formatSku(p, day, n) {
+  return skuPrefix(p, day) + String(n).padStart(2, "0");
+}
+function skuPrefix(p, day) {
+  const [y, m, d] = day.split("-");
+  return `${p.store}-${p.code}${y.slice(-1)}${p.region}${m}${d}${p.mark}`;
+}
+var SkuCounter = class {
+  constructor(file2) {
+    this.file = file2;
+  }
+  file;
+  mem = {};
+  read() {
+    return this.file ? readJsonSync(this.file) ?? {} : this.mem;
+  }
+  /** taken：别的任务已经用了、或者输出文件夹里已经有这个名字的文件，就跳过 */
+  allocate(p, taken, now = /* @__PURE__ */ new Date()) {
+    const day = localDay(now);
+    const all = this.read();
+    const key = skuPrefix(p, day);
+    let n = (all[day]?.[key] ?? 0) + 1;
+    while (taken(formatSku(p, day, n))) n++;
+    const next = { [day]: { ...all[day] ?? {}, [key]: n } };
+    if (this.file) {
+      try {
+        writeFileAtomicSync(this.file, JSON.stringify(next));
+      } catch (e) {
+        log.warn(`\u4FDD\u5B58 SKU \u5E8F\u53F7\u5931\u8D25\uFF1A${e.message}`);
+      }
+    } else this.mem = next;
+    return formatSku(p, day, n);
+  }
+};
+
+// server/src/server.ts
 var import_node_path21 = __toESM(require("node:path"), 1);
 var import_node_http = __toESM(require("node:http"), 1);
 var import_express = __toESM(require_express2(), 1);
@@ -57471,6 +57509,10 @@ var ParentSchema = external_exports.object({
   feishu: FeishuSchema.prefault({}),
   spapi: SpapiSchema.prefault({})
 });
+var SkuSchema = external_exports.object({
+  store: external_exports.string().default("HJ"),
+  region: external_exports.string().default("7")
+});
 var SettingsSchema = external_exports.object({
   image: ImageApiSchema.prefault({}),
   analysis: AnalysisApiSchema.prefault({}),
@@ -57486,7 +57528,8 @@ var SettingsSchema = external_exports.object({
   mainQc: external_exports.boolean().default(true),
   /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
   patternQcDeltaE: external_exports.number().min(1).max(100).default(5),
-  parent: ParentSchema.prefault({})
+  parent: ParentSchema.prefault({}),
+  sku: SkuSchema.prefault({})
 });
 var SettingsPatchSchema = external_exports.object({
   image: external_exports.object(imageFields).partial().optional(),
@@ -57499,11 +57542,12 @@ var SettingsPatchSchema = external_exports.object({
   patternQcThreshold: external_exports.number().min(0).max(1).optional(),
   patternQcDeltaE: external_exports.number().min(1).max(100).optional(),
   mainQc: external_exports.boolean().optional(),
+  sku: external_exports.object({ store: external_exports.string().trim().regex(/^[A-Za-z0-9]{1,10}$/, "\u5E97\u94FA\u7F29\u5199\u53EA\u80FD\u7528 1\uFF5E10 \u4E2A\u5B57\u6BCD\u6216\u6570\u5B57"), region: external_exports.string().trim().regex(/^[A-Za-z0-9]{1,5}$/, "\u5730\u533A\u6807\u8BC6\u53EA\u80FD\u7528 1\uFF5E5 \u4E2A\u5B57\u6BCD\u6216\u6570\u5B57") }).partial().optional(),
   parent: external_exports.object({
     enabled: external_exports.boolean().optional(),
     sheetUrl: external_exports.string().max(2e3).optional(),
     threshold: external_exports.number().min(0).max(1).optional(),
-    creatorMark: external_exports.string().max(10).optional(),
+    creatorMark: external_exports.string().trim().regex(/^[A-Za-z0-9]{0,10}$/, "\u4E13\u5C5E\u53F7\u53EA\u80FD\u7528\u5B57\u6BCD\u6216\u6570\u5B57").optional(),
     feishu: external_exports.object({
       appId: external_exports.string().max(200),
       appSecret: external_exports.string().max(500)
@@ -57617,7 +57661,8 @@ var SettingsStore = class {
         }),
         image,
         analysis,
-        parent
+        parent,
+        sku: { ...cur.sku, ...stripUndefined({ store: patch.sku?.store?.trim(), region: patch.sku?.region?.trim() }) }
       });
       registerSecret(next.image.apiKey);
       registerSecret(next.analysis.apiKey);
@@ -58357,7 +58402,9 @@ var CategorySchema = external_exports.object({
   extractPrompt: external_exports.string().nullable(),
   styles: external_exports.array(StyleSchema).min(1),
   /** 飞书父体表里对应的标签页；null = 和品类同名（旧库没有这个字段，读入时补 null，不升版本） */
-  parentTab: external_exports.string().nullable().default(null)
+  parentTab: external_exports.string().nullable().default(null),
+  /** 子体 SKU 里的材质缩写，如毛毯 mtfl；null = 不生成 SKU，文件名用原图名（旧库没有这个字段，读入时补 null） */
+  skuCode: external_exports.string().nullable().default(null)
 });
 var LIBRARY_VERSION = 2;
 var LibrarySchema = external_exports.object({
@@ -58899,6 +58946,12 @@ function checkCategoryName(lib, name, exceptId) {
   if (lib.categories.some((c) => c.name === n && c.id !== exceptId)) throw new HttpError(400, `\u5DF2\u7ECF\u6709\u53EB\u300C${n}\u300D\u7684\u54C1\u7C7B\u4E86`);
   return n;
 }
+function checkSkuCode(code) {
+  const t = code?.trim() ?? "";
+  if (!t) return null;
+  if (!/^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$/.test(t)) throw new HttpError(400, "SKU \u6750\u8D28\u7F29\u5199\u53EA\u80FD\u7528\u5B57\u6BCD\u3001\u6570\u5B57\u548C -\uFF0C\u6BD4\u5982 mtfl\u3001cn-tyntyd");
+  return t;
+}
 function checkRatio(ratio) {
   try {
     const [w, h] = ratioToWH(ratio);
@@ -58915,6 +58968,7 @@ var ops = {
       hint: "",
       extractPrompt: null,
       parentTab: null,
+      skuCode: null,
       styles: [{ id: newStyleId(), name: "", ratio: "1:1", whiteImage: null, activeTemplate: "default", templates: [], pasteMode: "auto" }]
     };
     lib.categories.push(c);
@@ -58926,6 +58980,7 @@ var ops = {
     if (p.hint !== void 0) c.hint = p.hint;
     if (p.extractPrompt !== void 0) c.extractPrompt = p.extractPrompt;
     if (p.parentTab !== void 0) c.parentTab = p.parentTab?.trim() || null;
+    if (p.skuCode !== void 0) c.skuCode = checkSkuCode(p.skuCode);
     return c;
   },
   deleteCategory(lib, cid) {
@@ -60613,7 +60668,8 @@ function registerLibrary(r, ctx) {
         name: external_exports.string().optional(),
         hint: external_exports.string().max(500).optional(),
         extractPrompt: external_exports.string().nullable().optional(),
-        parentTab: external_exports.string().max(200).nullable().optional()
+        parentTab: external_exports.string().max(200).nullable().optional(),
+        skuCode: external_exports.string().max(30).nullable().optional()
       }),
       req.body
     );
@@ -61153,7 +61209,9 @@ async function readClipboardFiles() {
 
 // server/src/pipeline/csv.ts
 var import_node_path9 = __toESM(require("node:path"), 1);
-var BASE_HEADER = ["\u539F\u6587\u4EF6\u540D", "\u54C1\u7C7B", "\u6B3E\u5F0F", "\u573A\u666F", "\u5173\u952E\u8BCD", "\u53EF\u5B9A\u5236\u9879", "\u4E3B\u56FE\u6587\u4EF6"];
+var BASE_HEADER = ["\u539F\u6587\u4EF6\u540D", "SKU", "\u54C1\u7C7B", "\u6B3E\u5F0F", "\u573A\u666F", "\u5173\u952E\u8BCD", "\u53EF\u5B9A\u5236\u9879", "\u4E3B\u56FE\u6587\u4EF6"];
+var SKU_COL = 1;
+var ROW_VERSION = 2;
 var PARENT_HEADER = ["\u7236\u4F53\u4E3B\u9898", "\u7236\u4F53SKU", "\u7236\u4F53ASIN", "\u5EFA\u8BAE\u53D8\u4F53\u540D", "\u7236\u4F53\u628A\u63E1", "\u7236\u4F53\u72B6\u6001"];
 var HEADER = [...BASE_HEADER, ...PARENT_HEADER];
 function cell(v) {
@@ -61167,6 +61225,7 @@ function parentStatus(status) {
 function rowOf(j, includeParent = false) {
   const row = [
     j.source.originalName,
+    j.sku ?? "",
     j.route.categoryName,
     j.route.styleName,
     j.info.scene,
@@ -61195,18 +61254,20 @@ function csvOf(jobs) {
   return render(jobs.filter(hasInfo).map((j) => rowOf(j, includeParent)), includeParent);
 }
 var csvForDay = (jobs, day) => csvOf(jobs.filter((j) => j.outputDay === day));
-function normalizeRow(row, includeParent) {
-  if (!includeParent || row.row.length >= HEADER.length) return row;
-  return { ...row, row: [...row.row, ...Array(HEADER.length - row.row.length).fill("")] };
+function normalizeRow(saved, includeParent) {
+  let row = saved.row;
+  if ((saved.v ?? 1) < ROW_VERSION) row = [...row.slice(0, SKU_COL), "", ...row.slice(SKU_COL)];
+  if (includeParent && row.length < HEADER.length) row = [...row, ...Array(HEADER.length - row.length).fill("")];
+  return { ...saved, row, v: ROW_VERSION };
 }
 var CSV_NAME = "\u8BC6\u522B\u4FE1\u606F.csv";
 async function writeBatchCsv(outputDir, jobs, folder, rowsFile) {
   const inFolder = jobs.filter((j) => j.outputFolder === folder);
   const saved = /* @__PURE__ */ new Map();
-  for (const r of (rowsFile ? readJsonSync(rowsFile) : null) ?? []) saved.set(r.id, r);
+  for (const r of (rowsFile ? readJsonSync(rowsFile) : null) ?? []) saved.set(r.id, normalizeRow(r, false));
   const includeParent = inFolder.some(hasParent) || [...saved.values()].some((r) => r.row.length >= HEADER.length);
   for (const j of inFolder) {
-    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent) });
+    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent), v: ROW_VERSION });
     else saved.delete(j.id);
   }
   const rows = [...saved.values()].map((r) => normalizeRow(r, includeParent)).sort((a, b) => a.createdAt === b.createdAt ? a.id < b.id ? -1 : 1 : a.createdAt < b.createdAt ? -1 : 1);
@@ -61395,6 +61456,8 @@ var JobSchema = external_exports.object({
   /** 这张图的输出文件夹名（保存位置下的一级文件夹），同一批图共用；旧任务读入时按日期补上 */
   outputFolder: external_exports.string().default(""),
   outputBase: external_exports.string(),
+  /** 子体 SKU（品类填了材质缩写才有）；有的话输出文件名就用它 */
+  sku: external_exports.string().nullable().default(null),
   route: external_exports.object({
     categoryId: external_exports.string(),
     styleId: external_exports.string(),
@@ -61599,6 +61662,7 @@ var JobStore = class {
 };
 
 // server/src/scheduler/scheduler.ts
+var import_node_fs13 = __toESM(require("node:fs"), 1);
 var import_node_path19 = __toESM(require("node:path"), 1);
 
 // server/src/pipeline/step0Route.ts
@@ -63263,6 +63327,7 @@ var Scheduler = class {
   constructor(d) {
     this.d = d;
     this.handlers = d.handlers ?? DEFAULT_HANDLERS;
+    this.sku = d.sku ?? new SkuCounter(null);
     if (d.stateFile) this.userPaused = readJsonSync(d.stateFile)?.paused === true;
     this.env = {
       settings: () => d.settings.get(),
@@ -63297,6 +63362,7 @@ var Scheduler = class {
   releasing = Promise.resolve();
   csvLock = new KeyedMutex();
   env;
+  sku;
   // ---- 生命周期 ----
   /** 启动复位：running 一律改回 pending（attempts 不变） */
   recover() {
@@ -63470,12 +63536,26 @@ var Scheduler = class {
   }
   applyPatch(jobId, patch) {
     this.d.jobs.update(jobId, (j) => {
+      const prevCat = j.route?.categoryId;
       const prev = j.route?.categoryName;
       patch(j);
-      if (j.route && j.route.categoryName !== prev) {
-        j.outputBase = assignOutputBase(j, this.d.jobs.list(), this.env.outputDir(), j.route.categoryName);
+      if (!j.route) return;
+      const newCat = j.route.categoryId !== prevCat;
+      if (newCat) j.sku = this.allocSku(j);
+      if (newCat || j.route.categoryName !== prev) {
+        j.outputBase = j.sku ?? assignOutputBase(j, this.d.jobs.list(), this.env.outputDir(), j.route.categoryName);
       }
     });
+  }
+  /** 品类没填材质缩写就不发 SKU，文件名照旧用原图名 */
+  allocSku(j) {
+    const code = this.d.library.get().categories.find((c) => c.id === j.route.categoryId)?.skuCode?.trim();
+    if (!code) return null;
+    const s = this.d.settings.get();
+    const others = this.d.jobs.list().filter((o) => o.id !== j.id);
+    const dir = import_node_path19.default.join(this.env.outputDir(), j.outputFolder, safeName(j.route.categoryName));
+    const taken = (sku) => others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) || import_node_fs13.default.existsSync(import_node_path19.default.join(dir, outputRel("main", sku))) || import_node_fs13.default.existsSync(import_node_path19.default.join(dir, outputRel("pattern", sku)));
+    return this.sku.allocate({ store: s.sku.store, code, region: s.sku.region, mark: s.parent.creatorMark }, taken);
   }
   applyResult(jobId, i2, r) {
     if (r.patch) this.applyPatch(jobId, r.patch);
@@ -63833,7 +63913,7 @@ var Scheduler = class {
 };
 
 // server/src/api/jobs.ts
-var import_node_fs13 = __toESM(require("node:fs"), 1);
+var import_node_fs14 = __toESM(require("node:fs"), 1);
 var import_promises12 = __toESM(require("node:fs/promises"), 1);
 var import_node_path20 = __toESM(require("node:path"), 1);
 var import_sharp8 = __toESM(require("sharp"), 1);
@@ -63918,6 +63998,7 @@ function registerJobs(r, ctx) {
           outputDay: localDay(),
           outputFolder: folder,
           outputBase: baseNameOf(name),
+          sku: null,
           route: null,
           plan: null,
           steps: newSteps(),
@@ -63996,7 +64077,7 @@ function registerJobs(r, ctx) {
     if (!["source", "pattern", "main", "blank", "face"].includes(kind)) throw new HttpError(400, "\u6587\u4EF6\u7C7B\u578B\u53EA\u80FD\u662F source\u3001pattern\u3001main\u3001blank\u3001face");
     const dir = jobs.dirOf(job.id);
     const file2 = req.query.size === "thumb" ? import_node_path20.default.join(dir, "thumbs", `${kind}.webp`) : import_node_path20.default.join(dir, kind === "source" ? job.source.file : JOB_FILES[kind]);
-    if (!import_node_fs13.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");
+    if (!import_node_fs14.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(file2);
   });
@@ -64016,7 +64097,7 @@ function registerJobs(r, ctx) {
 // server/src/server.ts
 function readVersion(toolDir) {
   try {
-    return JSON.parse(import_node_fs14.default.readFileSync(import_node_path21.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
+    return JSON.parse(import_node_fs15.default.readFileSync(import_node_path21.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
   } catch {
     return "0.0.0";
   }
@@ -64049,7 +64130,8 @@ async function createContext(paths) {
     bus,
     stateFile: import_node_path21.default.join(paths.dataDir, "queue.json"),
     csvRowsDir: import_node_path21.default.join(paths.dataDir, "batches"),
-    parent: { sheets, spapi, reservations }
+    parent: { sheets, spapi, reservations },
+    sku: new SkuCounter(import_node_path21.default.join(paths.dataDir, "sku.json"))
   });
   const sched = scheduler;
   library.onChange(() => sched.onLibraryChanged());
@@ -64112,7 +64194,7 @@ function createApp(ctx) {
   });
   app.use("/api", api);
   const webDir = ctx.paths.webDir;
-  if (import_node_fs14.default.existsSync(import_node_path21.default.join(webDir, "index.html"))) {
+  if (import_node_fs15.default.existsSync(import_node_path21.default.join(webDir, "index.html"))) {
     app.use(import_express.default.static(webDir, { index: "index.html" }));
     app.get("/{*rest}", (_req, res) => res.sendFile(import_node_path21.default.join(webDir, "index.html")));
   } else {

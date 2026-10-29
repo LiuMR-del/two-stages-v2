@@ -20,6 +20,8 @@ function today() {
 }
 const day = ref(today())
 const showParent = computed(() => jobs.withInfo.some((j) => j.parent !== null))
+const showSku = computed(() => jobs.withInfo.some((j) => !!j.sku))
+const cols = computed(() => 4 + (showSku.value ? 1 : 0) + (showParent.value ? 2 : 0))
 const parentLabel: Record<string, string> = { matched: '已匹配', unsure: '待确认', none: '没有合适的父体', new: '建议新建' }
 
 async function shiftParent(j: Job, delta: 1 | -1) {
@@ -55,15 +57,19 @@ async function copy(text: string) {
     <div style="overflow-x: auto">
       <table class="tbl">
         <thead>
-          <tr><th>主图</th><th>场景</th><th>搜索关键词</th><th>可定制项</th><th v-if="showParent">父体</th><th v-if="showParent">下一个变体名</th></tr>
+          <tr><th>主图</th><th v-if="showSku">SKU</th><th>场景</th><th>搜索关键词</th><th>可定制项</th><th v-if="showParent">父体</th><th v-if="showParent">下一个变体名</th></tr>
         </thead>
         <tbody>
-          <tr v-if="!jobs.withInfo.length"><td :colspan="showParent ? 6 : 4" class="none">主图生成后，这里汇总每张图的场景、关键词和可定制项</td></tr>
+          <tr v-if="!jobs.withInfo.length"><td :colspan="cols" class="none">主图生成后，这里汇总每张图的场景、关键词和可定制项</td></tr>
           <tr v-for="j in jobs.withInfo" :key="j.id">
             <td>
               <button type="button" class="tile" :aria-label="'查看 ' + j.source.originalName + ' 的主图大图'" title="点击看大图" @click="viewMain(j)">
                 <ImageSlot state="image" :img="jobs.fileUrl(j, 'main')" :size="44" white />
               </button>
+            </td>
+            <td v-if="showSku">
+              <template v-if="j.sku"><b class="name">{{ j.sku }}</b><button type="button" class="cp" aria-label="复制 SKU" @click="copy(j.sku)"><Copy aria-hidden="true" /></button></template>
+              <span v-else class="muted small" :title="`去模版库给「${j.route?.categoryName}」填 SKU 材质缩写`">—</span>
             </td>
             <td>{{ j.info!.scene }}<button type="button" class="cp" aria-label="复制场景" @click="copy(j.info!.scene)"><Copy aria-hidden="true" /></button></td>
             <td>

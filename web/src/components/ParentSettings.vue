@@ -177,8 +177,8 @@ async function testSpapi() {
           <AutoText :value="p.threshold.toFixed(2)" :save="saver((v) => ({ threshold: num(v, '把握阈值') }))" label="父体把握阈值" />
         </div>
         <div class="fld">
-          <label>建议新建父体时的创建人标识</label>
-          <AutoText :value="p.creatorMark" :save="saver((v) => ({ creatorMark: v.trim() }))" label="创建人标识" />
+          <label>建议新建父体时的专属号</label>
+          <div class="muted small">{{ p.creatorMark || '（没填）' }}，在上面「SKU 命名」里改</div>
         </div>
       </div>
     </template>

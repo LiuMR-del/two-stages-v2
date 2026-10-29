@@ -214,8 +214,31 @@ describe('识别信息 CSV', () => {
     const saved = JSON.parse(fs.readFileSync(rows, 'utf8')) as { row: string[] }[]
     expect(saved).toHaveLength(2)
     expect(saved.every((r) => r.row).valueOf()).toBeTruthy()
-    expect(saved[0].row).toHaveLength(13)
-    expect(saved[0].row.slice(7)).toEqual(['', '', '', '', '', ''])
+    expect(saved[0].row).toHaveLength(14)
+    expect(saved[0].row.slice(8)).toEqual(['', '', '', '', '', ''])
+  })
+
+  it('2026-10-29 之前存的行（没有 SKU 列）在第 2 列补空，其他列不错位；有 SKU 的图写在第 2 列', async () => {
+    dir = tmpDir()
+    const rows = path.join(dir, 'data', 'batches', 'q.json')
+    fs.mkdirSync(path.dirname(rows), { recursive: true })
+    const oldRow = ['old.png', '铝板画', '', '旧场景', 'k', '', '铝板画/主图/old.png', 'T', 'P', 'A', 'Design 01', '0.90', '已匹配']
+    fs.writeFileSync(rows, JSON.stringify([{ id: 'old', createdAt: '2026-10-28T00:00:00.000Z', row: oldRow }]))
+    const j = routed('new', 'new.png')
+    j.outputFolder = 'q'
+    j.sku = 'HJ-lbh671029101'
+    j.outputBase = j.sku
+    j.steps[3]!.state = 'done'
+    j.info = { scene: '新场景', keywords: ['k'], customizable: [], blankItems: [], blankItemsEn: [] }
+    await writeBatchCsv(dir, [j], 'q', rows)
+    const lines = fs.readFileSync(path.join(dir, 'q', '识别信息.csv'), 'utf8').trim().split('\r\n')
+    expect(lines[0]).toBe('原文件名,SKU,品类,款式,场景,关键词,可定制项,主图文件,父体主题,父体SKU,父体ASIN,建议变体名,父体把握,父体状态')
+    expect(lines[1]).toBe('old.png,,铝板画,,旧场景,k,,铝板画/主图/old.png,T,P,A,Design 01,0.90,已匹配')
+    expect(lines[2]!.startsWith('new.png,HJ-lbh671029101,')).toBe(true)
+    expect(lines[2]).toContain(path.join('主图', 'HJ-lbh671029101.png'))
+    // 再写一次不会重复插列
+    await writeBatchCsv(dir, [j], 'q', rows)
+    expect(fs.readFileSync(path.join(dir, 'q', '识别信息.csv'), 'utf8').trim().split('\r\n')[1]).toBe(lines[1])
   })
 
   it('清除已完成后同一文件夹再加图，CSV 里前面的行不丢；队列里的图重做后行更新', async () => {

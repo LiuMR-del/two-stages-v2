@@ -84,6 +84,12 @@ const ParentSchema = z.object({
 })
 export type ParentSettings = z.infer<typeof ParentSchema>
 
+/** 子体 SKU：店铺缩写-材质缩写 + 年份末位 + 地区标识 + 月日 + 专属号（parent.creatorMark）+ 当天序号 */
+const SkuSchema = z.object({
+  store: z.string().default('HJ'),
+  region: z.string().default('7'),
+})
+
 export const SettingsSchema = z.object({
   image: ImageApiSchema.prefault({}),
   analysis: AnalysisApiSchema.prefault({}),
@@ -100,6 +106,7 @@ export const SettingsSchema = z.object({
   /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
   patternQcDeltaE: z.number().min(1).max(100).default(5),
   parent: ParentSchema.prefault({}),
+  sku: SkuSchema.prefault({}),
 })
 
 export type Settings = z.infer<typeof SettingsSchema>
@@ -117,12 +124,16 @@ export const SettingsPatchSchema = z.object({
   patternQcThreshold: z.number().min(0).max(1).optional(),
   patternQcDeltaE: z.number().min(1).max(100).optional(),
   mainQc: z.boolean().optional(),
+  sku: z
+    .object({ store: z.string().trim().regex(/^[A-Za-z0-9]{1,10}$/, '店铺缩写只能用 1～10 个字母或数字'), region: z.string().trim().regex(/^[A-Za-z0-9]{1,5}$/, '地区标识只能用 1～5 个字母或数字') })
+    .partial()
+    .optional(),
   parent: z
     .object({
       enabled: z.boolean().optional(),
       sheetUrl: z.string().max(2000).optional(),
       threshold: z.number().min(0).max(1).optional(),
-      creatorMark: z.string().max(10).optional(),
+      creatorMark: z.string().trim().regex(/^[A-Za-z0-9]{0,10}$/, '专属号只能用字母或数字').optional(),
       feishu: z
         .object({
           appId: z.string().max(200),
@@ -258,6 +269,7 @@ export class SettingsStore {
         image,
         analysis,
         parent,
+        sku: { ...cur.sku, ...stripUndefined({ store: patch.sku?.store?.trim(), region: patch.sku?.region?.trim() }) },
       })
       registerSecret(next.image.apiKey)
       registerSecret(next.analysis.apiKey)

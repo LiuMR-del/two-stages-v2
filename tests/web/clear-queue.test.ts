@@ -16,6 +16,7 @@ const job = (i: number): Job => ({
   outputDay: '2026-10-27',
   outputFolder: '主图生成-2026-10-27',
   outputBase: 'j' + i,
+  sku: null,
   route: null,
   plan: null,
   steps: Array.from({ length: 6 }, () => ({ state: 'pending' as const, attempts: 0 })),

@@ -19,6 +19,7 @@ function settings(parent: Partial<Settings['parent']> = {}): Settings {
     patternQcThreshold: 0.9,
     patternQcDeltaE: 5,
     mainQc: true,
+    sku: { store: 'HJ', region: '7' },
     parent: {
       enabled: false,
       sheetUrl: '',

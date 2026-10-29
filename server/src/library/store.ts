@@ -152,6 +152,14 @@ function checkCategoryName(lib: Library, name: string, exceptId?: string): strin
   return n
 }
 
+/** 材质缩写会拼进 SKU 和文件名，只允许字母、数字和 -，如 mtfl、cn-tyntyd */
+function checkSkuCode(code: string | null): string | null {
+  const t = code?.trim() ?? ''
+  if (!t) return null
+  if (!/^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$/.test(t)) throw new HttpError(400, 'SKU 材质缩写只能用字母、数字和 -，比如 mtfl、cn-tyntyd')
+  return t
+}
+
 function checkRatio(ratio: string): string {
   try {
     const [w, h] = ratioToWH(ratio)
@@ -169,18 +177,20 @@ export const ops = {
       hint: '',
       extractPrompt: null,
       parentTab: null,
+      skuCode: null,
       styles: [{ id: newStyleId(), name: '', ratio: '1:1', whiteImage: null, activeTemplate: 'default', templates: [], pasteMode: 'auto' }],
     }
     lib.categories.push(c)
     return c
   },
 
-  patchCategory(lib: Library, cid: string, p: { name?: string; hint?: string; extractPrompt?: string | null; parentTab?: string | null }): Category {
+  patchCategory(lib: Library, cid: string, p: { name?: string; hint?: string; extractPrompt?: string | null; parentTab?: string | null; skuCode?: string | null }): Category {
     const c = findCat(lib, cid)
     if (p.name !== undefined) c.name = checkCategoryName(lib, p.name, cid)
     if (p.hint !== undefined) c.hint = p.hint
     if (p.extractPrompt !== undefined) c.extractPrompt = p.extractPrompt
     if (p.parentTab !== undefined) c.parentTab = p.parentTab?.trim() || null
+    if (p.skuCode !== undefined) c.skuCode = checkSkuCode(p.skuCode)
     return c
   },
 

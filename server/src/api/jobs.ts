@@ -109,6 +109,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           outputDay: localDay(),
           outputFolder: folder,
           outputBase: baseNameOf(name),
+          sku: null,
           route: null,
           plan: null,
           steps: newSteps(),

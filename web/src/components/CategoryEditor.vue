@@ -76,6 +76,16 @@ const parentTabs = computed(() => {
   const tabs = settings.settings?.parent.tabs ?? []
   return current && !tabs.includes(current) ? [current, ...tabs] : tabs
 })
+const saveSkuCode = saver((v) => api.patch(base.value, { skuCode: v.trim() || null }))
+/** 今天的第一个 SKU 长什么样，给用户核对规则 */
+const skuSample = computed(() => {
+  const s = settings.settings
+  const code = cat.value.skuCode
+  if (!s || !code) return ''
+  const d = new Date()
+  const md = String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0')
+  return `${s.sku.store}-${code}${String(d.getFullYear()).slice(-1)}${s.sku.region}${md}${s.parent.creatorMark}01`
+})
 async function saveParentTab(value: string) {
   await ui.act(() => lib.mutate(() => api.patch(base.value, { parentTab: value || null })))
 }
@@ -329,6 +339,12 @@ function coverageOf(s: Style): { dot: string; text: string } {
             <option v-for="tab in parentTabs" :key="tab" :value="tab">{{ tab }}</option>
           </select>
           <span v-if="!settings.settings?.parent.tabs.length" class="muted tiny">先去设置里点「读一下试试」</span>
+        </div>
+
+        <span class="k">SKU 材质缩写</span>
+        <div class="v">
+          <AutoText :key="cat.id + 'sku'" :value="cat.skuCode ?? ''" :save="saveSkuCode" label="SKU 材质缩写" />
+          <div class="muted tiny">{{ skuSample ? `今天第一张是 ${skuSample}，输出的图也用它命名；每个品类每天从 01 起` : '不填就不生成 SKU，输出的图用原文件名。父体表里的前缀去掉专属号就是它，比如 HJ-mtfl5 → mtfl' }}</div>
         </div>
 
         <span class="k">{{ singleUnnamed ? '主图模版' : styleLabel(style) + ' 的主图模版' }}</span>

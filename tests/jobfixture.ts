@@ -9,6 +9,7 @@ export function fakeJob(id = 'j1', order = 1): Job {
     outputDay: '2026-10-26',
     outputFolder: '主图生成-2026-10-26-0900',
     outputBase: id,
+    sku: null,
     route: null,
     plan: null,
     steps: newSteps(),

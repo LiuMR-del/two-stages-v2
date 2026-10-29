@@ -133,7 +133,7 @@ describe('e2e 1：混合品类走完全程', () => {
     const csv = fs.readFileSync(csvFile, 'utf8')
     expect(csv.charCodeAt(0)).toBe(0xfeff)
     const lines = csv.trim().split('\r\n')
-    expect(lines[0]).toBe('原文件名,品类,款式,场景,关键词,可定制项,主图文件')
+    expect(lines[0]).toBe('原文件名,SKU,品类,款式,场景,关键词,可定制项,主图文件')
     expect(lines).toHaveLength(5)
     expect(csv).toContain('throw blanket; soft blanket')
     const dl = await api.raw(`/info.csv?day=${day}`)

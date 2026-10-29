@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { SkuCounter } from './pipeline/sku'
 import path from 'node:path'
 import http from 'node:http'
 import express from 'express'
@@ -62,6 +63,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     stateFile: path.join(paths.dataDir, 'queue.json'),
     csvRowsDir: path.join(paths.dataDir, 'batches'),
     parent: { sheets, spapi, reservations },
+    sku: new SkuCounter(path.join(paths.dataDir, 'sku.json')),
   })
   const sched = scheduler
   library.onChange(() => sched.onLibraryChanged())

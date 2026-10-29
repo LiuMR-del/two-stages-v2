@@ -45,6 +45,7 @@ function sampleLib(): Library {
   lib.categories.push(
     {
       id: 'c_frame', name: '相框', hint: '', extractPrompt: null, parentTab: null,
+      skuCode: null,
       styles: [
         { id: 's_h', name: '横版', ratio: '3:2', whiteImage: H1, activeTemplate: 'default', templates: [room(H2)], pasteMode: 'auto' },
         { id: 's_v', name: '竖版', ratio: '2:3', whiteImage: null, activeTemplate: 'default', templates: [room(null)], pasteMode: 'auto' },
@@ -52,6 +53,7 @@ function sampleLib(): Library {
     },
     {
       id: 'c_mug', name: '杯子', hint: '', extractPrompt: '只提取{品类}杯身图案，比例 {比例}', parentTab: null,
+      skuCode: null,
       styles: [
         { id: 's_m', name: '', ratio: '1:1', whiteImage: null, activeTemplate: 't_x', templates: [{ id: 't_x', name: '无图模版', prompt: '把第二张图片印到杯子上', image: null, canvasRatio: null }], pasteMode: 'auto' },
       ],

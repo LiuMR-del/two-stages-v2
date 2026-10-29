@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import type { Bus } from '../events/bus'
 import type { Limiter } from '../ai/limiter'
@@ -31,7 +32,8 @@ import type { FeishuSheets } from '../parent/feishu'
 import type { SpapiClient } from '../parent/spapi'
 import type { Reservations } from '../parent/reservations'
 import { resolvePlan } from '../pipeline/plan'
-import { assignOutputBase, writeOutput } from '../pipeline/output'
+import { assignOutputBase, outputRel, safeName, writeOutput } from '../pipeline/output'
+import { SkuCounter } from '../pipeline/sku'
 import { JOB_FILES } from '../pipeline/files'
 import fsp from 'node:fs/promises'
 import { writeBatchCsv } from '../pipeline/csv'
@@ -78,6 +80,8 @@ export type SchedulerDeps = {
   parent?: { sheets: FeishuSheets; spapi: SpapiClient; reservations?: Reservations }
   /** 每批识别信息 CSV 的行记在这里，移出队列的图的行不丢 */
   csvRowsDir?: string
+  /** 子体 SKU 当天序号；不给就只记在内存里 */
+  sku?: SkuCounter
 }
 
 export class Scheduler {
@@ -95,8 +99,11 @@ export class Scheduler {
   private csvLock = new KeyedMutex()
   readonly env: StepEnv
 
+  private sku: SkuCounter
+
   constructor(private d: SchedulerDeps) {
     this.handlers = d.handlers ?? DEFAULT_HANDLERS
+    this.sku = d.sku ?? new SkuCounter(null)
     if (d.stateFile) this.userPaused = readJsonSync<{ paused?: boolean }>(d.stateFile)?.paused === true
     this.env = {
       settings: () => d.settings.get(),
@@ -315,12 +322,31 @@ export class Scheduler {
 
   private applyPatch(jobId: string, patch: JobPatch): void {
     this.d.jobs.update(jobId, (j) => {
+      const prevCat = j.route?.categoryId
       const prev = j.route?.categoryName
       patch(j)
-      if (j.route && j.route.categoryName !== prev) {
-        j.outputBase = assignOutputBase(j, this.d.jobs.list(), this.env.outputDir(), j.route.categoryName)
+      if (!j.route) return
+      // 定下（或换了）品类才发 SKU；同一品类重做、品类改名都不换号
+      const newCat = j.route.categoryId !== prevCat
+      if (newCat) j.sku = this.allocSku(j)
+      if (newCat || j.route.categoryName !== prev) {
+        j.outputBase = j.sku ?? assignOutputBase(j, this.d.jobs.list(), this.env.outputDir(), j.route.categoryName)
       }
     })
+  }
+
+  /** 品类没填材质缩写就不发 SKU，文件名照旧用原图名 */
+  private allocSku(j: Job): string | null {
+    const code = this.d.library.get().categories.find((c) => c.id === j.route!.categoryId)?.skuCode?.trim()
+    if (!code) return null
+    const s = this.d.settings.get()
+    const others = this.d.jobs.list().filter((o) => o.id !== j.id)
+    const dir = path.join(this.env.outputDir(), j.outputFolder, safeName(j.route!.categoryName))
+    const taken = (sku: string) =>
+      others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) ||
+      fs.existsSync(path.join(dir, outputRel('main', sku))) ||
+      fs.existsSync(path.join(dir, outputRel('pattern', sku)))
+    return this.sku.allocate({ store: s.sku.store, code, region: s.sku.region, mark: s.parent.creatorMark }, taken)
   }
 
   private applyResult(jobId: string, i: number, r: StepResult): void {

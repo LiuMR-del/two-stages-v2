@@ -75,6 +75,7 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
         hint: z.string().max(500).optional(),
         extractPrompt: z.string().nullable().optional(),
         parentTab: z.string().max(200).nullable().optional(),
+        skuCode: z.string().max(30).nullable().optional(),
       }),
       req.body,
     )
