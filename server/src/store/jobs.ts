@@ -82,6 +82,18 @@ const QcSchema = z.object({
     })
     .nullable()
     .default(null),
+  /** 边框外延检查（单独的一次分析请求）；null = 没做（旧任务、主图验收）；error = 请求没成功，不拦 */
+  border: z
+    .object({
+      hasBorder: z.boolean(),
+      overflow: z.string(),
+      source: z.record(z.string(), z.number()).nullable(),
+      pattern: z.record(z.string(), z.number()).nullable(),
+      error: z.string().nullable().default(null),
+      raw: z.string().optional(),
+    })
+    .nullable()
+    .default(null),
   /** 不合格的原因，按 文字 → 元素 → 颜色 → 版面 */
   reasons: z.array(z.string()).default([]),
   snapshot: SnapshotSchema.optional(),

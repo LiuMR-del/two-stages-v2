@@ -21,12 +21,13 @@ export const step5Parent: StepHandler = async (ctx) => {
   const deps = ctx.env.parent
   const p = settings.parent
   const cat = ctx.env.library.get().categories.find((c) => c.id === route.categoryId)
-  const tab = cat?.parentTab?.trim() || route.categoryName
+  // 品类改过名（如相框 → 帆布画）时，旧任务里存的还是旧名，按模版库里现在的名字找标签页
+  const tab = cat?.parentTab?.trim() || cat?.name || route.categoryName
 
   const read = await ctx.retry(() => guard(() => deps.sheets.rows(p.sheetUrl, tab)))
   const base = { tab, readAt: read?.readAt ?? new Date().toISOString() }
   const finish = (r: ParentResult): StepResult => ({ kind: 'done', patch: (j) => (j.parent = r) })
-  if (!read) return finish(emptyResult(base, 'none', `飞书表里没有「${tab}」标签页，去模版库给「${route.categoryName}」选对应的标签页`))
+  if (!read) return finish(emptyResult(base, 'none', `飞书表里没有「${tab}」标签页，去模版库给「${cat?.name ?? route.categoryName}」选对应的标签页`))
   if (!read.rows) return finish(emptyResult(base, 'none', `「${tab}」标签页里找不到「父体SKU」表头`))
   if (!read.rows.length) return finish(emptyResult(base, 'none', `「${tab}」标签页里还没有父体`))
   const rows = read.rows.slice(0, MAX_CANDIDATES)

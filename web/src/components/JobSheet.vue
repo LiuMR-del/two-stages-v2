@@ -93,6 +93,13 @@ function colorText(q: NonNullable<Job['qc']>): string {
   return `${head}；素材图比竞品图：亮度 ${sign(s.L)}、红绿 ${sign(s.a)}、黄蓝 ${sign(s.b)}、鲜艳度 ${sign(s.C)}`
 }
 
+function borderText(b: NonNullable<NonNullable<Job['qc']>['border']>): string {
+  if (b.error) return `没检查成（${b.error}），不拦`
+  if (!b.hasBorder) return '没有一圈格子边框，不用查'
+  const n = (s: Record<string, number> | null) => (s ? `上 ${s.top ?? '?'}、下 ${s.bottom ?? '?'}、左 ${s.left ?? '?'}、右 ${s.right ?? '?'}` : '?')
+  return `${b.overflow || '没有往外延伸'}（格子数仅供参考：竞品图 ${n(b.source)}；素材图 ${n(b.pattern)}）`
+}
+
 async function shift(delta: 1 | -1) {
   await ui.act(() => jobs.shiftParent(job.value!.id, delta))
 }
@@ -413,6 +420,10 @@ async function openFolder() {
               <template v-else>
                 <dt>四边</dt>
                 <dd>{{ [...qc.edgeMissing.map((x) => '少了：' + x), ...qc.edgeExtra.map((x) => '多了：' + x)].join('；') || '和竞品图一致' }}</dd>
+                <template v-if="qc.border">
+                  <dt>边框外延</dt>
+                  <dd>{{ borderText(qc.border) }}</dd>
+                </template>
               </template>
               <dt>颜色</dt>
               <dd>{{ colorText(qc) }}</dd>

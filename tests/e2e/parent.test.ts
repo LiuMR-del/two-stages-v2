@@ -129,6 +129,21 @@ describe('e2e 17：第 6 步匹配父体', () => {
     expect(parentReqs()).toHaveLength(0)
   })
 
+  it('品类改名后（相框 → 铝板画），旧任务重新匹配按现在的名字找标签页', async () => {
+    const api = srv.api
+    await makeCategory(api, '相框', [{ name: '', ratio: '3:2', white: [1500, 1000] }])
+    const [a] = await uploadJobs(api, ['a.png'])
+    const first = await waitJob(api, a.id, isDone)
+    expect(first.parent.status).toBe('none')
+    expect((await api.json('PATCH', `/library/categories/${first.route.categoryId}`, { name: '铝板画' })).status).toBe(200)
+    mock.script({ parent: [{ parent: { pick: 2, confidence: 0.95 } }] })
+    expect((await api.json('POST', `/jobs/${a.id}/redo`, { step: 5 })).status).toBe(200)
+    const again = await waitJob(api, a.id, (j: any) => isDone(j) && j.parent?.status !== 'none')
+    expect(again.route.categoryName).toBe('相框')
+    expect(again.parent.status).toBe('matched')
+    expect(parentReqs()).toHaveLength(1)
+  })
+
   it('店铺里查不到挑中的父体 SKU：待确认', async () => {
     const api = srv.api
     await makeCategory(api, '铝板画', [{ name: '', ratio: '3:2', white: [1500, 1000] }])

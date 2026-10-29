@@ -128,6 +128,15 @@ export type Qc = {
     note: string | null
     threshold?: number
   }
+  /** 边框外延检查；null = 没做 */
+  border?: null | {
+    hasBorder: boolean
+    overflow: string
+    source: Record<string, number> | null
+    pattern: Record<string, number> | null
+    error: string | null
+    raw?: string
+  }
   reasons: string[]
   snapshot?: StepSnapshot
   raw?: string

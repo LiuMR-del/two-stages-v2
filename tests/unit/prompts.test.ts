@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { fillPlaceholders } from '../../server/src/prompts/placeholders'
 import { maxImageRef, refWarning } from '../../server/src/prompts/refcheck'
 import { buildMainRequest, mainPlanFor, PASTE_CONSTRAINT, type PlanMain } from '../../server/src/prompts/main'
-import { buildExtractRequest, EXTRACT_CONSTRAINT, extractPromptFor } from '../../server/src/prompts/extract'
+import { buildExtractRequest, EXTRACT_CONSTRAINT, extractPromptFor, FACE_CONSTRAINT, NO_EXTEND } from '../../server/src/prompts/extract'
+import { BORDER_SYSTEM } from '../../server/src/prompts/qc'
 import { initialLibrary, type Library } from '../../server/src/library/schema'
 import { computeChecks } from '../../server/src/library/checks'
 
@@ -146,6 +147,10 @@ describe('提取请求', () => {
     for (const k of ['edge to edge', 'rounded corners', 'Do not rearrange, redraw', 'never crop, squeeze or drop any text']) expect(EXTRACT_CONSTRAINT).toContain(k)
     // 2026-10-27：印在面上的边框、做旧边属于图案，要保留
     expect(EXTRACT_CONSTRAINT).toContain('printed borders and frame lines, distressed or weathered edges')
+    // 2026-10-29：不许把图案往外延伸（毛毯多出半圈格子）；印刷面版本也要有
+    for (const c of [EXTRACT_CONSTRAINT, FACE_CONSTRAINT]) expect(c.endsWith(NO_EXTEND)).toBe(true)
+    expect(NO_EXTEND).toContain('extra row or column of tiles')
+    expect(BORDER_SYSTEM).toContain('pattern_partial')
   })
 })
 
