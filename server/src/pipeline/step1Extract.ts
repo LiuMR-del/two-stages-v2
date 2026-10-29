@@ -10,16 +10,13 @@ import { flattenWhite, readSize, shrinkForAnalysis } from '../image/process'
 import { flattenFace } from '../image/face'
 import { compareColors, normalizeBox } from '../image/colorCheck'
 import { checkPatternLayout } from '../image/patternLayout'
-import { BORDER_SYSTEM, BORDER_USER, BorderAnswerSchema, compareTexts, qcSystem, QC_USER, QcAnswerSchema } from '../prompts/qc'
+import { compareTexts, qcSystem, QC_USER, QcAnswerSchema } from '../prompts/qc'
 import { sha256 } from '../library/images'
-import { MAX_ATTEMPTS, withRetry } from '../ai/retry'
 import type { Qc } from '../store/jobs'
 import { JOB_FILES, readInput, removeJobImage, writeJobImage } from './files'
 import { writeOutput } from './output'
 import { fidelityParams } from './params'
 import { log } from '../util/log'
-
-const BORDER_TIMEOUT_SEC = 180
 
 export function newQc(): Qc {
   return {
@@ -154,24 +151,8 @@ async function runQc(ctx: StepCtx, patternFile: string): Promise<StepResult> {
   ctx.commit((job) => {
     if (job.qc) job.qc.snapshot = snapshot
   })
-  // 边框外延检查和验收同时发；有一圈格子的图模型要想 1～3 分钟，超时放宽到 180 秒。
-  // 重试单独计数（最多再试一次），不占这一步的尝试次数；请求没成功不拦，写明没检查
-  const borderApi = { ...settings.analysis, timeoutSec: Math.max(settings.analysis.timeoutSec, BORDER_TIMEOUT_SEC) }
-  const borderP = withRetry(() => chatJson(borderApi, { system: BORDER_SYSTEM, user: BORDER_USER, images, signal: ctx.signal }, BorderAnswerSchema), {
-    attemptsSoFar: MAX_ATTEMPTS - 2,
-    signal: ctx.signal,
-  }).then(
-      ({ data, raw }) => ({ hasBorder: data.has_border, overflow: data.has_border ? data.pattern_partial : '', source: data.source, pattern: data.pattern, error: null, raw }),
-      (e: Error) => {
-        if (ctx.signal.aborted) throw e
-        log.warn(`「${ctx.job.source.originalName}」边框外延检查没做成：${e.message}`)
-        return { hasBorder: false, overflow: '', source: null, pattern: null, error: e.message }
-      },
-    )
-  const [{ data, raw }, border] = await Promise.all([
-    ctx.retry(() => chatJson(settings.analysis, { system, user: QC_USER, images, signal: ctx.signal }, QcAnswerSchema)),
-    borderP,
-  ])
+  // 2026-10-29 去掉了单独的边框外延检查：40～160 秒才回、让每张图多等一两分钟，实测还漏查（用户同意去掉）
+  const { data, raw } = await ctx.retry(() => chatJson(settings.analysis, { system, user: QC_USER, images, signal: ctx.signal }, QcAnswerSchema))
 
   const text = compareTexts(data.source_texts, data.pattern_texts)
   const reasons = [...text.diffs]
@@ -181,7 +162,6 @@ async function runQc(ctx: StepCtx, patternFile: string): Promise<StepResult> {
   }
   for (const m of data.edge_missing) reasons.push(`四边少了：${m}`)
   for (const m of data.edge_extra) reasons.push(`四边多了：${m}`)
-  if (border.overflow) reasons.push(`图案往外延伸了：${border.overflow}`)
   const box: [number, number, number, number] | null = useFace ? [0, 0, 1, 1] : normalizeBox(data.print_box, await readSize(images[0]!))
   const color = { ...(await compareColors(srcBuf, patBuf, box, settings.patternQcDeltaE)), threshold: settings.patternQcDeltaE }
   reasons.push(...color.issues)
@@ -201,7 +181,7 @@ async function runQc(ctx: StepCtx, patternFile: string): Promise<StepResult> {
     fillIssues: [],
     layout,
     color,
-    border,
+    border: null,
     reasons,
     snapshot,
     raw,

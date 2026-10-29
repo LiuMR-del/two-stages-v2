@@ -51,32 +51,16 @@ describe('e2e 13：素材图验收', () => {
     expect(w.srv.logs()).toContain('按你的选择仍然使用')
   })
 
-  it('边框外延：单独发一次检查请求；多出半圈格子 → 进需处理；检查请求失败不拦', async () => {
+  it('素材图验收只发一次分析请求（边框外延检查已去掉）', async () => {
     w = await startWorld()
     const api = w.api
     await makeCategory(api, '毛毯', [{ name: '', ratio: '4:5', white: [1200, 1500] }])
-    w.mock.script({
-      border: [
-        { border: { has_border: true, source: { top: 7, bottom: 7, left: 9, right: 9 }, pattern: { top: 7.5, bottom: 7.5, left: 9, right: 9 }, pattern_partial: '上边和下边最左侧各被画布切掉半个格子' } },
-        { status: 400 },
-      ],
-    })
     const [a] = await uploadJobs(api, ['amelia.png'])
-    const bad = await waitJob(api, a.id, hasAttention('qc'), '进需处理')
-    expect(bad.attention.message).toContain('图案往外延伸了：上边和下边最左侧各被画布切掉半个格子')
-    expect(bad.qc.border).toMatchObject({ hasBorder: true, overflow: '上边和下边最左侧各被画布切掉半个格子', pattern: { top: 7.5 }, error: null })
-    const borders = w.mock.log().filter((e) => e.kind === 'border')
-    expect(borders).toHaveLength(1)
-    expect(borders[0]!.images).toHaveLength(2)
-    expect(qcRequests(w)).toHaveLength(1)
-
-    // 重新提取；这次检查请求报错（400 不重试）→ 写明没检查成，不拦
-    expect((await api.json('POST', `/jobs/${a.id}/redo`, { step: 1 })).status).toBe(200)
     const done = await waitJob(api, a.id, isDone)
     expect(done.qc.state).toBe('pass')
-    expect(done.qc.border).toMatchObject({ hasBorder: false, overflow: '' })
-    expect(done.qc.border.error).toBeTruthy()
-    expect(w.srv.logs()).toContain('边框外延检查没做成')
+    expect(done.qc.border).toBeNull()
+    expect(w.mock.log().filter((e) => e.kind === 'other')).toHaveLength(0)
+    expect(qcRequests(w)).toHaveLength(1)
   })
 
   it('图案相似分低于阈值 → 进需处理；重新提取（改提示词）后再验收，合格就继续', async () => {

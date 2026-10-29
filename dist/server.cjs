@@ -62395,18 +62395,6 @@ var QcAnswerSchema = external_exports.object({
   edge_missing: strList,
   edge_extra: strList
 });
-var BORDER_SYSTEM = `\u4F60\u662F\u8FB9\u6846\u5916\u5EF6\u68C0\u67E5\u52A9\u624B\u3002\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u56FE\u7247\u662F\u4ECE\u5B83\u63D0\u53D6\u51FA\u6765\u7684\u5E73\u9762\u7D20\u6750\u56FE\u3002\u53EA\u505A\u4E00\u4EF6\u4E8B\uFF1A\u68C0\u67E5\u7D20\u6750\u56FE\u7684\u56FE\u6848\u6709\u6CA1\u6709\u5F80\u5916\u5EF6\u4F38\u3002
-\u5F88\u591A\u5546\u54C1\uFF08\u5C24\u5176\u62FC\u683C\u6BDB\u6BEF\u3001\u6302\u6BEF\uFF09\u56DB\u5468\u6709\u4E00\u5708\u683C\u5B50\u3001\u8272\u5757\u6216\u91CD\u590D\u5C0F\u56FE\u6848\u7EC4\u6210\u7684\u8FB9\u6846\u3002\u5982\u679C\u4E24\u5F20\u56FE\u90FD\u6709\u8FD9\u6837\u7684\u4E00\u5708\u8FB9\u6846\uFF0C\u5206\u522B\u6570\u51FA\u6BCF\u5F20\u56FE\u4E0A\u3001\u4E0B\u3001\u5DE6\u3001\u53F3\u56DB\u6761\u8FB9\u5404\u6709\u51E0\u4E2A\u683C\u5B50\uFF08\u89D2\u4E0A\u7684\u683C\u5B50\u4E0A\u8FB9\u548C\u5DE6\u8FB9\u90FD\u7B97\u4E00\u6B21\uFF09\u3002\u5546\u54C1\u6298\u53E0\u3001\u642D\u5728\u5BB6\u5177\u4E0A\u6216\u5782\u4E0B\u53BB\u65F6\uFF0C\u6298\u8FC7\u53BB\u7684\u90E8\u5206\u8FD8\u662F\u540C\u4E00\u5708\u8FB9\u6846\uFF0C\u6309\u5E73\u94FA\u540E\u7684\u6574\u6761\u8FB9\u6765\u6570\uFF1B\u88AB\u906E\u4F4F\u770B\u4E0D\u5230\u7684\u6309\u80FD\u63A8\u65AD\u7684\u6570\u3002\u88AB\u753B\u5E03\u8FB9\u5207\u6389\u4E00\u534A\u7684\u683C\u5B50\u8BB0\u4E3A 0.5\u3002
-\u6CA1\u6709\u8FD9\u6837\u4E00\u5708\u8FB9\u6846\u65F6 has_border \u586B false\uFF0C\u5176\u4ED6\u586B null\u3002\u53EA\u8F93\u51FA JSON\uFF1A
-{"has_border": true, "source": {"top": 7, "bottom": 7, "left": 9, "right": 9}, "pattern": {"top": 7, "bottom": 7, "left": 9, "right": 9}, "pattern_partial": "\u7D20\u6750\u56FE\u56DB\u8FB9\u6709\u6CA1\u6709\u88AB\u753B\u5E03\u8FB9\u5207\u6389\u4E00\u534A\u7684\u683C\u5B50\uFF0C\u6216\u8005\u6700\u5916\u5708\u4E4B\u5916\u8FD8\u591A\u51FA\u4E00\u6392\u3001\u4E00\u5217\u683C\u5B50\uFF0C\u6709\u5C31\u7528\u4E2D\u6587\u5199\u6E05\u695A\u54EA\u6761\u8FB9\u3001\u54EA\u91CC\uFF0C\u6CA1\u6709\u586B\u7A7A\u5B57\u7B26\u4E32"}`;
-var BORDER_USER = "\u7B2C\u4E00\u5F20\u662F\u7ADE\u54C1\u5546\u54C1\u56FE\uFF0C\u7B2C\u4E8C\u5F20\u662F\u7D20\u6750\u56FE\u3002\u6309\u8981\u6C42\u68C0\u67E5\u8FB9\u6846\u6709\u6CA1\u6709\u5F80\u5916\u5EF6\u4F38\uFF0C\u53EA\u8F93\u51FA JSON\u3002";
-var Sides = external_exports.object({ top: external_exports.coerce.number(), bottom: external_exports.coerce.number(), left: external_exports.coerce.number(), right: external_exports.coerce.number() }).nullish().catch(null).transform((v) => v ?? null);
-var BorderAnswerSchema = external_exports.object({
-  has_border: external_exports.boolean().catch(false),
-  source: Sides,
-  pattern: Sides,
-  pattern_partial: external_exports.unknown().nullish().transform((v) => typeof v === "string" ? v.trim() : "")
-});
 var MAIN_QC_SYSTEM = `\u4F60\u662F\u4E3B\u56FE\u9A8C\u6536\u52A9\u624B\u3002\u7B2C\u4E00\u5F20\u56FE\u7247\u662F\u7D20\u6750\u56FE\uFF08\u5E73\u9762\u56FE\u6848\uFF09\uFF0C\u7B2C\u4E8C\u5F20\u56FE\u7247\u662F\u628A\u7D20\u6750\u56FE\u8D34\u5230\u5546\u54C1\u4E0A\u751F\u6210\u7684\u4E3B\u56FE\u3002\u8BF7\u5B8C\u6210\u4E0B\u9762\u51E0\u4EF6\u4E8B\uFF0C\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
 1. \u9010\u5B57\u6284\u5199\u6587\u5B57\uFF1A\u5206\u522B\u628A\u7B2C\u4E00\u5F20\u56FE\u91CC\u7684\u6240\u6709\u6587\u5B57\u3001\u7B2C\u4E8C\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\u4E0A\u7684\u6240\u6709\u6587\u5B57\u9010\u5B57\u6284\u4E0B\u6765\u3002\u7167\u539F\u6837\u6284\uFF0C\u4E0D\u7FFB\u8BD1\u3001\u4E0D\u7EA0\u9519\u3001\u4E0D\u8865\u5168\u3001\u4E0D\u6539\u5927\u5C0F\u5199\uFF1B\u6309\u4ECE\u4E0A\u5230\u4E0B\u3001\u4ECE\u5DE6\u5230\u53F3\u7684\u987A\u5E8F\uFF0C\u6BCF\u4E00\u884C\uFF08\u6216\u8FDE\u5728\u4E00\u8D77\u7684\u4E00\u5C0F\u6BB5\uFF09\u4F5C\u4E3A\u6570\u7EC4\u91CC\u7684\u4E00\u9879\u3002\u6CA1\u6709\u6587\u5B57\u7ED9\u7A7A\u6570\u7EC4\u3002
 2. \u6807\u51FA\u5370\u5237\u9762\u4F4D\u7F6E\uFF1A\u7ED9\u51FA\u7B2C\u4E8C\u5F20\u56FE\u91CC\u5546\u54C1\u5370\u5237\u9762\u7684\u5916\u63A5\u77E9\u5F62 print_box\uFF0C\u683C\u5F0F [\u5DE6, \u4E0A, \u53F3, \u4E0B]\uFF0C\u7528 0\uFF5E1 \u7684\u6BD4\u4F8B\u8868\u793A\u3002
@@ -62477,7 +62465,6 @@ function fidelityParams(settings, size) {
 }
 
 // server/src/pipeline/step1Extract.ts
-var BORDER_TIMEOUT_SEC = 180;
 function newQc() {
   return {
     state: "pending",
@@ -62598,22 +62585,7 @@ async function runQc(ctx, patternFile) {
   ctx.commit((job) => {
     if (job.qc) job.qc.snapshot = snapshot;
   });
-  const borderApi = { ...settings.analysis, timeoutSec: Math.max(settings.analysis.timeoutSec, BORDER_TIMEOUT_SEC) };
-  const borderP = withRetry(() => chatJson(borderApi, { system: BORDER_SYSTEM, user: BORDER_USER, images, signal: ctx.signal }, BorderAnswerSchema), {
-    attemptsSoFar: MAX_ATTEMPTS - 2,
-    signal: ctx.signal
-  }).then(
-    ({ data: data2, raw: raw3 }) => ({ hasBorder: data2.has_border, overflow: data2.has_border ? data2.pattern_partial : "", source: data2.source, pattern: data2.pattern, error: null, raw: raw3 }),
-    (e) => {
-      if (ctx.signal.aborted) throw e;
-      log.warn(`\u300C${ctx.job.source.originalName}\u300D\u8FB9\u6846\u5916\u5EF6\u68C0\u67E5\u6CA1\u505A\u6210\uFF1A${e.message}`);
-      return { hasBorder: false, overflow: "", source: null, pattern: null, error: e.message };
-    }
-  );
-  const [{ data, raw: raw2 }, border] = await Promise.all([
-    ctx.retry(() => chatJson(settings.analysis, { system, user: QC_USER, images, signal: ctx.signal }, QcAnswerSchema)),
-    borderP
-  ]);
+  const { data, raw: raw2 } = await ctx.retry(() => chatJson(settings.analysis, { system, user: QC_USER, images, signal: ctx.signal }, QcAnswerSchema));
   const text = compareTexts(data.source_texts, data.pattern_texts);
   const reasons = [...text.diffs];
   if (data.element_score < threshold) {
@@ -62622,7 +62594,6 @@ async function runQc(ctx, patternFile) {
   }
   for (const m of data.edge_missing) reasons.push(`\u56DB\u8FB9\u5C11\u4E86\uFF1A${m}`);
   for (const m of data.edge_extra) reasons.push(`\u56DB\u8FB9\u591A\u4E86\uFF1A${m}`);
-  if (border.overflow) reasons.push(`\u56FE\u6848\u5F80\u5916\u5EF6\u4F38\u4E86\uFF1A${border.overflow}`);
   const box = useFace ? [0, 0, 1, 1] : normalizeBox(data.print_box, await readSize(images[0]));
   const color = { ...await compareColors(srcBuf, patBuf, box, settings.patternQcDeltaE), threshold: settings.patternQcDeltaE };
   reasons.push(...color.issues);
@@ -62642,7 +62613,7 @@ async function runQc(ctx, patternFile) {
     fillIssues: [],
     layout,
     color,
-    border,
+    border: null,
     reasons,
     snapshot,
     raw: raw2

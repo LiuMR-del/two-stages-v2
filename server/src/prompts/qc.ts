@@ -42,35 +42,6 @@ export const QcAnswerSchema = z.object({
 })
 export type QcAnswer = z.infer<typeof QcAnswerSchema>
 
-/**
- * 边框外延检查（2026-10-29）：拼格毛毯这类四周一圈格子的图案，提取时容易往外多补半圈格子。
- * 放进上面那条验收请求里模型会漏看（实测 4 次都 0.98～0.99 放过），单独问才看得出来，所以单独发一次，和验收同时发。
- * 格子个数模型每次数得不一样，只当参考；判定只看 pattern_partial。
- */
-export const BORDER_SYSTEM = `你是边框外延检查助手。第一张图片是竞品商品图，第二张图片是从它提取出来的平面素材图。只做一件事：检查素材图的图案有没有往外延伸。
-很多商品（尤其拼格毛毯、挂毯）四周有一圈格子、色块或重复小图案组成的边框。如果两张图都有这样的一圈边框，分别数出每张图上、下、左、右四条边各有几个格子（角上的格子上边和左边都算一次）。商品折叠、搭在家具上或垂下去时，折过去的部分还是同一圈边框，按平铺后的整条边来数；被遮住看不到的按能推断的数。被画布边切掉一半的格子记为 0.5。
-没有这样一圈边框时 has_border 填 false，其他填 null。只输出 JSON：
-{"has_border": true, "source": {"top": 7, "bottom": 7, "left": 9, "right": 9}, "pattern": {"top": 7, "bottom": 7, "left": 9, "right": 9}, "pattern_partial": "素材图四边有没有被画布边切掉一半的格子，或者最外圈之外还多出一排、一列格子，有就用中文写清楚哪条边、哪里，没有填空字符串"}`
-
-export const BORDER_USER = '第一张是竞品商品图，第二张是素材图。按要求检查边框有没有往外延伸，只输出 JSON。'
-
-const Sides = z
-  .object({ top: z.coerce.number(), bottom: z.coerce.number(), left: z.coerce.number(), right: z.coerce.number() })
-  .nullish()
-  .catch(null)
-  .transform((v) => v ?? null)
-
-export const BorderAnswerSchema = z.object({
-  has_border: z.boolean().catch(false),
-  source: Sides,
-  pattern: Sides,
-  pattern_partial: z
-    .unknown()
-    .nullish()
-    .transform((v) => (typeof v === 'string' ? v.trim() : '')),
-})
-export type BorderAnswer = z.infer<typeof BorderAnswerSchema>
-
 /** 主图验收（AI 贴图时）：素材图和主图一起看。文字照样只让模型抄，由程序比 */
 export const MAIN_QC_SYSTEM = `你是主图验收助手。第一张图片是素材图（平面图案），第二张图片是把素材图贴到商品上生成的主图。请完成下面几件事，只输出 JSON，不要任何其他文字：
 1. 逐字抄写文字：分别把第一张图里的所有文字、第二张图里商品印刷面上的所有文字逐字抄下来。照原样抄，不翻译、不纠错、不补全、不改大小写；按从上到下、从左到右的顺序，每一行（或连在一起的一小段）作为数组里的一项。没有文字给空数组。

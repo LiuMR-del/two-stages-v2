@@ -24,8 +24,6 @@ export type Behavior =
       qc?: Record<string, unknown>
       /** 主图验收的回复（pattern_texts / main_texts / element_score / fill_issues） */
       mainqc?: Record<string, unknown>
-      /** 边框外延检查的回复（has_border / source / pattern / pattern_partial） */
-      border?: Record<string, unknown>
       /** 第 6 步匹配父体的回复（pick / confidence / alternatives / new_themes） */
       parent?: Record<string, unknown>
       format?: 'b64' | 'url' | 'binary'
@@ -41,7 +39,7 @@ export type MockLogEntry = {
   fields: Record<string, string>
   images: { field: string; width: number; height: number; sha256: string; bytes: number }[]
   prompt?: string
-  kind?: 'route' | 'info' | 'qc' | 'mainqc' | 'border' | 'parent' | 'ping' | 'other'
+  kind?: 'route' | 'info' | 'qc' | 'mainqc' | 'parent' | 'ping' | 'other'
   system?: string
   userText?: string[]
   messageCount?: number
@@ -51,8 +49,8 @@ export type MockLogEntry = {
 export type MockRelay = {
   port: number
   url: string
-  /** route / info / qc 只被对应类型的分析请求消费，优先于 chat；border 只消费自己的队列（不吃 chat），没有就按没边框回复 */
-  script(s: { image?: Behavior[]; chat?: Behavior[]; route?: Behavior[]; info?: Behavior[]; qc?: Behavior[]; mainqc?: Behavior[]; border?: Behavior[]; parent?: Behavior[] }): void
+  /** route / info / qc 只被对应类型的分析请求消费，优先于 chat */
+  script(s: { image?: Behavior[]; chat?: Behavior[]; route?: Behavior[]; info?: Behavior[]; qc?: Behavior[]; mainqc?: Behavior[]; parent?: Behavior[] }): void
   setDefaultDelay(ms: number): void
   log(): MockLogEntry[]
   reset(): void
@@ -76,7 +74,6 @@ function parseSize(size: string | undefined): [number, number] {
 }
 
 /** 默认验收合格 */
-const DEFAULT_BORDER = { has_border: false, source: null, pattern: null, pattern_partial: '' }
 const DEFAULT_QC = { source_texts: ['HAPPY FAMILY'], pattern_texts: ['Happy Family'], print_box: [0, 0, 1, 1], element_score: 0.95, element_issues: [], edge_missing: [], edge_extra: [] }
 const DEFAULT_PARENT = { pick: 1, confidence: 0.9, reason: '模拟判断', alternatives: [], new_themes: [] }
 const DEFAULT_MAINQC = { pattern_texts: ['HAPPY FAMILY'], main_texts: ['Happy Family'], print_box: [0, 0, 1, 1], element_score: 0.95, element_issues: [], fill_issues: [] }
@@ -97,14 +94,13 @@ function defaultRoute(system: string) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export async function startMockRelay(opts: { port?: number } = {}): Promise<MockRelay> {
-  const queues: { image: Behavior[]; chat: Behavior[]; route: Behavior[]; info: Behavior[]; qc: Behavior[]; mainqc: Behavior[]; border: Behavior[]; parent: Behavior[] } = {
+  const queues: { image: Behavior[]; chat: Behavior[]; route: Behavior[]; info: Behavior[]; qc: Behavior[]; mainqc: Behavior[]; parent: Behavior[] } = {
     image: [],
     chat: [],
     route: [],
     info: [],
     qc: [],
     mainqc: [],
-    border: [],
     parent: [],
   }
   const entries: MockLogEntry[] = []
@@ -128,7 +124,6 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     if (Array.isArray(body.info)) queues.info.push(...body.info)
     if (Array.isArray(body.qc)) queues.qc.push(...body.qc)
     if (Array.isArray(body.mainqc)) queues.mainqc.push(...body.mainqc)
-    if (Array.isArray(body.border)) queues.border.push(...body.border)
     if (Array.isArray(body.parent)) queues.parent.push(...body.parent)
     if (typeof body.defaultDelayMs === 'number') defaultDelay = body.defaultDelayMs
     res.json({ ok: true, pending: { image: queues.image.length, chat: queues.chat.length, route: queues.route.length, info: queues.info.length, qc: queues.qc.length } })
@@ -259,8 +254,6 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
           ? 'qc'
           : system.includes('主图验收助手')
             ? 'mainqc'
-            : system.includes('边框外延检查助手')
-              ? 'border'
             : system.includes('亚马逊父体匹配助手')
               ? 'parent'
               : body.max_tokens === 1
@@ -271,7 +264,7 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       return void res.json({ model: body.model, choices: [{ message: { role: 'assistant', content: 'h' } }] })
     }
     const specific = kind === 'route' ? queues.route : kind === 'info' ? queues.info : kind === 'qc' ? queues.qc : kind === 'mainqc' ? queues.mainqc : kind === 'parent' ? queues.parent : null
-    const behavior: Behavior = kind === 'border' ? (queues.border.shift() ?? 'ok') : (specific?.shift() ?? queues.chat.shift() ?? 'ok')
+    const behavior: Behavior = specific?.shift() ?? queues.chat.shift() ?? 'ok'
     const entry: MockLogEntry = {
       at: Date.now(),
       endpoint: 'chat/completions',
@@ -317,13 +310,11 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
     else if (b.info) content = '```json\n' + JSON.stringify(b.info) + '\n```'
     else if (b.qc) content = JSON.stringify({ ...DEFAULT_QC, ...b.qc })
     else if (b.parent) content = JSON.stringify({ ...DEFAULT_PARENT, ...b.parent })
-    else if (b.border) content = JSON.stringify({ ...DEFAULT_BORDER, ...b.border })
     else if (b.mainqc) content = JSON.stringify({ ...DEFAULT_MAINQC, print_box: mainBox ?? DEFAULT_MAINQC.print_box, ...b.mainqc })
     else if (kind === 'route') content = JSON.stringify(defaultRoute(system))
     else if (kind === 'info') content = '这是分析结果：\n```json\n' + JSON.stringify(DEFAULT_INFO) + '\n```'
     else if (kind === 'qc') content = JSON.stringify(DEFAULT_QC)
     else if (kind === 'parent') content = JSON.stringify(DEFAULT_PARENT)
-    else if (kind === 'border') content = JSON.stringify(DEFAULT_BORDER)
     else if (kind === 'mainqc') content = JSON.stringify({ ...DEFAULT_MAINQC, print_box: mainBox ?? DEFAULT_MAINQC.print_box })
     else content = '{}'
     res.json({ model: body.model, choices: [{ index: 0, message: { role: 'assistant', content } }] })
@@ -344,7 +335,6 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       if (s.info) queues.info.push(...s.info)
       if (s.qc) queues.qc.push(...s.qc)
       if (s.mainqc) queues.mainqc.push(...s.mainqc)
-      if (s.border) queues.border.push(...s.border)
       if (s.parent) queues.parent.push(...s.parent)
     },
     setDefaultDelay(ms) {
