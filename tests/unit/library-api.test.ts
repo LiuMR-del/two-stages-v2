@@ -88,13 +88,14 @@ describe('模版库接口', () => {
     expect(img.headers.get('content-type')).toContain('webp')
   })
 
-  it('配方预览：默认模版 = 白底图 + 素材图，前置句按白底图实际尺寸', async () => {
+  it('配方预览：默认模版 = 白底图 + 素材图，不限制画布（size auto）', async () => {
     const r = await api.json('GET', `/library/recipe?cid=${cid}&sid=${sH}`)
     expect(r.body.images).toEqual([
       { no: 1, role: '白底图', hash: expect.any(String), auto: false, required: true },
       { no: 2, role: '素材图', hash: null, auto: true, required: true },
     ])
-    expect(r.body.prefix).toBe('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n' + PASTE_CONSTRAINT + '\n')
+    expect(r.body.prefix).toBe('第一张图片是白底图，第二张图片是素材图。\n' + PASTE_CONSTRAINT + '\n')
+    expect(r.body.size).toBe('auto')
     expect(r.body.scope).toBe('全局共用 · 所有品类')
     expect(r.body.warnings).toEqual([])
   })
@@ -128,10 +129,10 @@ describe('模版库接口', () => {
       [1, '参考图'],
       [2, '素材图'],
     ])
-    expect(rh.body.prefix).toBe('[Canvas: 4:5 portrait format] 第一张图片是参考图，第二张图片是素材图。\n')
+    expect(rh.body.prefix).toBe('第一张图片是参考图，第二张图片是素材图。\n')
     expect(rh.body.prompt).toBe('把第二张图片贴到第一张图片里横版挂画上')
     expect(rh.body.scope).toBe('只给「相框·横版」用')
-    expect(rh.body.size).toBe('1024x1024')
+    expect(rh.body.size).toBe('auto')
 
     const rv = await api.json('GET', `/library/recipe?cid=${cid}&sid=${sV}&tid=${tidV}`)
     expect(rv.body.images.map((i: any) => [i.no, i.role, i.hash])).toEqual([
@@ -158,7 +159,7 @@ describe('模版库接口', () => {
     expect(ok.body.library.categories[0].styles[1].templates[0].canvasRatio).toBe('1:1')
     const rv = await api.json('GET', `/library/recipe?cid=${cid}&sid=${sV}&tid=${tidV}`)
     expect(rv.body.prefix).toBe('[Canvas: 1:1 square format] 第一张图片是素材图。\n')
-    expect(rv.body.size).toBe('1024x1024')
+    expect(rv.body.size).toBe('1536x1536')
     const clr = await api.json('PATCH', tpath(sV, tidV), { canvasRatio: '' })
     expect(clr.body.library.categories[0].styles[1].templates[0].canvasRatio).toBeNull()
   })

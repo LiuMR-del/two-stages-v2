@@ -19,6 +19,7 @@ export function fakeJob(id = 'j1', order = 1): Job {
     qc: null,
     mainQc: null,
     face: null,
+    deformed: false,
     parent: null,
   }
 }

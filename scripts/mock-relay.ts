@@ -18,7 +18,7 @@ export type Behavior =
   | {
       status?: number
       retryAfter?: number
-      route?: { category_id: string | null; style_id: string | null; confidence: number; guess?: string; reason?: string; print_corners?: number[][] }
+      route?: { category_id: string | null; style_id: string | null; confidence: number; guess?: string; reason?: string; print_corners?: number[][]; print_flat?: boolean }
       info?: Record<string, unknown>
       /** 素材图验收的回复（source_texts / pattern_texts / element_score / element_issues） */
       qc?: Record<string, unknown>
@@ -193,7 +193,8 @@ export async function startMockRelay(opts: { port?: number } = {}): Promise<Mock
       res.json({ data: [{ b64_json: Buffer.from('this is not an image').toString('base64') }] })
       return
     }
-    const [w, h] = parseSize(fields.size)
+    // size=auto 时真实接口照着第一张输入图出图
+    const [w, h] = fields.size === 'auto' && images[0]?.width ? [images[0].width, images[0].height] : parseSize(fields.size)
     const key = (fields.prompt ?? '') + images.map((i) => i.sha256).join()
     let background = colorFor(key)
     // 提取素材图跟竞品图同色、生成主图跟素材图同色（只按提示词微调 ±2），默认能过验收的色差检查

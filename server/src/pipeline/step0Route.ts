@@ -28,8 +28,10 @@ export const step0Route: StepHandler = async (ctx) => {
     chatJson(settings.analysis, { system, user: ROUTE_USER, imageJpeg: jpeg, signal: ctx.signal }, RouteAnswerSchema),
   )
 
-  const ai = validQuad(data.print_corners, await readSize(jpeg))
-  if (!ai && data.print_corners != null) log.warn(`「${ctx.job.source.originalName}」AI 给的印刷面四个角不合格，按整张图提取：${JSON.stringify(data.print_corners).slice(0, 200)}`)
+  // 有变形的不框选：四个角框不住搭着、折着的软布，拉正后反而混进背景、毯子还是斜的（2026-10-29 实测）
+  const deformed = data.print_flat === false
+  const ai = deformed ? null : validQuad(data.print_corners, await readSize(jpeg))
+  if (!deformed && !ai && data.print_corners != null) log.warn(`「${ctx.job.source.originalName}」AI 给的印刷面四个角不合格，按整张图提取：${JSON.stringify(data.print_corners).slice(0, 200)}`)
   let face: Face | null = null
   if (ai) {
     try {
@@ -40,6 +42,7 @@ export const step0Route: StepHandler = async (ctx) => {
   }
   const setFace = (job: Parameters<NonNullable<StepResult['patch']>>[0]) => {
     job.face = face
+    job.deformed = deformed
   }
 
   const guess = data.guess.trim() || undefined

@@ -73,11 +73,13 @@ describe('素材图版面（本地判定）', () => {
     expect(await checkPatternLayout(buf, '3:2')).toMatchObject({ ok: true, issues: [] })
   })
 
-  it('比例：画布能表示时检查（差 1% 以内）；4:5 这类接口画布不支持就跳过并注明', async () => {
+  it('比例：差 1% 以内算一致；4:5 也检查（提取按精确比例传尺寸）；比 1:2.5 还细长的跳过并注明', async () => {
     const sq = await art(1024, 1024)
     expect((await checkPatternLayout(sq, '3:2')).issues).toEqual(['宽高比 1.000 和产品比例 3:2 不一致'])
     expect(await checkPatternLayout(sq, '1:1')).toMatchObject({ ok: true, ratioChecked: true })
-    expect(await checkPatternLayout(sq, '4:5')).toEqual({ ok: true, issues: [], ratioChecked: false, note: '接口画布不支持 4:5，未检查比例' })
+    expect((await checkPatternLayout(sq, '4:5')).issues).toEqual(['宽高比 1.000 和产品比例 4:5 不一致'])
+    expect(await checkPatternLayout(await art(1232, 1536), '4:5')).toMatchObject({ ok: true, ratioChecked: true })
+    expect(await checkPatternLayout(sq, '1:3')).toEqual({ ok: true, issues: [], ratioChecked: false, note: '1:3 太细长，未检查比例' })
     expect((await checkPatternLayout(await art(1254, 1254), '1:1')).ok).toBe(true)
   })
 })

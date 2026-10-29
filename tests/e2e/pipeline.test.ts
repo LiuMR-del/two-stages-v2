@@ -67,35 +67,38 @@ describe('e2e 1：混合品类走完全程', () => {
     expect(e1.images.map((i) => [i.field, i.width, i.height])).toEqual([['image', 800, 600]])
     expect(e1.fields).toMatchObject({ size: '1536x1024', quality: 'high', input_fidelity: 'high', n: '1' })
     expect(find('[Canvas: 2:3 portrait format] 第一张图片是竞品商品图。\n').fields.size).toBe('1024x1536')
-    expect(find('[Canvas: 1:1 square format] 第一张图片是竞品商品图。\n').fields.size).toBe('1024x1024')
-    expect(find('[Canvas: 5:4 landscape format] 第一张图片是竞品商品图。\n').fields.size).toBe('1536x1024')
+    // 2026-10-29 起按精确比例，4:5、5:4 不再套成固定尺寸
+    expect(find('[Canvas: 1:1 square format] 第一张图片是竞品商品图。\n').fields.size).toBe('1536x1536')
+    expect(find('[Canvas: 5:4 landscape format] 第一张图片是竞品商品图。\n').fields.size).toBe('1536x1232')
 
-    // ③ 默认模版：白底图 + 素材图
-    const m1 = find('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n')
-    expect(m1.prompt).toBe('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n' + PASTE_CONSTRAINT + '\n' + DEFAULT_PASTE_PROMPT)
+    // ③ 默认模版：白底图 + 素材图；不写画布句、size 传 auto，照白底图出图
+    const pastes = reqs.filter((r) => r.prompt!.startsWith('第一张图片是白底图，第二张图片是素材图。\n'))
+    expect(pastes).toHaveLength(2)
+    const m1 = pastes.find((r) => r.images[0]!.width === 1500)!
+    expect(m1.prompt).toBe('第一张图片是白底图，第二张图片是素材图。\n' + PASTE_CONSTRAINT + '\n' + DEFAULT_PASTE_PROMPT)
     expect(m1.images.map((i) => [i.field, i.width, i.height])).toEqual([
       ['image[]', 1500, 1000],
       ['image[]', 1536, 1024],
     ])
-    expect(m1.fields.size).toBe('1536x1024')
-    const m2 = find('[Canvas: 2:3 portrait format] 第一张图片是白底图，第二张图片是素材图。\n')
+    expect(m1.fields.size).toBe('auto')
+    const m2 = pastes.find((r) => r.images[0]!.width === 1000)!
     expect(m2.images.map((i) => [i.width, i.height])).toEqual([
       [1000, 1500],
       [1024, 1536],
     ])
-    expect(m2.fields.size).toBe('1024x1536')
-    // ③ 自定义模版有参考图：画布按参考图实际尺寸
-    const m3 = find('[Canvas: 4:3 landscape format] 第一张图片是参考图，第二张图片是素材图。\n')
-    expect(m3.prompt).toBe('[Canvas: 4:3 landscape format] 第一张图片是参考图，第二张图片是素材图。\n把第二张图片印到第一张图片里的杯子杯身上')
+    expect(m2.fields.size).toBe('auto')
+    // ③ 自定义模版有参考图：同样不限制画布
+    const m3 = find('第一张图片是参考图，第二张图片是素材图。\n')
+    expect(m3.prompt).toBe('第一张图片是参考图，第二张图片是素材图。\n把第二张图片印到第一张图片里的杯子杯身上')
     expect(m3.images.map((i) => [i.width, i.height])).toEqual([
       [1200, 900],
-      [1024, 1024],
+      [1536, 1536],
     ])
-    expect(m3.fields.size).toBe('1536x1024')
+    expect(m3.fields.size).toBe('auto')
     // ③ 自定义模版无参考图：只发素材图
     const m4 = find('[Canvas: 5:4 landscape format] 第一张图片是素材图。\n')
     expect(m4.prompt).toBe('[Canvas: 5:4 landscape format] 第一张图片是素材图。\n把第一张图片做成毛毯的商品主图')
-    expect(m4.images.map((i) => [i.field, i.width, i.height])).toEqual([['image', 1536, 1024]])
+    expect(m4.images.map((i) => [i.field, i.width, i.height])).toEqual([['image', 1536, 1232]])
 
     // ⑤ 按主图实际宽高；清单只出现一次
     const blanks = reqs.filter((r) => r.prompt!.includes('Recreate this exact image'))
@@ -124,8 +127,9 @@ describe('e2e 1：混合品类走完全程', () => {
     for (const f of ['素材图/frame_h.png', '主图/frame_h.png', '空白图/frame_h.png', '素材图/frame_v.png', '主图/frame_v.png', '空白图/frame_v.png']) {
       expect(fs.existsSync(path.join(frameDir, f)), f).toBe(true)
     }
-    expect(await dims(path.join(frameDir, '主图', 'frame_h.png'))).toEqual([1536, 1536])
-    expect(await dims(path.join(frameDir, '空白图', 'frame_h.png'))).toEqual([1536, 1536])
+    // 主图照白底图（1500x1000）出图，再补成方图
+    expect(await dims(path.join(frameDir, '主图', 'frame_h.png'))).toEqual([1500, 1500])
+    expect(await dims(path.join(frameDir, '空白图', 'frame_h.png'))).toEqual([1500, 1500])
     expect(fs.existsSync(path.join(onlyBatch(w), '毛毯', '主图', 'blanket.png'))).toBe(true)
     expect(fs.existsSync(path.join(onlyBatch(w), '毛毯', '空白图', 'blanket.png'))).toBe(false)
     const csvFile = path.join(onlyBatch(w), '识别信息.csv')

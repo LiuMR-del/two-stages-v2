@@ -294,6 +294,7 @@ async function openFolder() {
                   实线是用来提取的区域（约 {{ job.face.size.width }}×{{ job.face.size.height }} 像素），虚线是 AI 给的位置；上、右、下、左四条边分别往外校正了 {{ job.face.moved.join('、') }} 像素，再多留一点余量。第 ② 步只把这块拉正后发给生图模型；框得不对可以在第 ② 步重做时改按整张图提取。
                 </div>
               </template>
+              <span v-else-if="job.deformed" class="muted small">AI 判断竞品图里的商品放在场景里有变形（搭着、折叠、起褶或被遮住），不框选：第 ② 步把整张竞品图交给生图模型，让它自己提取并矫正成平面设计图</span>
               <span v-else class="muted small">AI 没给出印刷面的位置，第 ② 步按整张竞品图提取</span>
             </dd>
           </dl>

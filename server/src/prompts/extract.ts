@@ -1,4 +1,4 @@
-import { canvasFor, ratioToWH, type ApiSize } from './canvas'
+import { exactCanvas, ratioToWH } from './canvas'
 import { fillPlaceholders } from './placeholders'
 import { roleSentence } from './main'
 import type { Category, Library, Style } from '../library/schema'
@@ -31,11 +31,22 @@ export const FACE_CONSTRAINT =
   "The first image is the product's printed face, already cropped out of the competitor photo and flattened. Reproduce it as a clean, flat, front-facing print file that fills the whole canvas edge to edge. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. Remove only what is not printed: thin slivers of background, hands or fingers along the edges, the background showing outside rounded corners, the product's thickness or side edges, mounting holes and screws (continue the surrounding artwork there), reflections, glare and shadows. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge, crop or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. " + NO_EXTEND
 
 /**
- * ② 只发一张图：有印刷面区域时发拉正后的印刷面，没有时发整张竞品图；画布和 size 都按款式比例
+ * 第①步判断商品放在场景里有变形时用这段（2026-10-29，用户要求分情况）：不框选，整张竞品图交给生图模型自己提取、矫正。
+ * 实测搭在扶手椅上的拼格毛毯，按四个角拉正后背景混进来、毯子还是斜的；整张图 + 这段提示词好很多，但仍不是每次都对。
  */
-export function buildExtractRequest(prompt: string, ratio: string, face = false): { prefix: string; prompt: string; size: ApiSize } {
+export const SCENE_CONSTRAINT =
+  "The first image is a photo of the product in use: it may be draped over furniture, folded, wrinkled, curved, hanging, held in hands, partly hidden or seen at an angle. Identify the product and reconstruct its complete printed design as a flat, front-facing print file, as if the product were laid perfectly flat and photographed straight on, filling the whole canvas edge to edge; the product's outer edge (its hem, binding or cut edge) is the canvas edge. Undo every distortion: straighten folds, wrinkles, curves and perspective so that straight lines in the design are straight, rows and columns of the layout are aligned and evenly spaced, and every element keeps its natural proportions. Remove everything that is not the printed design: the background, furniture, hands, shadows, lighting, glare and fabric highlights. Rebuild parts that are folded out of view or hidden only by continuing the visible design's own logic (repeat the same border tiles in the same order, continue the same background); never invent new motifs. A border made of tiles or blocks stays exactly one ring: tiles that wrap around an armrest or hang down belong to that same ring, so every side has the same number of tiles as the product really has, all complete, none cut off by the canvas edge, and nothing outside the ring. Keep every text element, letter and number exactly as written and fully legible, keep the main subject in its original position and size within the design, and keep the exact original colors. Do not restyle, simplify, enlarge or add anything."
+
+/** face = 拉正后的印刷面；scene = 有变形的整张图；photo = 没框出印刷面的整张图 */
+export type ExtractMode = 'face' | 'scene' | 'photo'
+
+/**
+ * ② 只发一张图；画布前置句和 size 都按款式的精确比例（素材图比例要对）
+ */
+export function buildExtractRequest(prompt: string, ratio: string, mode: ExtractMode = 'photo'): { prefix: string; prompt: string; size: string } {
   const [w, h] = ratioToWH(ratio)
-  const c = canvasFor(w, h)
-  const role = face ? roleSentence(['从竞品图裁出并拉正的商品印刷面']) : roleSentence(['竞品商品图'])
-  return { prefix: c.prefix + role + '\n' + (face ? FACE_CONSTRAINT : EXTRACT_CONSTRAINT) + '\n', prompt, size: c.size }
+  const c = exactCanvas(w, h)
+  const role = mode === 'face' ? roleSentence(['从竞品图裁出并拉正的商品印刷面']) : roleSentence(['竞品商品图'])
+  const constraint = mode === 'face' ? FACE_CONSTRAINT : mode === 'scene' ? SCENE_CONSTRAINT : EXTRACT_CONSTRAINT
+  return { prefix: c.prefix + role + '\n' + constraint + '\n', prompt, size: c.size }
 }

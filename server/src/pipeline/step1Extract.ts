@@ -93,7 +93,8 @@ export const step1Extract: StepHandler = async (ctx) => {
     src = { buffer: flat, mime: 'image/png', filename: 'face.png' }
     shown = { no: 1, role: '印刷面', sha256: sha256(flat) }
   }
-  const req = buildExtractRequest(useOverride ? ctx.job.override!.prompt : plan.extractPrompt, ratio, !!flat)
+  const mode = flat ? 'face' : ctx.job.deformed ? 'scene' : 'photo'
+  const req = buildExtractRequest(useOverride ? ctx.job.override!.prompt : plan.extractPrompt, ratio, mode)
   ctx.setSnapshot({
     images: [shown],
     prefix: req.prefix,

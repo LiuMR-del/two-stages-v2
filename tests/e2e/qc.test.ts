@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import { startWorld, makeCategory, uploadJobs, waitJob, isDone, hasAttention, imageRequests, getJob, onlyBatch, type World } from './harness'
 import { PASTE_CONSTRAINT } from '../../server/src/prompts/main'
-import { FACE_CONSTRAINT } from '../../server/src/prompts/extract'
+import { FACE_CONSTRAINT, SCENE_CONSTRAINT } from '../../server/src/prompts/extract'
 import { waitFor } from '../helpers'
 
 let w: World | null = null
@@ -328,6 +328,26 @@ describe('e2e 16：先定印刷面区域，再按区域提取', () => {
     expect(qcRequests(w)[0]!.system).toContain('按透视拉正的商品印刷面')
     expect(done.qc.color.box).toEqual([0, 0, 1, 1])
     expect((await api.raw(`/jobs/${a.id}/files/face`)).status).toBe(200)
+  })
+
+  it('竞品图里商品有变形（print_flat=false）→ 不框选，整张竞品图 + 场景矫正约束；尺寸按款式精确比例', async () => {
+    w = await startWorld()
+    const api = w.api
+    const c = await makeCategory(api, '毛毯', [{ name: '', ratio: '4:5', white: [1200, 1500] }])
+    w.mock.script({
+      route: [{ route: { category_id: c.cid, style_id: null, confidence: 0.95, print_flat: false, print_corners: [[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9]] } }],
+    })
+    const [a] = await uploadJobs(api, ['draped.png'])
+    const done = await waitJob(api, a.id, isDone)
+    expect(done.deformed).toBe(true)
+    expect(done.face).toBeNull()
+    expect(done.steps[1].snapshot.images.map((i: any) => i.role)).toEqual(['竞品图'])
+    expect(done.steps[1].snapshot.prefix).toBe('[Canvas: 4:5 portrait format] 第一张图片是竞品商品图。\n' + SCENE_CONSTRAINT + '\n')
+    const ex = imageRequests(w.mock).filter((r) => r.prompt!.includes(SCENE_CONSTRAINT))
+    expect(ex).toHaveLength(1)
+    expect(ex[0]!.fields.size).toBe('1232x1536')
+    expect(ex[0]!.images.map((i) => [i.width, i.height])).toEqual([[800, 600]])
+    expect(done.qc.snapshot.images.map((i: any) => i.role)).toEqual(['竞品图', '素材图'])
   })
 
   it('区域框错了：第②步重做时选「按整张竞品图提取」', async () => {

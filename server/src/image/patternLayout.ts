@@ -1,5 +1,4 @@
 import sharp from 'sharp'
-import { pickApiSize } from '../prompts/canvas'
 import { ratioDiff, ratioValue } from './whiteShape'
 
 /**
@@ -20,7 +19,7 @@ export const MARGIN_PAIR = 0.05
 const CORNER = 0.04
 /** 宽高比允许差 */
 export const RATIO_TOLERANCE = 0.01
-const API_RATIO: Record<string, number> = { '1536x1024': 1.5, '1024x1536': 1024 / 1536, '1024x1024': 1 }
+const MAX_CHECKED_RATIO = 2.5
 
 export type LayoutResult = { ok: boolean; issues: string[]; ratioChecked: boolean; note: string | null }
 
@@ -125,15 +124,15 @@ export async function checkPatternLayout(buf: Buffer, productRatio: string): Pro
   }
 
   const target = ratioValue(productRatio)
-  const canvas = API_RATIO[pickApiSize(target, 1)]!
   let ratioChecked = false
   let note: string | null = null
-  if (ratioDiff(canvas, target) <= RATIO_TOLERANCE) {
+  // 2026-10-29 起提取按款式精确比例传尺寸，比例都能查；太细长的（超过 1:2.5）模型未必画得出，不查
+  if (Math.max(target, 1 / target) <= MAX_CHECKED_RATIO) {
     ratioChecked = true
     const r = W / H
     if (ratioDiff(r, target) > RATIO_TOLERANCE) issues.push(`宽高比 ${r.toFixed(3)} 和产品比例 ${productRatio} 不一致`)
   } else {
-    note = `接口画布不支持 ${productRatio}，未检查比例`
+    note = `${productRatio} 太细长，未检查比例`
   }
   return { ok: issues.length === 0, issues, ratioChecked, note }
 }

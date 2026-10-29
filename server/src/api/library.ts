@@ -197,9 +197,11 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
     const cat = store.category(q.cid)
     const style = cat.styles.find((s) => s.id === q.sid)
     if (!style) throw new HttpError(404, '款式不存在，可能已被删除')
-    // 正常流程发的是第①步裁好拉正的印刷面
-    const r2 = buildExtractRequest(extractPromptFor(lib, cat, style), style.ratio, true)
-    res.json({ ...r2, scope: cat.extractPrompt?.trim() ? `「${cat.name}」单独设置` : '全局默认' })
+    // 正常流程发的是第①步裁好拉正的印刷面；竞品图有变形时整张图发，前置约束换成 scenePrefix
+    const prompt = extractPromptFor(lib, cat, style)
+    const r2 = buildExtractRequest(prompt, style.ratio, 'face')
+    const scenePrefix = buildExtractRequest(prompt, style.ratio, 'scene').prefix
+    res.json({ ...r2, scenePrefix, scope: cat.extractPrompt?.trim() ? `「${cat.name}」单独设置` : '全局默认' })
   })
 
   r.get('/library/images/:hash', async (req, res) => {

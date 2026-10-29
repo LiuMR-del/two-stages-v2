@@ -48,7 +48,7 @@ export type Recipe = {
   /** 只有默认模版有：auto 是按白底图自动判断的结果，mode 是实际用的 */
   paste: null | { setting: PasteMode; auto: { mode: 'local' | 'ai'; reason: string } | null; mode: 'local' | 'ai'; note: string | null }
 }
-export type ExtractRecipe = { prefix: string; prompt: string; size: string; scope: string }
+export type ExtractRecipe = { prefix: string; prompt: string; size: string; scope: string; scenePrefix?: string }
 
 export type ApiSettings = {
   baseUrl: string
@@ -153,6 +153,8 @@ export type Job = {
   outputDay: string
   outputFolder: string
   outputBase: string
+  /** 第①步判断商品放在场景里有变形，提取时不框选 */
+  deformed?: boolean
   /** 子体 SKU；品类没填材质缩写时为 null */
   sku: string | null
   route: null | {

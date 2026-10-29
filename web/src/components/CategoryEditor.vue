@@ -422,7 +422,8 @@ function coverageOf(s: Style): { dot: string; text: string } {
         <button type="button" class="btn sm" @click="toggleExtract">{{ cat.extractPrompt === null ? '单独设置' : '恢复全局默认' }}</button>
         <div v-if="extract" style="flex-basis: 100%" class="pbox">
           <div class="body" style="background: var(--sf)">
-            <div class="pre"><Lock aria-hidden="true" /><span>系统自动加在最前面：{{ extract.prefix }}</span></div>
+            <div class="pre"><Lock aria-hidden="true" /><span>系统自动加在最前面（竞品图里商品完整、没变形，先框出印刷面拉正）：{{ extract.prefix }}</span></div>
+            <div v-if="extract.scenePrefix" class="pre"><Lock aria-hidden="true" /><span>竞品图里商品放在场景里有变形（搭着、折叠、起褶）时，发整张竞品图，最前面换成：{{ extract.scenePrefix }}</span></div>
             <AutoText
               v-if="cat.extractPrompt !== null"
               :key="cat.id + 'x'"

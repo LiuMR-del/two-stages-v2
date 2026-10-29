@@ -150,6 +150,8 @@ export const JobSchema = z.object({
   /** 这张图的输出文件夹名（保存位置下的一级文件夹），同一批图共用；旧任务读入时按日期补上 */
   outputFolder: z.string().default(''),
   outputBase: z.string(),
+  /** 第①步判断：竞品图里商品放在场景里有变形（搭着、折叠、起褶），提取时不框选，整张图交给生图模型矫正 */
+  deformed: z.boolean().default(false),
   /** 子体 SKU（品类填了材质缩写才有）；有的话输出文件名就用它 */
   sku: z.string().nullable().default(null),
   route: z

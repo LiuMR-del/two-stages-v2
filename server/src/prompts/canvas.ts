@@ -57,6 +57,25 @@ export function isValidRatio(ratio: string): boolean {
   }
 }
 
+/** 生图接口一次能出的最长边 */
+const EXACT_LONG_EDGE = 1536
+
+/**
+ * 按比例给出精确尺寸：长边 1536，两边都取 16 的倍数。中转站接受任意尺寸（2026-10-29 实测 1024x1280、1456x1088 都行）；
+ * 原来只按 3 种固定尺寸取，4:5 被套成 1024x1024，和前置句「4:5 竖版」打架。
+ */
+export function exactSize(w: number, h: number): string {
+  const s = EXACT_LONG_EDGE / Math.max(w, h)
+  const r16 = (v: number) => Math.max(16, Math.round((v * s) / 16) * 16)
+  return `${r16(w)}x${r16(h)}`
+}
+
+/** 素材图提取用：前置句和尺寸都按款式的精确比例 */
+export function exactCanvas(w: number, h: number): { prefix: string; size: string } {
+  const { ratio, orientation } = describeCanvas(w, h)
+  return { prefix: `[Canvas: ${ratio} ${orientation} format] `, size: exactSize(w, h) }
+}
+
 /**
  * 画布描述与 size 必须来自同一组宽高，所以两者只能从这里一起取。
  */

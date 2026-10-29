@@ -58358,6 +58358,16 @@ function isValidRatio(ratio) {
     return false;
   }
 }
+var EXACT_LONG_EDGE = 1536;
+function exactSize(w, h) {
+  const s = EXACT_LONG_EDGE / Math.max(w, h);
+  const r16 = (v) => Math.max(16, Math.round(v * s / 16) * 16);
+  return `${r16(w)}x${r16(h)}`;
+}
+function exactCanvas(w, h) {
+  const { ratio, orientation } = describeCanvas(w, h);
+  return { prefix: `[Canvas: ${ratio} ${orientation} format] `, size: exactSize(w, h) };
+}
 function canvasFor(w, h) {
   const { ratio, orientation } = describeCanvas(w, h);
   return { prefix: `[Canvas: ${ratio} ${orientation} format] `, size: pickApiSize(w, h), ratio, orientation };
@@ -59116,7 +59126,7 @@ var PASTE_CONSTRAINT = "Cover the product's printable face in the first image wi
 function roleSentence(roles) {
   return roles.map((r, i2) => `\u7B2C${CN_NUM[i2]}\u5F20\u56FE\u7247\u662F${r}`).join("\uFF0C") + "\u3002";
 }
-async function buildMainRequest(main2, ratio, dimsOf) {
+async function buildMainRequest(main2, ratio, _dimsOf) {
   const firstRole = main2.templateId === "default" ? "\u767D\u5E95\u56FE" : "\u53C2\u8003\u56FE";
   const first = {
     no: main2.image ? 1 : null,
@@ -59128,24 +59138,19 @@ async function buildMainRequest(main2, ratio, dimsOf) {
   const pattern = { no: main2.image ? 2 : 1, role: "\u7D20\u6750\u56FE", hash: null, auto: true, required: true };
   const slots = [first, pattern];
   const sent = slots.filter((s) => s.no !== null);
-  let w;
-  let h;
+  const roles = roleSentence(sent.map((s) => s.role)) + "\n";
   if (main2.image) {
-    const d = await dimsOf(main2.image.hash);
-    w = d.width;
-    h = d.height;
-  } else {
-    ;
-    [w, h] = ratioToWH(main2.canvasRatio || ratio);
+    return {
+      slots,
+      sent,
+      prefix: roles + (main2.templateId === "default" ? PASTE_CONSTRAINT + "\n" : ""),
+      prompt: main2.prompt,
+      size: "auto"
+    };
   }
-  const canvas = canvasFor(w, h);
-  return {
-    slots,
-    sent,
-    prefix: canvas.prefix + roleSentence(sent.map((s) => s.role)) + "\n" + (main2.templateId === "default" && main2.image ? PASTE_CONSTRAINT + "\n" : ""),
-    prompt: main2.prompt,
-    size: canvas.size
-  };
+  const [w, h] = ratioToWH(main2.canvasRatio || ratio);
+  const canvas = exactCanvas(w, h);
+  return { slots, sent, prefix: canvas.prefix + roles, prompt: main2.prompt, size: canvas.size };
 }
 
 // server/src/prompts/refcheck.ts
@@ -60345,11 +60350,13 @@ function extractPromptFor(lib, cat, style) {
 var NO_EXTEND = "Never extend, repeat or continue the artwork beyond its original outer edge: do not add an extra row or column of tiles or blocks, an extra ring of border, or partial elements cut off by the canvas edge. Each side must show exactly the same number of border tiles or repeated elements as the original.";
 var EXTRACT_CONSTRAINT = "Extract the whole printed face of the product exactly as it is printed and output it as a flat, front-facing print file. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. The printed face fills the whole canvas edge to edge: its outer edges are the canvas edges. Leave out only the physical product: its thickness and side edges, the cut-away rounded corners, mounting holes and screws, perspective, reflections, shadows and the background; where a hole or screw covers the artwork, continue the surrounding artwork. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. If the printed face's proportions differ slightly from the canvas, fit the whole printed face to the canvas; never crop, squeeze or drop any text, element or border. " + NO_EXTEND;
 var FACE_CONSTRAINT = "The first image is the product's printed face, already cropped out of the competitor photo and flattened. Reproduce it as a clean, flat, front-facing print file that fills the whole canvas edge to edge. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. Remove only what is not printed: thin slivers of background, hands or fingers along the edges, the background showing outside rounded corners, the product's thickness or side edges, mounting holes and screws (continue the surrounding artwork there), reflections, glare and shadows. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge, crop or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. " + NO_EXTEND;
-function buildExtractRequest(prompt, ratio, face = false) {
+var SCENE_CONSTRAINT = "The first image is a photo of the product in use: it may be draped over furniture, folded, wrinkled, curved, hanging, held in hands, partly hidden or seen at an angle. Identify the product and reconstruct its complete printed design as a flat, front-facing print file, as if the product were laid perfectly flat and photographed straight on, filling the whole canvas edge to edge; the product's outer edge (its hem, binding or cut edge) is the canvas edge. Undo every distortion: straighten folds, wrinkles, curves and perspective so that straight lines in the design are straight, rows and columns of the layout are aligned and evenly spaced, and every element keeps its natural proportions. Remove everything that is not the printed design: the background, furniture, hands, shadows, lighting, glare and fabric highlights. Rebuild parts that are folded out of view or hidden only by continuing the visible design's own logic (repeat the same border tiles in the same order, continue the same background); never invent new motifs. A border made of tiles or blocks stays exactly one ring: tiles that wrap around an armrest or hang down belong to that same ring, so every side has the same number of tiles as the product really has, all complete, none cut off by the canvas edge, and nothing outside the ring. Keep every text element, letter and number exactly as written and fully legible, keep the main subject in its original position and size within the design, and keep the exact original colors. Do not restyle, simplify, enlarge or add anything.";
+function buildExtractRequest(prompt, ratio, mode = "photo") {
   const [w, h] = ratioToWH(ratio);
-  const c = canvasFor(w, h);
-  const role = face ? roleSentence(["\u4ECE\u7ADE\u54C1\u56FE\u88C1\u51FA\u5E76\u62C9\u6B63\u7684\u5546\u54C1\u5370\u5237\u9762"]) : roleSentence(["\u7ADE\u54C1\u5546\u54C1\u56FE"]);
-  return { prefix: c.prefix + role + "\n" + (face ? FACE_CONSTRAINT : EXTRACT_CONSTRAINT) + "\n", prompt, size: c.size };
+  const c = exactCanvas(w, h);
+  const role = mode === "face" ? roleSentence(["\u4ECE\u7ADE\u54C1\u56FE\u88C1\u51FA\u5E76\u62C9\u6B63\u7684\u5546\u54C1\u5370\u5237\u9762"]) : roleSentence(["\u7ADE\u54C1\u5546\u54C1\u56FE"]);
+  const constraint = mode === "face" ? FACE_CONSTRAINT : mode === "scene" ? SCENE_CONSTRAINT : EXTRACT_CONSTRAINT;
+  return { prefix: c.prefix + role + "\n" + constraint + "\n", prompt, size: c.size };
 }
 
 // server/src/prompts/ratio.ts
@@ -60776,8 +60783,10 @@ function registerLibrary(r, ctx) {
     const cat = store.category(q.cid);
     const style = cat.styles.find((s) => s.id === q.sid);
     if (!style) throw new HttpError(404, "\u6B3E\u5F0F\u4E0D\u5B58\u5728\uFF0C\u53EF\u80FD\u5DF2\u88AB\u5220\u9664");
-    const r2 = buildExtractRequest(extractPromptFor(lib, cat, style), style.ratio, true);
-    res.json({ ...r2, scope: cat.extractPrompt?.trim() ? `\u300C${cat.name}\u300D\u5355\u72EC\u8BBE\u7F6E` : "\u5168\u5C40\u9ED8\u8BA4" });
+    const prompt = extractPromptFor(lib, cat, style);
+    const r2 = buildExtractRequest(prompt, style.ratio, "face");
+    const scenePrefix = buildExtractRequest(prompt, style.ratio, "scene").prefix;
+    res.json({ ...r2, scenePrefix, scope: cat.extractPrompt?.trim() ? `\u300C${cat.name}\u300D\u5355\u72EC\u8BBE\u7F6E` : "\u5168\u5C40\u9ED8\u8BA4" });
   });
   r.get("/library/images/:hash", async (req, res) => {
     const hash2 = p(req, "hash");
@@ -61456,6 +61465,8 @@ var JobSchema = external_exports.object({
   /** 这张图的输出文件夹名（保存位置下的一级文件夹），同一批图共用；旧任务读入时按日期补上 */
   outputFolder: external_exports.string().default(""),
   outputBase: external_exports.string(),
+  /** 第①步判断：竞品图里商品放在场景里有变形（搭着、折叠、起褶），提取时不框选，整张图交给生图模型矫正 */
+  deformed: external_exports.boolean().default(false),
   /** 子体 SKU（品类填了材质缩写才有）；有的话输出文件名就用它 */
   sku: external_exports.string().nullable().default(null),
   route: external_exports.object({
@@ -61679,12 +61690,13 @@ function routeCatalog(lib) {
 }
 function routeSystem(lib) {
   return `\u4F60\u662F\u7535\u5546\u5546\u54C1\u56FE\u5206\u7C7B\u52A9\u624B\u3002\u7ED9\u4F60\u4E00\u5F20\u7ADE\u54C1\u5546\u54C1\u56FE\u548C\u4E00\u4EFD\u54C1\u7C7B\u6E05\u5355\uFF0C\u5224\u65AD\u56FE\u4E2D\u5546\u54C1\u5C5E\u4E8E\u6E05\u5355\u4E2D\u7684\u54EA\u4E2A\u54C1\u7C7B\u3001\u54EA\u4E2A\u6B3E\u5F0F\u3002\u53EA\u8F93\u51FA\u4E00\u4E2A JSON \u5BF9\u8C61\uFF0C\u4E0D\u8981\u8F93\u51FA\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
-{"category_id": "\u6E05\u5355\u4E2D\u7684\u54C1\u7C7B id\uFF1B\u6E05\u5355\u91CC\u6CA1\u6709\u5BF9\u5E94\u54C1\u7C7B\u65F6\u4E3A null", "style_id": "\u8BE5\u54C1\u7C7B\u4E0B\u7684\u6B3E\u5F0F id\uFF1B\u65E0\u6CD5\u5224\u65AD\u65F6\u4E3A null", "confidence": 0 \u5230 1 \u4E4B\u95F4\u7684\u5C0F\u6570, "reason": "\u4E00\u53E5\u8BDD\u4E2D\u6587\u5224\u65AD\u7406\u7531", "guess": "\u56FE\u4E2D\u5546\u54C1\u7684\u4E2D\u6587\u54C1\u7C7B\u540D\uFF0C\u65E0\u8BBA\u662F\u5426\u5339\u914D\u90FD\u5FC5\u987B\u586B\u5199", "print_corners": [[\u5DE6\u4E0Ax, \u5DE6\u4E0Ay], [\u53F3\u4E0Ax, \u53F3\u4E0Ay], [\u53F3\u4E0Bx, \u53F3\u4E0By], [\u5DE6\u4E0Bx, \u5DE6\u4E0By]]}
+{"category_id": "\u6E05\u5355\u4E2D\u7684\u54C1\u7C7B id\uFF1B\u6E05\u5355\u91CC\u6CA1\u6709\u5BF9\u5E94\u54C1\u7C7B\u65F6\u4E3A null", "style_id": "\u8BE5\u54C1\u7C7B\u4E0B\u7684\u6B3E\u5F0F id\uFF1B\u65E0\u6CD5\u5224\u65AD\u65F6\u4E3A null", "confidence": 0 \u5230 1 \u4E4B\u95F4\u7684\u5C0F\u6570, "reason": "\u4E00\u53E5\u8BDD\u4E2D\u6587\u5224\u65AD\u7406\u7531", "guess": "\u56FE\u4E2D\u5546\u54C1\u7684\u4E2D\u6587\u54C1\u7C7B\u540D\uFF0C\u65E0\u8BBA\u662F\u5426\u5339\u914D\u90FD\u5FC5\u987B\u586B\u5199", "print_flat": true \u6216 false, "print_corners": [[\u5DE6\u4E0Ax, \u5DE6\u4E0Ay], [\u53F3\u4E0Ax, \u53F3\u4E0Ay], [\u53F3\u4E0Bx, \u53F3\u4E0By], [\u5DE6\u4E0Bx, \u5DE6\u4E0By]]}
 \u89C4\u5219\uFF1A
 1. \u53EA\u80FD\u4ECE\u6E05\u5355\u4E2D\u9009\u62E9\uFF0C\u4E0D\u5F97\u7F16\u9020 id\u3002\u770B\u4E0D\u6E05\u6216\u6E05\u5355\u4E2D\u6CA1\u6709\u5BF9\u5E94\u54C1\u7C7B\u65F6 category_id \u586B null\u3002
 2. \u6B3E\u5F0F\u6309\u5546\u54C1\u5370\u5237\u9762\u7684\u5F62\u72B6\u548C\u65B9\u5411\u5224\u65AD\uFF08\u4F8B\u5982\u6A2A\u7248/\u7AD6\u7248\u770B\u5370\u5237\u9762\u7684\u5BBD\u9AD8\uFF09\uFF0C\u4E0D\u8981\u6309\u6574\u5F20\u7167\u7247\u7684\u5BBD\u9AD8\u5224\u65AD\u3002
 3. confidence \u8868\u793A\u4F60\u5BF9\u54C1\u7C7B\u5224\u65AD\u7684\u628A\u63E1\uFF0C\u4E0D\u8981\u4E60\u60EF\u6027\u7ED9\u9AD8\u5206\u3002
 4. print_corners \u662F\u5546\u54C1\u300C\u5370\u5237\u9762\u300D\u56DB\u4E2A\u89D2\u5728\u56FE\u91CC\u7684\u4F4D\u7F6E\uFF0C\u5750\u6807\u7528 0\uFF5E1 \u7684\u6BD4\u4F8B\uFF08\u76F8\u5BF9\u6574\u5F20\u56FE\u7684\u5BBD\u548C\u9AD8\uFF09\uFF0C\u987A\u5E8F\u5DE6\u4E0A\u3001\u53F3\u4E0A\u3001\u53F3\u4E0B\u3001\u5DE6\u4E0B\u3002\u5370\u5237\u9762 = \u5546\u54C1\u4E0A\u5370\u7740\u56FE\u6848\u7684\u6574\u5757\u9762\uFF0C\u4E00\u76F4\u5230\u5546\u54C1\u7684\u5B9E\u4F53\u5916\u7F18\uFF1A\u5370\u5728\u9762\u4E0A\u7684\u8FB9\u6846\u3001\u7EBF\u6846\u3001\u505A\u65E7\u8FB9\u3001\u9508\u8FF9\u90FD\u7B97\u5728\u91CC\u9762\uFF0C\u4E0D\u80FD\u5F80\u91CC\u7F29\uFF1B\u80CC\u666F\u3001\u5899\u9762\u3001\u62FF\u7740\u5B83\u7684\u624B\u548C\u4EBA\u3001\u76F8\u6846\u6216\u753B\u6846\u7684\u6728\u6846\u3001\u5546\u54C1\u7684\u539A\u5EA6\u548C\u4FA7\u8FB9\u3001\u9634\u5F71\u90FD\u4E0D\u7B97\u3002\u5546\u54C1\u6709\u5706\u89D2\u65F6\u628A\u5706\u89D2\u8865\u6210\u76F4\u89D2\u7ED9\u51FA\u89D2\u70B9\uFF1B\u659C\u7740\u62CD\u65F6\u6309\u900F\u89C6\u7ED9\u51FA\u56DB\u4E2A\u5B9E\u9645\u7684\u89D2\u70B9\uFF08\u4E0D\u662F\u5916\u63A5\u77E9\u5F62\uFF09\u3002\u5370\u5237\u9762\u4E0D\u662F\u4E00\u5757\u5E73\u6574\u7684\u56DB\u8FB9\u5F62\uFF08\u5982\u63C9\u76B1\u7684\u5E03\u3001\u5F2F\u66F2\u7684\u706F\u7F69\uFF09\u65F6\uFF0C\u7ED9\u51FA\u80FD\u6846\u4F4F\u5B83\u7684\u56DB\u4E2A\u89D2\u3002\u770B\u4E0D\u5230\u5546\u54C1\u65F6\u4E3A null\u3002
+5. print_flat \u5224\u65AD\u7ADE\u54C1\u56FE\u91CC\u5546\u54C1\u7684\u5370\u5237\u9762\u662F\u4E0D\u662F\u300C\u5B8C\u6574\u3001\u5E73\u6574\u3001\u6CA1\u53D8\u5F62\u300D\uFF1A\u6574\u5757\u5370\u5237\u9762\u90FD\u770B\u5F97\u5230\uFF0C\u800C\u4E14\u662F\u4E00\u4E2A\u5E73\u9762\uFF08\u6302\u5899\u7684\u753B\u3001\u62FF\u5728\u624B\u91CC\u6216\u7ACB\u7740\u7684\u94DD\u677F\u3001\u5E73\u94FA\u7684\u6BEF\u5B50\uFF09\uFF0C\u53EA\u662F\u659C\u7740\u62CD\u3001\u6709\u900F\u89C6\u4E5F\u7B97 true\u3002\u5546\u54C1\u653E\u5728\u4F7F\u7528\u573A\u666F\u91CC\u53D8\u4E86\u5F62\u5C31\u662F false\uFF1A\u642D\u5728\u6905\u5B50\u6216\u6C99\u53D1\u4E0A\u3001\u6298\u53E0\u3001\u5377\u8D77\u3001\u8D77\u8936\u3001\u5782\u4E0B\u53BB\u3001\u5F2F\u66F2\uFF08\u5982\u706F\u7F69\uFF09\uFF0C\u6216\u8005\u5370\u5237\u9762\u6709\u4E00\u90E8\u5206\u88AB\u6298\u5230\u80CC\u9762\u3001\u88AB\u906E\u4F4F\u770B\u4E0D\u5230\u3002\u62FF\u4E0D\u51C6\u65F6\u586B false\u3002
 \u54C1\u7C7B\u6E05\u5355\uFF1A
 ${routeCatalog(lib)}`;
 }
@@ -61696,7 +61708,9 @@ var RouteAnswerSchema = external_exports.object({
   reason: external_exports.string().optional().default(""),
   guess: external_exports.string().optional().default(""),
   /** 交给 image/face.ts 校验，不合格当作没给 */
-  print_corners: external_exports.unknown().optional()
+  print_corners: external_exports.unknown().optional(),
+  /** false = 放在场景里有变形，不框选，整张图交给生图模型矫正；没给按 true */
+  print_flat: external_exports.boolean().nullish().catch(null)
 });
 
 // server/src/image/face.ts
@@ -61922,8 +61936,9 @@ var step0Route = async (ctx) => {
   const { data } = await ctx.retry(
     () => chatJson(settings.analysis, { system, user: ROUTE_USER, imageJpeg: jpeg, signal: ctx.signal }, RouteAnswerSchema)
   );
-  const ai = validQuad(data.print_corners, await readSize(jpeg));
-  if (!ai && data.print_corners != null) log.warn(`\u300C${ctx.job.source.originalName}\u300DAI \u7ED9\u7684\u5370\u5237\u9762\u56DB\u4E2A\u89D2\u4E0D\u5408\u683C\uFF0C\u6309\u6574\u5F20\u56FE\u63D0\u53D6\uFF1A${JSON.stringify(data.print_corners).slice(0, 200)}`);
+  const deformed = data.print_flat === false;
+  const ai = deformed ? null : validQuad(data.print_corners, await readSize(jpeg));
+  if (!deformed && !ai && data.print_corners != null) log.warn(`\u300C${ctx.job.source.originalName}\u300DAI \u7ED9\u7684\u5370\u5237\u9762\u56DB\u4E2A\u89D2\u4E0D\u5408\u683C\uFF0C\u6309\u6574\u5F20\u56FE\u63D0\u53D6\uFF1A${JSON.stringify(data.print_corners).slice(0, 200)}`);
   let face = null;
   if (ai) {
     try {
@@ -61934,6 +61949,7 @@ var step0Route = async (ctx) => {
   }
   const setFace = (job) => {
     job.face = face;
+    job.deformed = deformed;
   };
   const guess = data.guess.trim() || void 0;
   const cat = data.category_id ? lib.categories.find((c) => c.id === data.category_id) : void 0;
@@ -62247,7 +62263,7 @@ var MARGIN_ALL = 0.02;
 var MARGIN_PAIR = 0.05;
 var CORNER = 0.04;
 var RATIO_TOLERANCE = 0.01;
-var API_RATIO2 = { "1536x1024": 1.5, "1024x1536": 1024 / 1536, "1024x1024": 1 };
+var MAX_CHECKED_RATIO = 2.5;
 var white = (im, x2, y) => {
   const i2 = (y * im.w + x2) * 3;
   const r = im.d[i2];
@@ -62338,15 +62354,14 @@ async function checkPatternLayout(buf, productRatio) {
     if (rc >= 3) issues.push(`\u5E26\u7740\u4EA7\u54C1\u7684\u5706\u89D2\uFF08${rc} \u4E2A\u89D2\uFF09`);
   }
   const target = ratioValue(productRatio);
-  const canvas = API_RATIO2[pickApiSize(target, 1)];
   let ratioChecked = false;
   let note = null;
-  if (ratioDiff(canvas, target) <= RATIO_TOLERANCE) {
+  if (Math.max(target, 1 / target) <= MAX_CHECKED_RATIO) {
     ratioChecked = true;
     const r = W / H;
     if (ratioDiff(r, target) > RATIO_TOLERANCE) issues.push(`\u5BBD\u9AD8\u6BD4 ${r.toFixed(3)} \u548C\u4EA7\u54C1\u6BD4\u4F8B ${productRatio} \u4E0D\u4E00\u81F4`);
   } else {
-    note = `\u63A5\u53E3\u753B\u5E03\u4E0D\u652F\u6301 ${productRatio}\uFF0C\u672A\u68C0\u67E5\u6BD4\u4F8B`;
+    note = `${productRatio} \u592A\u7EC6\u957F\uFF0C\u672A\u68C0\u67E5\u6BD4\u4F8B`;
   }
   return { ok: issues.length === 0, issues, ratioChecked, note };
 }
@@ -62522,7 +62537,8 @@ var step1Extract = async (ctx) => {
     src = { buffer: flat, mime: "image/png", filename: "face.png" };
     shown = { no: 1, role: "\u5370\u5237\u9762", sha256: sha256(flat) };
   }
-  const req = buildExtractRequest(useOverride ? ctx.job.override.prompt : plan.extractPrompt, ratio, !!flat);
+  const mode = flat ? "face" : ctx.job.deformed ? "scene" : "photo";
+  const req = buildExtractRequest(useOverride ? ctx.job.override.prompt : plan.extractPrompt, ratio, mode);
   ctx.setSnapshot({
     images: [shown],
     prefix: req.prefix,
@@ -64008,6 +64024,7 @@ function registerJobs(r, ctx) {
           qc: null,
           mainQc: null,
           face: null,
+          deformed: false,
           parent: null
         };
         await jobs.create(job);

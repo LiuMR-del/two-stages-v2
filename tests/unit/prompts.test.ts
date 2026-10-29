@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { fillPlaceholders } from '../../server/src/prompts/placeholders'
 import { maxImageRef, refWarning } from '../../server/src/prompts/refcheck'
 import { buildMainRequest, mainPlanFor, PASTE_CONSTRAINT, type PlanMain } from '../../server/src/prompts/main'
-import { buildExtractRequest, EXTRACT_CONSTRAINT, extractPromptFor, FACE_CONSTRAINT, NO_EXTEND } from '../../server/src/prompts/extract'
+import { buildExtractRequest, EXTRACT_CONSTRAINT, extractPromptFor, FACE_CONSTRAINT, NO_EXTEND, SCENE_CONSTRAINT } from '../../server/src/prompts/extract'
 import { BORDER_SYSTEM } from '../../server/src/prompts/qc'
 import { initialLibrary, type Library } from '../../server/src/library/schema'
 import { computeChecks } from '../../server/src/library/checks'
@@ -65,7 +65,7 @@ function sampleLib(): Library {
 const dims = async (h: string) => (h === H1 ? { width: 1500, height: 1000 } : { width: 800, height: 1000 })
 
 describe('buildMainRequest', () => {
-  it('默认模版：白底图 + 素材图，画布按白底图实际尺寸', async () => {
+  it('默认模版：白底图 + 素材图，不写画布句、size 传 auto（照白底图出图，2026-10-29）', async () => {
     const lib = sampleLib()
     const cat = lib.categories[0]!
     const { main, missingWhite } = mainPlanFor(lib, cat, cat.styles[0]!)
@@ -75,12 +75,12 @@ describe('buildMainRequest', () => {
       [1, '白底图', H1],
       [2, '素材图', null],
     ])
-    expect(r.prefix).toBe('[Canvas: 3:2 landscape format] 第一张图片是白底图，第二张图片是素材图。\n' + PASTE_CONSTRAINT + '\n')
-    expect(r.size).toBe('1536x1024')
+    expect(r.prefix).toBe('第一张图片是白底图，第二张图片是素材图。\n' + PASTE_CONSTRAINT + '\n')
+    expect(r.size).toBe('auto')
     expect(r.prompt).toBe(lib.defaults.pastePrompt)
   })
 
-  it('自定义模版有参考图：参考图 + 素材图，画布按参考图实际尺寸', async () => {
+  it('自定义模版有参考图：参考图 + 素材图，同样不限制画布', async () => {
     const lib = sampleLib()
     const cat = lib.categories[0]!
     const { main, scope } = mainPlanFor(lib, cat, cat.styles[0]!, 't_room')
@@ -89,8 +89,8 @@ describe('buildMainRequest', () => {
       [1, '参考图', H2],
       [2, '素材图', null],
     ])
-    expect(r.prefix).toBe('[Canvas: 4:5 portrait format] 第一张图片是参考图，第二张图片是素材图。\n')
-    expect(r.size).toBe('1024x1024')
+    expect(r.prefix).toBe('第一张图片是参考图，第二张图片是素材图。\n')
+    expect(r.size).toBe('auto')
     expect(r.prompt).toBe('把第二张图片贴到第一张图片的相框·横版画面上')
     expect(scope).toBe('只给「相框·横版」用')
   })
@@ -108,15 +108,16 @@ describe('buildMainRequest', () => {
     expect(r.size).toBe('1024x1536')
   })
 
-  it('自定义模版指定了主图比例：没有参考图时画布和 size 按它算，有参考图时仍按参考图', async () => {
+  it('自定义模版指定了主图比例：没有参考图时画布和 size 按它算，有参考图时不限制', async () => {
     const lib = sampleLib()
     const cat = lib.categories[0]!
     for (const s of cat.styles) s.templates[0]!.canvasRatio = '1:1'
     const noRef = await buildMainRequest(mainPlanFor(lib, cat, cat.styles[1]!, 't_room').main, '2:3', dims)
     expect(noRef.prefix).toBe('[Canvas: 1:1 square format] 第一张图片是素材图。\n')
-    expect(noRef.size).toBe('1024x1024')
+    expect(noRef.size).toBe('1536x1536')
     const withRef = await buildMainRequest(mainPlanFor(lib, cat, cat.styles[0]!, 't_room').main, '3:2', dims)
-    expect(withRef.prefix.startsWith('[Canvas: 4:5 portrait format]')).toBe(true)
+    expect(withRef.prefix.startsWith('第一张图片是参考图')).toBe(true)
+    expect(withRef.size).toBe('auto')
   })
 
   it('默认模版缺白底图时标出 missingWhite', () => {
@@ -145,6 +146,11 @@ describe('提取请求', () => {
     const r = buildExtractRequest('x', '2:3')
     expect(r.prefix).toBe('[Canvas: 2:3 portrait format] 第一张图片是竞品商品图。\n' + EXTRACT_CONSTRAINT + '\n')
     expect(r.size).toBe('1024x1536')
+    // 素材图按款式精确比例：4:5 不再套成正方形
+    expect(buildExtractRequest('x', '4:5').size).toBe('1232x1536')
+    expect(buildExtractRequest('x', '3:7').size).toBe('656x1536')
+    expect(buildExtractRequest('x', '4:5', 'scene').prefix).toBe('[Canvas: 4:5 portrait format] 第一张图片是竞品商品图。\n' + SCENE_CONSTRAINT + '\n')
+    for (const k of ['draped over furniture', 'exactly one ring', 'never invent new motifs']) expect(SCENE_CONSTRAINT).toContain(k)
     // 意思不能少：铺满、不带产品边框圆角、不重画、比例差一点补背景不裁文字
     for (const k of ['edge to edge', 'rounded corners', 'Do not rearrange, redraw', 'never crop, squeeze or drop any text']) expect(EXTRACT_CONSTRAINT).toContain(k)
     // 2026-10-27：印在面上的边框、做旧边属于图案，要保留

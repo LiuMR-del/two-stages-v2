@@ -119,6 +119,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           qc: null,
           mainQc: null,
           face: null,
+          deformed: false,
           parent: null,
         }
         await jobs.create(job)
