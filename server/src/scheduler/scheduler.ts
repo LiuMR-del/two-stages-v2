@@ -934,23 +934,8 @@ export class Scheduler {
    * apply = false 只出预览。新 SKU 在店铺里（storeSkus，调用方先强制重扫）、队列里别的图、输出文件夹里已经有了，算冲突，有冲突不改。
    * 有图正在生成时不改；改名时这一批的图都不派发；任何一个文件改名失败，已经改的改回去。
    */
-  /** 这一批改成 mark 之后的新 SKU（接口先拿去店铺里逐个查有没有重名，再调 changeBatchMark） */
-  markTargets(folder: string, mark: string): string[] {
-    const inFolder = this.d.jobs.list().filter((j) => j.outputFolder === folder)
-    const inQueue = new Set(inFolder.map((j) => j.id))
-    const rowsFile = this.d.csvRowsDir ? path.join(this.d.csvRowsDir, `${folder}.json`) : null
-    const metas = [
-      ...inFolder.filter((j) => j.route && j.sku && j.skuMeta).map((j) => j.skuMeta!),
-      ...(rowsFile ? readSavedRows(rowsFile) : []).filter((r) => !inQueue.has(r.id) && r.skuMeta).map((r) => r.skuMeta!),
-    ]
-    return [...new Set(metas.map((m) => m.head + mark + m.seq))]
-  }
-
-  /**
-   * opts.storeSkus：店铺里已有的 SKU（小写）；opts.checked：在店铺里查过的新 SKU（小写），给了的话没查过的算冲突
-   * （查店铺期间又有图进了这一批，让用户再预览一次）
-   */
-  async changeBatchMark(folder: string, mark: string, opts: { apply: boolean; storeSkus: Set<string>; checked?: Set<string> }): Promise<MarkPlan> {
+  /** opts.storeSkus：店铺里已有的 SKU（小写）；现在接口只在本地查，传空 */
+  async changeBatchMark(folder: string, mark: string, opts: { apply: boolean; storeSkus: Set<string> }): Promise<MarkPlan> {
     if (this.renaming.has(folder)) throw new HttpError(409, '正在改这一批的专属号，请稍等')
     const all = this.d.jobs.list()
     const inFolder = all.filter((j) => j.outputFolder === folder)
@@ -987,7 +972,6 @@ export class Scheduler {
       const k = t.next.toLowerCase()
       const dir = path.join(outDir, folder, safeName(t.category))
       if (opts.storeSkus.has(k)) t.conflict = '店铺里已经有这个 SKU'
-      else if (opts.checked && !opts.checked.has(k)) t.conflict = '刚加进这一批的图，还没查店铺，再点一次「预览」'
       else if (others.has(k)) t.conflict = '队列里别的图已经用了'
       else if (k !== t.old.toLowerCase() && !t.was.some((x) => x.toLowerCase() === k) && this.sku.issued(t.next)) t.conflict = '这个号已经发过了（别的批次或之前改过）'
       else if ((seen.get(k) ?? 0) > 1) t.conflict = '这一批里会重名'

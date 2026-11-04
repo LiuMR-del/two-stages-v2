@@ -89,7 +89,7 @@ describe('e2e：改专属号', () => {
     // 预览：三张都列出来，不动文件
     const pre = await api.json('POST', '/batch/mark', { mark: '1' })
     expect(pre.status).toBe(200)
-    expect(pre.body).toMatchObject({ from: '0', to: '1', applied: false, storeCheck: 'noCredentials' })
+    expect(pre.body).toMatchObject({ from: '0', to: '1', applied: false })
     expect(pre.body.items.map((x: any) => [x.old, x.next, x.inQueue, x.conflict])).toEqual([
       [`${head}001`, `${head}101`, false, null],
       [`${head}002`, `${head}102`, false, null],

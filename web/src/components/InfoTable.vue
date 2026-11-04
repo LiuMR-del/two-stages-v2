@@ -29,25 +29,21 @@ function openMark() {
   if (mk.open) void jobs.loadBatch()
 }
 
-/** 改专属号：先预览（列出旧 → 新、冲突），确认后才改 */
+/** 改专属号：直接在输出文件夹里改（只查本地重名，有重名才列出来、不改） */
 const mk = reactive<{ open: boolean; value: string; busy: boolean; plan: MarkPlan | null }>({ open: false, value: '', busy: false, plan: null })
-const hasConflict = computed(() => !!mk.plan?.items.some((x) => x.conflict))
-async function previewMark() {
-  mk.busy = true
-  mk.plan = (await ui.act(() => jobs.changeMark(mk.value.trim(), false))) ?? null
-  mk.busy = false
-}
+const conflicts = computed(() => mk.plan?.items.filter((x) => x.conflict) ?? [])
 async function applyMark() {
   mk.busy = true
+  mk.plan = null
   const r = await ui.act(() => jobs.changeMark(mk.value.trim(), true))
   mk.busy = false
   if (!r) return
   if (r.applied) {
-    ui.toast(`专属号改成 ${r.to}，${r.items.length} 个 SKU 和文件都改好了`)
+    ui.toast(`专属号改成 ${r.to}：${r.items.length} 个 SKU 和文件都改好了${r.skipped.length ? `；${r.skipped.length} 个改版前的 SKU 没改` : ''}`)
     mk.open = false
-    mk.plan = null
     mk.value = ''
-  } else mk.plan = r
+  } else if (!r.items.length) ui.toast('这一批没有能改的 SKU', 'warn')
+  else mk.plan = r
 }
 
 async function shiftParent(j: Job, delta: 1 | -1) {
@@ -85,25 +81,16 @@ async function copy(text: string) {
     </div>
     <div v-if="mk.open" class="mark">
       <div class="row">
-        <span class="small">把这一批所有 SKU 的专属号从 {{ jobs.batch?.mark ?? '0' }} 改成</span>
-        <input v-model="mk.value" aria-label="新专属号" style="width: 72px" placeholder="如 1" @input="mk.plan = null" />
-        <button type="button" class="btn sm" :disabled="mk.busy || !mk.value.trim()" @click="previewMark">{{ mk.busy && !mk.plan ? '检查中…' : '预览' }}</button>
-        <button v-if="mk.plan && !hasConflict && mk.plan.items.length && mk.plan.storeCheck !== 'truncated'" type="button" class="btn sm pri" :disabled="mk.busy" @click="applyMark">{{ mk.busy ? '改名中…' : `确认修改 ${mk.plan.items.length} 个` }}</button>
+        <span class="small">专属号从 {{ jobs.batch?.mark ?? '0' }} 改成</span>
+        <input v-model="mk.value" aria-label="新专属号" style="width: 72px" placeholder="如 1" @input="mk.plan = null" @keyup.enter="mk.value.trim() && !mk.busy && applyMark()" />
+        <button type="button" class="btn sm pri" :disabled="mk.busy || !mk.value.trim()" @click="applyMark">{{ mk.busy ? '改名中…' : '改' }}</button>
         <button type="button" class="btn sm" @click="(mk.open = false), (mk.plan = null)">取消</button>
       </div>
-      <div class="muted tiny">主图、素材图、空白图会跟着改名，识别信息 CSV 重写，已经「清除已完成」的图也一起改；这一批之后再加的图也用新号。先查店铺里和输出文件夹里有没有重名，有就不改。</div>
-      <template v-if="mk.plan">
-        <div v-if="mk.plan.storeCheck === 'noCredentials'" class="warn" style="margin: 0">{{ mk.plan.storeName ? `「${mk.plan.storeName}」` : '这个店铺' }}没填 SP-API 凭证，没查店铺里有没有重名，只查了输出文件夹、队列和今天发过的号</div>
-        <div v-else-if="mk.plan.storeCheck === 'truncated'" class="warn rd" style="margin: 0">「{{ mk.plan.storeName }}」店铺商品没扫全，没法确认在店里有没有重名，先不能改</div>
-        <div v-if="hasConflict" class="warn rd" style="margin: 0">有 {{ mk.plan.items.filter((x) => x.conflict).length }} 个会重名，换一个专属号再试</div>
-        <div v-if="!mk.plan.items.length" class="muted small">这一批没有能改的 SKU</div>
+      <div class="muted tiny">这一批所有 SKU（包括已经「清除已完成」的）一起改，主图、素材图、空白图跟着改名，CSV 重写；之后再加的图也用新号。</div>
+      <template v-if="conflicts.length">
+        <div class="warn rd" style="margin: 0">有 {{ conflicts.length }} 个会重名，没改，换一个专属号再试</div>
         <ul class="plan">
-          <li v-for="x in mk.plan.items" :key="x.old" :class="{ bad: x.conflict }">
-            <span class="mono">{{ x.old }}</span> → <span class="mono">{{ x.next }}</span>
-            <span class="muted tiny">{{ x.name }}{{ x.inQueue ? '' : '（已移出队列）' }}</span>
-            <span v-if="x.conflict" class="tiny" style="color: var(--rd)">{{ x.conflict }}</span>
-          </li>
-          <li v-for="x in mk.plan.skipped" :key="'s' + x.sku" class="muted"><span class="mono">{{ x.sku }}</span> 不改：{{ x.reason }}</li>
+          <li v-for="x in conflicts" :key="x.old" class="bad"><span class="mono">{{ x.next }}</span> <span class="tiny" style="color: var(--rd)">{{ x.conflict }}</span></li>
         </ul>
       </template>
     </div>

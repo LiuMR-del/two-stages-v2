@@ -58363,13 +58363,6 @@ var SpapiClient = class {
     }
     return out;
   }
-  /** 店铺里有没有这个 SKU（只取概要，404 = 没有）；改专属号逐个查重用，比扫整个店铺快得多 */
-  async exists(sku, signal) {
-    const r = await this.getPatiently(`/listings/2021-08-01/items/${this.seller()}/${encodeURIComponent(sku)}`, { marketplaceIds: this.creds().marketplaceId, includedData: "summaries" }, signal);
-    if (r.status === 404) return false;
-    if (r.status >= 400) throw new SpapiError(`\u67E5 SKU \u5931\u8D25\uFF1AHTTP ${r.status}${r.body?.errors?.[0]?.message ? `\uFF0C${r.body.errors[0].message}` : ""}`, r.status);
-    return true;
-  }
   /**
    * 按卖家搜商品的一页（店铺扫描用）：站点自动带上，429 按 Retry-After 等。query 里放 pageSize、pageToken、createdAfter 这些。
    */
@@ -62003,7 +61996,6 @@ function registerParent(r, ctx) {
 }
 
 // server/src/api/batch.ts
-var MARK_CHECK_CONCURRENCY = 4;
 function registerBatch(r, ctx) {
   const folderNow = () => ctx.batch.open() ?? ctx.jobs.list().at(-1)?.outputFolder ?? null;
   r.get("/batch", (_req, res) => {
@@ -62017,31 +62009,8 @@ function registerBatch(r, ctx) {
     const b = parseBody(external_exports.object({ mark: external_exports.string().trim().regex(/^[A-Za-z0-9]{1,10}$/, "\u4E13\u5C5E\u53F7\u53EA\u80FD\u7528 1\uFF5E10 \u4E2A\u5B57\u6BCD\u6216\u6570\u5B57"), apply: external_exports.boolean().default(false) }), req.body);
     const folder = folderNow();
     if (!folder) throw new HttpError(400, "\u73B0\u5728\u6CA1\u6709\u6B63\u5728\u8FDB\u884C\u7684\u4E00\u6279\uFF0C\u52A0\u56FE\u4E4B\u540E\u518D\u6539\u4E13\u5C5E\u53F7");
-    const meta3 = ctx.batch.meta(folder);
-    const store = storeById(ctx.settings.get(), meta3.storeId);
-    const storeSkus = /* @__PURE__ */ new Set();
-    let checked;
-    let storeCheck = "noCredentials";
-    if (store?.spapi.refreshToken && store.spapi.sellerId) {
-      const nexts = ctx.scheduler.markTargets(folder, b.mark);
-      const client = ctx.parent.spapis.for(store.id);
-      try {
-        let i2 = 0;
-        const worker = async () => {
-          while (i2 < nexts.length) {
-            const sku = nexts[i2++];
-            if (await client.exists(sku)) storeSkus.add(sku.toLowerCase());
-          }
-        };
-        await Promise.all(Array.from({ length: Math.min(MARK_CHECK_CONCURRENCY, nexts.length) }, worker));
-      } catch (e) {
-        throw new HttpError(502, `\u67E5\u4E0D\u4E86\u300C${store.name}\u300D\u5E97\u94FA\u91CC\u6709\u6CA1\u6709\u91CD\u540D\u7684 SKU\uFF0C\u5148\u4E0D\u6539\u3002\u68C0\u67E5\u7F51\u7EDC\u6216\u5E97\u94FA\u51ED\u8BC1\u540E\u518D\u8BD5\uFF1A${e.message}`);
-      }
-      checked = new Set(nexts.map((x2) => x2.toLowerCase()));
-      storeCheck = "ok";
-    }
-    const plan = await ctx.scheduler.changeBatchMark(folder, b.mark, { apply: b.apply, storeSkus, checked });
-    res.json({ ...plan, storeCheck, storeName: store?.name ?? null });
+    const plan = await ctx.scheduler.changeBatchMark(folder, b.mark, { apply: b.apply, storeSkus: /* @__PURE__ */ new Set() });
+    res.json(plan);
   });
 }
 
@@ -65014,21 +64983,7 @@ var Scheduler = class {
    * apply = false 只出预览。新 SKU 在店铺里（storeSkus，调用方先强制重扫）、队列里别的图、输出文件夹里已经有了，算冲突，有冲突不改。
    * 有图正在生成时不改；改名时这一批的图都不派发；任何一个文件改名失败，已经改的改回去。
    */
-  /** 这一批改成 mark 之后的新 SKU（接口先拿去店铺里逐个查有没有重名，再调 changeBatchMark） */
-  markTargets(folder, mark) {
-    const inFolder = this.d.jobs.list().filter((j) => j.outputFolder === folder);
-    const inQueue = new Set(inFolder.map((j) => j.id));
-    const rowsFile = this.d.csvRowsDir ? import_node_path19.default.join(this.d.csvRowsDir, `${folder}.json`) : null;
-    const metas = [
-      ...inFolder.filter((j) => j.route && j.sku && j.skuMeta).map((j) => j.skuMeta),
-      ...(rowsFile ? readSavedRows(rowsFile) : []).filter((r) => !inQueue.has(r.id) && r.skuMeta).map((r) => r.skuMeta)
-    ];
-    return [...new Set(metas.map((m) => m.head + mark + m.seq))];
-  }
-  /**
-   * opts.storeSkus：店铺里已有的 SKU（小写）；opts.checked：在店铺里查过的新 SKU（小写），给了的话没查过的算冲突
-   * （查店铺期间又有图进了这一批，让用户再预览一次）
-   */
+  /** opts.storeSkus：店铺里已有的 SKU（小写）；现在接口只在本地查，传空 */
   async changeBatchMark(folder, mark, opts) {
     if (this.renaming.has(folder)) throw new HttpError(409, "\u6B63\u5728\u6539\u8FD9\u4E00\u6279\u7684\u4E13\u5C5E\u53F7\uFF0C\u8BF7\u7A0D\u7B49");
     const all = this.d.jobs.list();
@@ -65064,7 +65019,6 @@ var Scheduler = class {
       const k = t.next.toLowerCase();
       const dir = import_node_path19.default.join(outDir, folder, safeName(t.category));
       if (opts.storeSkus.has(k)) t.conflict = "\u5E97\u94FA\u91CC\u5DF2\u7ECF\u6709\u8FD9\u4E2A SKU";
-      else if (opts.checked && !opts.checked.has(k)) t.conflict = "\u521A\u52A0\u8FDB\u8FD9\u4E00\u6279\u7684\u56FE\uFF0C\u8FD8\u6CA1\u67E5\u5E97\u94FA\uFF0C\u518D\u70B9\u4E00\u6B21\u300C\u9884\u89C8\u300D";
       else if (others.has(k)) t.conflict = "\u961F\u5217\u91CC\u522B\u7684\u56FE\u5DF2\u7ECF\u7528\u4E86";
       else if (k !== t.old.toLowerCase() && !t.was.some((x2) => x2.toLowerCase() === k) && this.sku.issued(t.next)) t.conflict = "\u8FD9\u4E2A\u53F7\u5DF2\u7ECF\u53D1\u8FC7\u4E86\uFF08\u522B\u7684\u6279\u6B21\u6216\u4E4B\u524D\u6539\u8FC7\uFF09";
       else if ((seen.get(k) ?? 0) > 1) t.conflict = "\u8FD9\u4E00\u6279\u91CC\u4F1A\u91CD\u540D";

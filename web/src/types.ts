@@ -260,7 +260,4 @@ export type MarkPlan = {
   items: { name: string; old: string; next: string; conflict: string | null; inQueue: boolean }[]
   skipped: { name: string; sku: string; reason: string }[]
   applied: boolean
-  /** ok = 查过店铺；noCredentials = 没填凭证，只查了本地；truncated = 店铺商品没扫全，不能改 */
-  storeCheck: 'ok' | 'noCredentials' | 'truncated'
-  storeName: string | null
 }

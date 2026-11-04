@@ -315,45 +315,68 @@ async function openFolder() {
             {{ rec!.error || (jobs.queue?.parentPaused && job.steps[4]!.state !== 'pending' ? `匹配父体暂停：${jobs.queue.parentPaused}` : '等待前面的步骤完成') }}
           </div>
           <div v-else-if="job.parent" class="pres">
-            <!-- 结论：父体、下一个变体名（2026-11-04 用户要求精简：依据都收进「为什么是这个」） -->
-            <div class="line">
-              <span class="pill" :class="{ ac: job.parent.status === 'matched', am: job.parent.status === 'unsure', bl: job.parent.status === 'new' }">{{ PARENT_STATUS[job.parent.status] }}</span>
+            <!-- 左边固定标签、右边内容，一眼找到要看的那一项（2026-11-04 用户反馈：排列不好看、要具体看才能定位） -->
+            <dl class="kv pkv">
+              <dt>状态</dt>
+              <dd class="line">
+                <span class="pill" :class="{ ac: job.parent.status === 'matched', am: job.parent.status === 'unsure', bl: job.parent.status === 'new' }">{{ PARENT_STATUS[job.parent.status] }}</span>
+                <span v-if="job.parent.confidence !== null" class="muted small">把握 {{ job.parent.confidence.toFixed(2) }}</span>
+                <span v-if="job.parent.message" class="muted small">{{ job.parent.message }}</span>
+              </dd>
               <template v-if="job.parent.sku">
-                <b class="name">{{ job.parent.sku }}</b><button type="button" class="cp" aria-label="复制父体 SKU" @click="copy(job.parent.sku)"><Copy aria-hidden="true" /></button>
-                <span class="muted small">{{ [job.parent.theme, job.parent.asin || (job.parent.status === 'new' ? '店里还没有，要手动创建' : '')].filter(Boolean).join(' · ') }}</span>
+                <dt>父体</dt>
+                <dd class="line">
+                  <b class="name">{{ job.parent.sku }}</b><button type="button" class="cp" aria-label="复制父体 SKU" @click="copy(job.parent.sku)"><Copy aria-hidden="true" /></button>
+                  <span v-if="job.parent.status === 'new'" class="pill bl">店里还没有，要手动创建</span>
+                </dd>
+                <dt>主题</dt>
+                <dd class="small">{{ job.parent.theme || '—' }}</dd>
+                <template v-if="job.parent.asin">
+                  <dt>ASIN</dt>
+                  <dd class="small">{{ job.parent.asin }}</dd>
+                </template>
               </template>
-            </div>
-            <div v-if="job.parent.message" class="muted small">{{ job.parent.message }}</div>
-            <div v-if="job.parent.naming" class="line">
-              <span class="muted small">下一个变体名</span>
-              <b class="name">{{ job.parent.naming.next ?? '需要手动起名' }}</b>
-              <button v-if="job.parent.naming.next" type="button" class="cp" aria-label="复制推荐变体名" @click="copy(job.parent.naming.next)"><Copy aria-hidden="true" /></button>
-              <template v-if="job.parent.naming.number !== null">
-                <button type="button" class="btn txt sm" aria-label="变体名往后调一格" title="往后调一格（跳过占着的号）" @click="shift(1)">▲</button>
-                <button type="button" class="btn txt sm" aria-label="变体名往前调一格" title="往前调一格（跳过占着的号）" @click="shift(-1)">▼</button>
+              <template v-if="job.parent.naming">
+                <dt>下一个变体名</dt>
+                <dd class="line">
+                  <b class="name">{{ job.parent.naming.next ?? '需要手动起名' }}</b>
+                  <button v-if="job.parent.naming.next" type="button" class="cp" aria-label="复制推荐变体名" @click="copy(job.parent.naming.next)"><Copy aria-hidden="true" /></button>
+                  <template v-if="job.parent.naming.number !== null">
+                    <button type="button" class="btn txt sm" aria-label="变体名往后调一格" title="往后调一格（跳过占着的号）" @click="shift(1)">▲</button>
+                    <button type="button" class="btn txt sm" aria-label="变体名往前调一格" title="往前调一格（跳过占着的号）" @click="shift(-1)">▼</button>
+                  </template>
+                </dd>
               </template>
-              <span v-if="job.parent.confidence !== null" class="pill" :class="{ ac: job.parent.confidence >= 0.7, am: job.parent.confidence < 0.7 }">把握 {{ job.parent.confidence.toFixed(2) }}</span>
-            </div>
-            <div v-if="job.parent.candidates.length > 1" class="cands">
-              <span class="muted small">其他候选</span>
-              <button v-for="candidate in job.parent.candidates.filter((c) => c.sku !== job!.parent!.sku)" :key="candidate.sku" type="button" class="chip" :disabled="parentPickBusy" :title="`改成 ${candidate.sku}`" @click="pickParent(candidate.sku)">{{ candidate.theme || candidate.sku }}<span class="rt">{{ candidate.sku }}</span></button>
-            </div>
+              <template v-if="job.sku">
+                <dt>子体 SKU</dt>
+                <dd class="line"><span class="small">{{ job.sku }}</span><button type="button" class="cp" aria-label="复制子体 SKU" @click="copy(job.sku)"><Copy aria-hidden="true" /></button></dd>
+              </template>
+              <template v-if="job.parent.candidates.length > 1">
+                <dt>其他候选</dt>
+                <dd class="line">
+                  <button v-for="candidate in job.parent.candidates.filter((c) => c.sku !== job!.parent!.sku)" :key="candidate.sku" type="button" class="chip" :disabled="parentPickBusy" :title="`改成 ${candidate.sku}`" @click="pickParent(candidate.sku)">{{ candidate.theme || candidate.sku }}<span class="rt">{{ candidate.sku }}</span></button>
+                </dd>
+              </template>
+            </dl>
             <details class="why">
               <summary class="small">为什么是这个</summary>
-              <div class="why-b small">
-                <div v-if="job.parent.reason"><span class="muted">AI：</span>{{ job.parent.reason }}</div>
-                <div v-if="job.parent.naming?.existing.length">
-                  <span class="muted">父体现有 {{ job.parent.naming.existing.length }} 个子体（{{ job.parent.naming.attribute }}）：</span>
-                  <span class="kids"><span v-for="kid in job.parent.naming.existing" :key="kid" class="pill">{{ kid }}</span></span>
-                </div>
-                <template v-if="job.parent.proposal">
-                  <div><span class="muted">建议新建：</span>前缀 {{ job.parent.proposal.prefix }} + 主题 {{ job.parent.proposal.theme }}（试过 {{ job.parent.proposal.themeCandidates.join('、') || '—' }}）</div>
-                  <div><span class="muted">前缀参照：</span>{{ job.parent.proposal.basedOn.join('、') || '店里这类父体的 SKU 都看不出主题，按「店铺缩写-材质缩写」起' }}</div>
+              <dl class="kv why-b small">
+                <template v-if="job.parent.reason"><dt>AI 理由</dt><dd>{{ job.parent.reason }}</dd></template>
+                <template v-if="job.parent.naming?.existing.length">
+                  <dt>现有子体</dt>
+                  <dd><span class="kids"><span v-for="kid in job.parent.naming.existing" :key="kid" class="pill">{{ kid }}</span></span></dd>
                 </template>
-                <div v-if="job.parent.naming?.note"><span class="muted">变体名：</span>{{ job.parent.naming.note.replace(/^这是建议新建的父体，店铺里还没有，需要你手动创建。/, '') }}</div>
-                <div v-if="job.skuNote"><span class="muted">子体 SKU：</span>{{ job.skuNote }}</div>
-                <div class="muted">候选来自「{{ job.parent.tab }}」 · {{ new Date(job.parent.readAt).toLocaleTimeString() }} 读取</div>
-              </div>
+                <template v-if="job.parent.proposal">
+                  <dt>新父体</dt>
+                  <dd>前缀 {{ job.parent.proposal.prefix }} + 主题 {{ job.parent.proposal.theme }}（试过 {{ job.parent.proposal.themeCandidates.join('、') || '—' }}）</dd>
+                  <dt>前缀参照</dt>
+                  <dd>{{ job.parent.proposal.basedOn.join('、') || '店里这类父体的 SKU 都看不出主题，按「店铺缩写-材质缩写」起' }}</dd>
+                </template>
+                <template v-if="job.parent.naming?.note"><dt>变体名</dt><dd>{{ job.parent.naming.note.replace(/^这是建议新建的父体，店铺里还没有，需要你手动创建。/, '') }}</dd></template>
+                <template v-if="job.skuNote"><dt>子体 SKU</dt><dd>{{ job.skuNote }}</dd></template>
+                <dt>候选来自</dt>
+                <dd class="muted">「{{ job.parent.tab }}」 · {{ new Date(job.parent.readAt).toLocaleTimeString() }} 读取</dd>
+              </dl>
             </details>
           </div>
           <div v-else-if="rec!.state === 'done'" class="none">没有父体结果，可以搜索并手动选择</div>
@@ -490,11 +513,11 @@ async function openFolder() {
 </template>
 
 <style scoped>
-.pres { display: grid; gap: 8px; }
-.pres .line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.pres .cands { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.pres { display: grid; gap: 10px; }
+.pkv { grid-template-columns: 92px 1fr; align-items: center; padding: 12px 14px; border: 1px solid var(--hair); border-radius: var(--r-sm); }
+.pkv .line, .why-b .line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .why summary { color: var(--sub); cursor: pointer; }
-.why-b { display: grid; gap: 4px; padding: 6px 0 0 12px; line-height: 1.6; }
+.why-b { grid-template-columns: 92px 1fr; padding: 8px 14px 0; line-height: 1.6; }
 .why-b .kids { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 
 .face { position: relative; display: inline-block; max-width: 100%; }

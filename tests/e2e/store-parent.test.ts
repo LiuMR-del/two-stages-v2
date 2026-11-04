@@ -178,25 +178,16 @@ describe('e2e：爱睿特从店铺挑父体', () => {
     expect(back.body.job.sku).toBe(`ART-mtfl${ymd()}002`)
   })
 
-  it('改专属号：只逐个查这一批的新 SKU（不扫整个店铺），店里已有的算冲突', async () => {
+  it('改专属号：只在输出文件夹里改，不去店铺查（2026-11-04 用户要求）', async () => {
     const api = srv.api
     await blanket()
     const jobs = await uploadJobs(api, ['a.png', 'b.png'])
     await Promise.all(jobs.map((j) => waitJob(api, j.id, isDone)))
-    // 店里已经有 1 号专属号的第 2 个
-    mock.parent.spapi.listings.push({ sku: `ART-mtfl${ymd()}102`, productType: 'BLANKET' })
     const before = mock.parent.calls.length
-    const r = await api.json('POST', '/batch/mark', { mark: '1' })
-    expect(r.body.storeCheck).toBe('ok')
-    expect(r.body.items.map((x: any) => [x.next, x.conflict])).toEqual([
-      [`ART-mtfl${ymd()}101`, null],
-      [`ART-mtfl${ymd()}102`, '店铺里已经有这个 SKU'],
-    ])
-    const calls = mock.parent.calls.slice(before).filter((c) => c.service === 'spapi' && c.path !== '/token')
-    // 两个新 SKU 各查一次，没有翻页搜索
-    expect(calls.map((c) => c.path).sort()).toEqual([`/2021-08-01/items/${mock.parent.spapi.sellerId}/ART-mtfl${ymd()}101`, `/2021-08-01/items/${mock.parent.spapi.sellerId}/ART-mtfl${ymd()}102`])
-    expect((await api.json('POST', '/batch/mark', { mark: '1', apply: true })).body.applied).toBe(false)
-    expect((await api.json('POST', '/batch/mark', { mark: '2', apply: true })).body.applied).toBe(true)
+    const r = await api.json('POST', '/batch/mark', { mark: '1', apply: true })
+    expect(r.body.applied).toBe(true)
+    expect(r.body.items.map((x: any) => x.next)).toEqual([`ART-mtfl${ymd()}101`, `ART-mtfl${ymd()}102`])
+    expect(mock.parent.calls.slice(before).filter((c) => c.service === 'spapi')).toEqual([])
   })
 
   it('手动指定父体：从店铺扫描结果里找，命名按它的子体重算', async () => {
