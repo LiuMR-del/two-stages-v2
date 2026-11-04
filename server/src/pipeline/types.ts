@@ -1,7 +1,7 @@
 import type { Settings } from '../store/settings'
 import type { LibraryStore } from '../library/store'
 import type { Attention, Job, StepSnapshot } from '../store/jobs'
-import type { ParentDeps } from '../parent/match'
+import type { ParentEnv } from '../parent/match'
 
 export type StepEnv = {
   settings: () => Settings
@@ -10,7 +10,7 @@ export type StepEnv = {
   /** 中转站不认保真参数、降级重发成功后调用 */
   onFidelityDowngrade: (message: string) => Promise<void>
   /** 第 6 步：飞书读表、SP-API、占号的锁、队列里所有任务 */
-  parent: ParentDeps
+  parent: ParentEnv
 }
 
 export type StepCtx = {

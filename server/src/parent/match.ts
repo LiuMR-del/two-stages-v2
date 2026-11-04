@@ -1,8 +1,8 @@
-import type { Settings } from '../store/settings'
+import { currentStore, type Settings, type Store } from '../store/settings'
 import type { Job, ParentResult } from '../store/jobs'
 import { AiError } from '../ai/errors'
 import { FeishuAuthError, FeishuError, type FeishuSheets, type ParentRow } from './feishu'
-import { SpapiAuthError, SpapiError, type SpapiClient } from './spapi'
+import { SpapiAuthError, SpapiError, type SpapiClient, type SpapiPool } from './spapi'
 import { analyzeNaming, nextName, splitValue, type Naming } from './naming'
 import type { Reservations } from './reservations'
 import { proposeParent } from './newParent'
@@ -13,16 +13,33 @@ export class ParentPauseError extends Error {}
 
 export const NEW_PARENT_NOTE = '这是建议新建的父体，飞书表和店铺里都还没有，需要你手动创建'
 
-/** 开关关着、或缺链接 / 飞书应用 / SP-API 凭证时第 6 步直接跳过，返回原因；不缺返回 null */
-export function parentSkipReason(s: Settings): string | null {
-  const p = s.parent
-  if (!p.enabled) return '识别父体没有打开，可以在设置里打开'
+/**
+ * 这张图按哪个店铺匹配父体。第 1 段先用当前店铺；第 3 段起任务带店铺（job.storeId），改成按任务取。
+ */
+export function storeForJob(s: Settings, _job?: unknown): Store {
+  return currentStore(s)
+}
+
+/** 店铺缺哪些父体设置（飞书来源要父体表链接和飞书应用，两种来源都要 SP-API 凭证） */
+export function storeMissing(s: Settings, st: Store): string[] {
   const miss: string[] = []
-  if (!p.sheetUrl) miss.push('父体表链接')
-  if (!p.feishu.appId || !p.feishu.appSecret) miss.push('飞书 App ID / App Secret')
-  const sp = p.spapi
+  if (st.parentSource === 'feishu') {
+    if (!st.feishu.sheetUrl) miss.push('父体表链接')
+    if (!s.parent.feishu.appId || !s.parent.feishu.appSecret) miss.push('飞书 App ID / App Secret')
+  }
+  const sp = st.spapi
   if (!sp.sellerId || !sp.clientId || !sp.clientSecret || !sp.refreshToken) miss.push('SP-API 凭证')
-  return miss.length ? `识别父体缺：${miss.join('、')}。补齐后在详情里对第 6 步点「重新匹配」` : null
+  return miss
+}
+
+/** 开关关着、或店铺缺链接 / 飞书应用 / SP-API 凭证时第 6 步直接跳过，返回原因；不缺返回 null */
+export function parentSkipReason(s: Settings, st: Store = currentStore(s)): string | null {
+  if (!s.parent.enabled) return '识别父体没有打开，可以在设置里打开'
+  const miss = storeMissing(s, st)
+  if (miss.length) return `「${st.name}」识别父体缺：${miss.join('、')}。补齐后在详情里对第 6 步点「重新匹配」`
+  // 第 2～4 段做完后，从店铺扫描父体
+  if (st.parentSource === 'store') return `「${st.name}」从店铺检索父体还没做好，这一步先跳过`
+  return null
 }
 
 /** 凭证、权限问题转成暂停；网络、5xx 转成可重试的错误，按现有重试规则走 */
@@ -53,6 +70,14 @@ export type ParentDeps = {
   jobs: () => Job[]
   /** 同一批里已经移出队列的图分到的号（还占着）；不给时只看队列 */
   reservations?: Reservations
+}
+
+/** 调度器里存的：SP-API 按店铺取客户端，用的时候用 depsFor 换成某个店铺的 ParentDeps */
+export type ParentEnv = Omit<ParentDeps, 'spapi'> & { spapis: SpapiPool }
+
+export function depsFor(env: ParentEnv, storeId: string): ParentDeps {
+  const { spapis, ...rest } = env
+  return { ...rest, spapi: spapis.for(storeId) }
 }
 
 type Base = Pick<ParentResult, 'tab' | 'readAt'>

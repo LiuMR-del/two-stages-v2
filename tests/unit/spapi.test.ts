@@ -2,7 +2,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { startMockRelay, type MockRelay } from '../../scripts/mock-relay'
 import { SettingsStore } from '../../server/src/store/settings'
-import { attributeValue, SpapiAuthError, SpapiClient } from '../../server/src/parent/spapi'
+import { attributeValue, SpapiAuthError, SpapiPool, type SpapiClient } from '../../server/src/parent/spapi'
 import { analyzeNaming, nextName } from '../../server/src/parent/naming'
 import { rmDir, tmpDir } from '../helpers'
 
@@ -22,8 +22,8 @@ beforeEach(async () => {
   mock.reset()
   const s = new SettingsStore(path.join(dir, `s-${Date.now()}-${Math.random()}.json`))
   const sp = mock.parent.spapi
-  await s.updateParent((p) => Object.assign(p.spapi, { sellerId: sp.sellerId, clientId: sp.clientId, clientSecret: sp.clientSecret, refreshToken: sp.refreshToken, endpoint: mock.origin, tokenUrl: mock.origin + '/auth/o2/token' }))
-  client = new SpapiClient(s)
+  await s.updateStoreRaw('hj', (st) => Object.assign(st.spapi, { sellerId: sp.sellerId, clientId: sp.clientId, clientSecret: sp.clientSecret, refreshToken: sp.refreshToken, endpoint: mock.origin, tokenUrl: mock.origin + '/auth/o2/token' }))
+  client = new SpapiPool(s).for('hj')
 })
 
 const color = (v: string) => ({ color: [{ value: v, language_tag: 'en_US', marketplace_id: 'ATVPDKIKX0DER' }] })

@@ -141,16 +141,10 @@ function authDot(kind: 'image' | 'analysis') {
 
         <div class="grp">
           <h4>SKU 命名</h4>
-          <div class="muted tiny">子体 SKU = 店铺缩写-材质缩写 + 年份末位 + 地区标识 + 月日 + 专属号 + 当天序号，如 HJ-mtfl671029101。材质缩写在模版库里按品类填；每个品类每天从 01 起，输出的图也用 SKU 命名</div>
-          <div class="two">
-            <div class="fld">
-              <label>店铺缩写</label>
-              <AutoText :value="st.settings.sku.store" :save="saver((v) => ({ sku: { store: v.trim() } }))" label="店铺缩写" />
-            </div>
-            <div class="fld">
-              <label>地区标识</label>
-              <AutoText :value="st.settings.sku.region" :save="saver((v) => ({ sku: { region: v.trim() } }))" label="地区标识" />
-            </div>
+          <div class="muted tiny">子体 SKU = 店铺缩写-材质缩写 + 年份末位 + 组别 + 月日 + 专属号 + 当天序号，如 HJ-mtfl671029101。店铺缩写在下面「店铺」里，材质缩写在模版库里按品类填；每个品类每天从 01 起，输出的图也用 SKU 命名</div>
+          <div class="fld">
+            <label>组别（7 = 深圳团队）</label>
+            <AutoText :value="st.settings.sku.group" :save="saver((v) => ({ sku: { group: v.trim() } }))" label="组别" />
           </div>
           <div class="fld">
             <label>专属号（子体 SKU 和建议新建的父体 SKU 都用它）</label>

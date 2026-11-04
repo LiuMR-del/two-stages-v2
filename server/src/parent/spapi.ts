@@ -1,4 +1,4 @@
-import type { SettingsStore } from '../store/settings'
+import { storeById, type SettingsStore, type Store } from '../store/settings'
 
 /**
  * 店铺 SP-API：只做读取（Listings Items 的 get / search），不调用任何会修改商品的接口。
@@ -58,16 +58,14 @@ export class SpapiError extends Error {
 }
 
 type Cached = { key: string; token: string; expiresAt: number }
+export type SpapiCreds = Store['spapi']
 
+/** 一个店铺一个客户端：凭证每次现取（改了马上生效），access token 各自缓存，店铺之间不串 */
 export class SpapiClient {
   private cached: Cached | null = null
   private pending: Promise<string> | null = null
 
-  constructor(private settings: SettingsStore) {}
-
-  private creds() {
-    return this.settings.get().parent.spapi
-  }
+  constructor(private creds: () => SpapiCreds) {}
 
   missing(): string[] {
     const s = this.creds()
@@ -213,5 +211,29 @@ export class SpapiClient {
     } catch (e) {
       return { ok: false, message: `连接失败：${(e as Error).message}` }
     }
+  }
+}
+
+/** 按店铺 ID 取客户端；店铺删掉后再取会报错 */
+export class SpapiPool {
+  private clients = new Map<string, SpapiClient>()
+
+  constructor(private settings: SettingsStore) {}
+
+  for(storeId: string): SpapiClient {
+    let c = this.clients.get(storeId)
+    if (!c) {
+      c = new SpapiClient(() => {
+        const st = storeById(this.settings.get(), storeId)
+        if (!st) throw new SpapiAuthError('这个店铺已经删掉了')
+        return st.spapi
+      })
+      this.clients.set(storeId, c)
+    }
+    return c
+  }
+
+  drop(storeId: string): void {
+    this.clients.delete(storeId)
   }
 }

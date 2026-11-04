@@ -73,7 +73,7 @@ const saveExtract = saver((v) => api.patch(base.value, { extractPrompt: v } ))
 
 const parentTabs = computed(() => {
   const current = cat.value.parentTab
-  const tabs = settings.settings?.parent.tabs ?? []
+  const tabs = settings.currentStore?.feishu.tabs ?? []
   return current && !tabs.includes(current) ? [current, ...tabs] : tabs
 })
 const saveSkuCode = saver((v) => api.patch(base.value, { skuCode: v.trim() || null }))
@@ -84,7 +84,7 @@ const skuSample = computed(() => {
   if (!s || !code) return ''
   const d = new Date()
   const md = String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0')
-  return `${s.sku.store}-${code}${String(d.getFullYear()).slice(-1)}${s.sku.region}${md}${s.parent.creatorMark}01`
+  return `${settings.currentStore?.abbr ?? ''}-${code}${String(d.getFullYear()).slice(-1)}${s.sku.group}${md}${s.parent.creatorMark}01`
 })
 async function saveParentTab(value: string) {
   await ui.act(() => lib.mutate(() => api.patch(base.value, { parentTab: value || null })))
@@ -338,7 +338,7 @@ function coverageOf(s: Style): { dot: string; text: string } {
             <option value="">同名（{{ cat.name }}）</option>
             <option v-for="tab in parentTabs" :key="tab" :value="tab">{{ tab }}</option>
           </select>
-          <span v-if="!settings.settings?.parent.tabs.length" class="muted tiny">先去设置里点「读一下试试」</span>
+          <span v-if="!settings.currentStore?.feishu.tabs.length" class="muted tiny">先去设置里给「{{ settings.currentStore?.name }}」点「读一下试试」</span>
         </div>
 
         <span class="k">SKU 材质缩写</span>

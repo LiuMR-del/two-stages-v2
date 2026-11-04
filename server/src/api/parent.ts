@@ -3,20 +3,64 @@ import { z } from 'zod'
 import type { AppContext } from '../context'
 import { HttpError, parseBody } from './util'
 import { upload } from './library'
-import { maskSettings, MAX_RECENT_URLS } from '../store/settings'
+import { currentStore, maskSettings, MAX_RECENT_URLS, SettingsError, storeById, StoreCreateSchema, StorePatchSchema, type Store } from '../store/settings'
 import { FeishuAuthError, FeishuError } from '../parent/feishu'
 import { parseSpapiCredentials } from '../parent/credentials'
 import { log } from '../util/log'
 
-/** 父体匹配的设置接口：读表试试（飞书应用身份）、SP-API 凭证导入和测试。对飞书和 SP-API 都只读 */
+/** 店铺设置的内容错误（缩写重了、删当前店铺）转成 400 */
+async function settle<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (e) {
+    if (e instanceof SettingsError) throw new HttpError(400, e.message)
+    throw e
+  }
+}
+
+/**
+ * 父体匹配的设置接口：店铺档案的增删改、按店铺读表试试（飞书应用身份）、按店铺导入和测试 SP-API 凭证。
+ * 对飞书和 SP-API 都只读。
+ */
 export function registerParent(r: Router, ctx: AppContext): void {
   const { settings } = ctx
   const p = ctx.parent
+  const storeOf = (req: Request): Store => {
+    const st = storeById(settings.get(), String(req.params.id))
+    if (!st) throw new HttpError(404, '没有这个店铺')
+    return st
+  }
 
-  /** 读一次链接：表格名、所有标签页和每页的父体数量；顺便记进「用过的链接」和模版库下拉用的标签页 */
-  r.post('/settings/parent/test', async (req, res) => {
+  r.post('/stores', async (req, res) => {
+    const c = parseBody(StoreCreateSchema, req.body)
+    const { settings: next, id } = await settle(() => settings.addStore(c))
+    ctx.onSettingsSaved()
+    log.info(`新增店铺「${c.name}」（${c.abbr}）`)
+    res.json({ id, settings: maskSettings(next) })
+  })
+
+  r.patch('/stores/:id', async (req, res) => {
+    const st = storeOf(req)
+    const patch = parseBody(StorePatchSchema, req.body)
+    const next = await settle(() => settings.updateStore(st.id, patch))
+    ctx.onSettingsSaved()
+    res.json(maskSettings(next))
+  })
+
+  r.delete('/stores/:id', async (req, res) => {
+    const st = storeOf(req)
+    const next = await settle(() => settings.removeStore(st.id))
+    p.spapis.drop(st.id)
+    ctx.onSettingsSaved()
+    log.info(`删除店铺「${st.name}」`)
+    res.json(maskSettings(next))
+  })
+
+  /** 读一次这个店铺的父体表：表格名、所有标签页和每页的父体数量；顺便记进「用过的链接」和模版库下拉用的标签页 */
+  r.post('/stores/:id/feishu/test', async (req, res) => {
+    const st = storeOf(req)
     const b = parseBody(z.object({ url: z.string().optional() }), req.body ?? {})
-    const url = (b.url ?? settings.get().parent.sheetUrl).trim()
+    const url = (b.url ?? st.feishu.sheetUrl).trim()
     if (!url) throw new HttpError(400, '先填父体表链接')
     try {
       const info = await p.sheets.info(url, true)
@@ -30,10 +74,10 @@ export function registerParent(r: Router, ctx: AppContext): void {
           tabs.push({ title: t.title, count: 0, header: false, error: (e as Error).message })
         }
       }
-      await settings.updateParent((pp) => {
-        pp.tabs = info.tabs.map((t) => t.title)
-        pp.recentUrls = [{ url, title: info.title, usedAt: new Date().toISOString() }, ...pp.recentUrls.filter((x) => x.url !== url)].slice(0, MAX_RECENT_URLS)
-      })
+      await settle(() => settings.updateStoreRaw(st.id, (s2) => {
+        s2.feishu.tabs = info.tabs.map((t) => t.title)
+        s2.feishu.recentUrls = [{ url, title: info.title, usedAt: new Date().toISOString() }, ...s2.feishu.recentUrls.filter((x) => x.url !== url)].slice(0, MAX_RECENT_URLS)
+      }))
       ctx.onSettingsSaved()
       res.json({ ok: true, title: info.title, tabs })
     } catch (e) {
@@ -43,8 +87,9 @@ export function registerParent(r: Router, ctx: AppContext): void {
     }
   })
 
-  /** 上传 RTF（或粘贴文字），取出店铺 ID、Client ID、Client Secret、Refresh Token；不回显明文 */
-  r.post('/settings/spapi/import', upload.single('file'), async (req: Request, res) => {
+  /** 上传 RTF（或粘贴文字），取出店铺 ID、Client ID、Client Secret、Refresh Token，只写进这个店铺；不回显明文 */
+  r.post('/stores/:id/spapi/import', upload.single('file'), async (req: Request, res) => {
+    const st = storeOf(req)
     const f = req.file
     let text: string
     if (f) {
@@ -57,16 +102,16 @@ export function registerParent(r: Router, ctx: AppContext): void {
     const found = Object.fromEntries(Object.entries(c).map(([k, v]) => [k, !!v])) as Record<keyof typeof c, boolean>
     if (!Object.values(found).some(Boolean)) throw new HttpError(400, '没在文件里找到 SP-API 凭证（店铺 ID、Client ID、Client Secret、Refresh Token）')
     const patch = Object.fromEntries(Object.entries(c).filter(([, v]) => v)) as Record<string, string>
-    await settings.update({ parent: { spapi: patch } })
+    await settle(() => settings.updateStore(st.id, { spapi: patch }))
     ctx.onSettingsSaved()
-    log.info(`导入 SP-API 凭证：${Object.entries(found).filter(([, v]) => v).map(([k]) => k).join('、')}`)
+    log.info(`「${st.name}」导入 SP-API 凭证：${Object.entries(found).filter(([, v]) => v).map(([k]) => k).join('、')}`)
     res.json({ found, settings: maskSettings(settings.get()) })
   })
 
-  /** 手动选父体时搜索用：给了 tab 就返回这一页，不给就返回所有页 */
+  /** 手动选父体时搜索用（当前店铺的父体表）：给了 tab 就返回这一页，不给就返回所有页 */
   r.get('/parent/rows', async (req, res) => {
-    const url = settings.get().parent.sheetUrl
-    if (!url) throw new HttpError(400, '先在设置里填父体表链接')
+    const url = currentStore(settings.get()).feishu.sheetUrl
+    if (!url) throw new HttpError(400, '先在设置里给当前店铺填父体表链接')
     const tab = typeof req.query.tab === 'string' ? req.query.tab : ''
     try {
       const info = await p.sheets.info(url)
@@ -88,7 +133,8 @@ export function registerParent(r: Router, ctx: AppContext): void {
     }
   })
 
-  r.post('/settings/spapi/test', async (_req, res) => {
-    res.json(await p.spapi.test())
+  r.post('/stores/:id/spapi/test', async (req, res) => {
+    const st = storeOf(req)
+    res.json(await p.spapis.for(st.id).test())
   })
 }

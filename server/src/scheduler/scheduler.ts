@@ -27,9 +27,9 @@ import { step2Main } from '../pipeline/step2Main'
 import { step3Info } from '../pipeline/step3Info'
 import { step4Blank } from '../pipeline/step4Blank'
 import { step5Parent } from '../pipeline/step5Parent'
-import { bindExisting, guard, ParentPauseError, parentSkipReason, shiftNumber } from '../parent/match'
+import { bindExisting, depsFor, guard, ParentPauseError, parentSkipReason, shiftNumber, storeForJob } from '../parent/match'
 import type { FeishuSheets } from '../parent/feishu'
-import type { SpapiClient } from '../parent/spapi'
+import type { SpapiPool } from '../parent/spapi'
 import type { Reservations } from '../parent/reservations'
 import { resolvePlan } from '../pipeline/plan'
 import { assignOutputBase, categoryDir, OUTPUT_FOLDER, outputRel, safeName, writeOutput } from '../pipeline/output'
@@ -77,7 +77,7 @@ export type SchedulerDeps = {
   /** 记住「暂停队列」，重启后仍然暂停；不给就只记在内存里 */
   stateFile?: string
   /** 第 6 步用的飞书读表和 SP-API；单元测试不给时第 6 步一律当作凭证问题 */
-  parent?: { sheets: FeishuSheets; spapi: SpapiClient; reservations?: Reservations }
+  parent?: { sheets: FeishuSheets; spapis: SpapiPool; reservations?: Reservations }
   /** 每批识别信息 CSV 的行记在这里，移出队列的图的行不丢 */
   csvRowsDir?: string
   /** 子体 SKU 当天序号；不给就只记在内存里 */
@@ -117,7 +117,7 @@ export class Scheduler {
       },
       parent: {
         sheets: d.parent?.sheets ?? (null as unknown as FeishuSheets),
-        spapi: d.parent?.spapi ?? (null as unknown as SpapiClient),
+        spapis: d.parent?.spapis ?? (null as unknown as SpapiPool),
         mutex: this.parentLock,
         jobs: () => d.jobs.list(),
         reservations: d.parent?.reservations,
@@ -225,7 +225,7 @@ export class Scheduler {
     const i = currentStep(job)
     if (i < 0 || job.steps[i]!.state !== 'pending') return -1
     // 识别父体关着 / 缺设置：doTick 里直接跳过，不受分析接口暂停影响
-    if (i === PARENT_STEP && parentSkipReason(this.d.settings.get())) return i
+    if (i === PARENT_STEP && this.parentSkip(job)) return i
     if (this.authPaused[kindOf(i, job)]) return -1
     if (i === PARENT_STEP && this.parentPaused) return -1
     return i
@@ -238,7 +238,7 @@ export class Scheduler {
       if (i < 0) continue
       // 识别父体关着或缺设置：第 6 步直接跳过，不占并发、不发任何请求
       if (i === PARENT_STEP) {
-        const why = parentSkipReason(this.d.settings.get())
+        const why = this.parentSkip(job)
         if (why) {
           this.d.jobs.update(job.id, (j) => {
             markSkipped(j, PARENT_STEP)
@@ -346,7 +346,12 @@ export class Scheduler {
       others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) ||
       fs.existsSync(path.join(dir, outputRel('main', sku))) ||
       fs.existsSync(path.join(dir, outputRel('pattern', sku)))
-    return this.sku.allocate({ store: s.sku.store, code, region: s.sku.region, mark: s.parent.creatorMark }, taken)
+    return this.sku.allocate({ store: storeForJob(s, j).abbr, code, region: s.sku.group, mark: s.parent.creatorMark }, taken)
+  }
+
+  private parentSkip(job: Job): string | null {
+    const s = this.d.settings.get()
+    return parentSkipReason(s, storeForJob(s, job))
   }
 
   private applyResult(jobId: string, i: number, r: StepResult): void {
@@ -634,7 +639,7 @@ export class Scheduler {
   async setParent(jobId: string, sku: string): Promise<Job> {
     const job = this.d.jobs.get(jobId)
     if (!job) throw new HttpError(404, '这张图已经不在队列里了')
-    const why = parentSkipReason(this.d.settings.get())
+    const why = this.parentSkip(job)
     if (why) throw new HttpError(400, why)
     if (!job.route) throw new HttpError(400, '这张图还没有确定品类')
     const st = job.steps[PARENT_STEP]!.state
@@ -642,7 +647,10 @@ export class Scheduler {
     if (this.settingParent.has(jobId) || this.holds.has(jobId)) throw new HttpError(409, '这张图正在处理上一个操作，请稍等')
     this.settingParent.add(jobId)
     try {
-      const p = this.d.settings.get().parent
+      const settings = this.d.settings.get()
+      const p = settings.parent
+      const store = storeForJob(settings, job)
+      const deps = depsFor(this.env.parent, store.id)
       const cat = this.d.library.get().categories.find((c) => c.id === job.route!.categoryId)
       const tab = cat?.parentTab?.trim() || job.route.categoryName
       const call = <T,>(fn: () => Promise<T>) =>
@@ -651,7 +659,7 @@ export class Scheduler {
           if (e instanceof AiError) throw new HttpError(502, e.message)
           throw e
         })
-      const read = await call(() => guard(() => this.env.parent.sheets.rows(p.sheetUrl, tab)))
+      const read = await call(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)))
       const row = read?.rows?.find((r) => r.sku.trim().toLowerCase() === sku.trim().toLowerCase()) ?? { sku: sku.trim(), asin: '', theme: '', row: 0 }
       const base = {
         tab,
@@ -663,7 +671,7 @@ export class Scheduler {
       }
       let applied = false
       await bindExisting({
-        deps: this.env.parent,
+        deps,
         job,
         row,
         base,
@@ -695,7 +703,7 @@ export class Scheduler {
     return this.hold(jobId, async (job) => {
       if (job.steps[PARENT_STEP]!.state === 'running') throw new HttpError(400, '「匹配父体」正在跑，等它跑完再调')
       try {
-        await shiftNumber(this.env.parent, job, delta, (r) => this.d.jobs.update(jobId, (j) => (j.parent = r)))
+        await shiftNumber(depsFor(this.env.parent, storeForJob(this.d.settings.get(), job).id), job, delta, (r) => this.d.jobs.update(jobId, (j) => (j.parent = r)))
       } catch (e) {
         throw new HttpError(400, (e as Error).message)
       }

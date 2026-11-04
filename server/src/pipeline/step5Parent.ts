@@ -6,7 +6,7 @@ import { shrinkForAnalysis } from '../image/process'
 import { PARENT_STEP, type Job, type ParentResult } from '../store/jobs'
 import { MAX_CANDIDATES, ParentAnswerSchema, parentSystem, parentUser } from '../prompts/parent'
 import { themeSamples } from '../parent/newParent'
-import { bindExisting, bindNew, emptyResult, guard, parentSkipReason } from '../parent/match'
+import { bindExisting, bindNew, depsFor, emptyResult, guard, parentSkipReason, storeForJob } from '../parent/match'
 
 /**
  * 第 6 步「匹配父体」（实施方案第五节）：读对应标签页 → 让分析模型挑父体（只给编号）→ 查店铺、推算下一个变体名；
@@ -14,17 +14,18 @@ import { bindExisting, bindNew, emptyResult, guard, parentSkipReason } from '../
  */
 export const step5Parent: StepHandler = async (ctx) => {
   const settings = ctx.env.settings()
-  const skip = parentSkipReason(settings)
+  const store = storeForJob(settings, ctx.job)
+  const skip = parentSkipReason(settings, store)
   if (skip) return { kind: 'skipped', patch: (j) => (j.steps[PARENT_STEP]!.note = skip) }
   const route = ctx.job.route
   if (!route) return { kind: 'skipped', patch: (j) => (j.steps[PARENT_STEP]!.note = '还没有确定品类，不匹配父体') }
-  const deps = ctx.env.parent
+  const deps = depsFor(ctx.env.parent, store.id)
   const p = settings.parent
   const cat = ctx.env.library.get().categories.find((c) => c.id === route.categoryId)
   // 品类改过名（如相框 → 帆布画）时，旧任务里存的还是旧名，按模版库里现在的名字找标签页
   const tab = cat?.parentTab?.trim() || cat?.name || route.categoryName
 
-  const read = await ctx.retry(() => guard(() => deps.sheets.rows(p.sheetUrl, tab)))
+  const read = await ctx.retry(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)))
   const base = { tab, readAt: read?.readAt ?? new Date().toISOString() }
   const finish = (r: ParentResult): StepResult => ({ kind: 'done', patch: (j) => (j.parent = r) })
   if (!read) return finish(emptyResult(base, 'none', `飞书表里没有「${tab}」标签页，去模版库给「${cat?.name ?? route.categoryName}」选对应的标签页`))

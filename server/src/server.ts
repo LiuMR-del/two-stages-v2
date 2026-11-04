@@ -9,7 +9,7 @@ import { Bus } from './events/bus'
 import { resolveOutputDir, SettingsStore } from './store/settings'
 import { BatchFolders } from './pipeline/output'
 import { FeishuSheets } from './parent/feishu'
-import { SpapiClient } from './parent/spapi'
+import { SpapiPool } from './parent/spapi'
 import { registerParent } from './api/parent'
 import { Reservations } from './parent/reservations'
 import { Limiter } from './ai/limiter'
@@ -53,7 +53,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
   let scheduler: Scheduler | null = null
   const limiter = new Limiter(() => scheduler?.tick())
   const sheets = new FeishuSheets(settings)
-  const spapi = new SpapiClient(settings)
+  const spapis = new SpapiPool(settings)
   scheduler = new Scheduler({
     jobs,
     library,
@@ -62,7 +62,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     bus,
     stateFile: path.join(paths.dataDir, 'queue.json'),
     csvRowsDir: path.join(paths.dataDir, 'batches'),
-    parent: { sheets, spapi, reservations },
+    parent: { sheets, spapis, reservations },
     sku: new SkuCounter(path.join(paths.dataDir, 'sku.json')),
   })
   const sched = scheduler
@@ -77,7 +77,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     jobs,
     scheduler: sched,
     batch: new BatchFolders(path.join(paths.dataDir, 'batch.json'), () => resolveOutputDir(settings.get())),
-    parent: { sheets, spapi },
+    parent: { sheets, spapis },
     sse: { clients: 0 },
     onSettingsSaved: () => {},
     start: async () => {

@@ -18967,7 +18967,7 @@ var require_view = __commonJS({
     "use strict";
     var debug = require_src()("express:view");
     var path22 = require("node:path");
-    var fs16 = require("node:fs");
+    var fs17 = require("node:fs");
     var dirname = path22.dirname;
     var basename = path22.basename;
     var extname = path22.extname;
@@ -19047,7 +19047,7 @@ var require_view = __commonJS({
     function tryStat(path23) {
       debug('stat "%s"', path23);
       try {
-        return fs16.statSync(path23);
+        return fs17.statSync(path23);
       } catch (e) {
         return void 0;
       }
@@ -22765,7 +22765,7 @@ var require_send = __commonJS({
     var escapeHtml = require_escape_html();
     var etag = require_etag();
     var fresh = require_fresh();
-    var fs16 = require("fs");
+    var fs17 = require("fs");
     var mime = require_mime_types();
     var ms = require_ms();
     var onFinished = require_on_finished();
@@ -23047,7 +23047,7 @@ var require_send = __commonJS({
       var i2 = 0;
       var self = this;
       debug('stat "%s"', path23);
-      fs16.stat(path23, function onstat(err2, stat) {
+      fs17.stat(path23, function onstat(err2, stat) {
         var pathEndsWithSep = path23[path23.length - 1] === sep;
         if (err2 && err2.code === "ENOENT" && !extname(path23) && !pathEndsWithSep) {
           return next(err2);
@@ -23064,7 +23064,7 @@ var require_send = __commonJS({
         }
         var p = path23 + "." + self._extensions[i2++];
         debug('stat "%s"', p);
-        fs16.stat(p, function(err3, stat) {
+        fs17.stat(p, function(err3, stat) {
           if (err3) return next(err3);
           if (stat.isDirectory()) return next();
           self.emit("file", p, stat);
@@ -23082,7 +23082,7 @@ var require_send = __commonJS({
         }
         var p = join(path23, self._index[i2]);
         debug('stat "%s"', p);
-        fs16.stat(p, function(err3, stat) {
+        fs17.stat(p, function(err3, stat) {
           if (err3) return next(err3);
           if (stat.isDirectory()) return next();
           self.emit("file", p, stat);
@@ -23094,7 +23094,7 @@ var require_send = __commonJS({
     SendStream.prototype.stream = function stream(path23, options) {
       var self = this;
       var res = this.res;
-      var stream2 = fs16.createReadStream(path23, options);
+      var stream2 = fs17.createReadStream(path23, options);
       this.emit("stream", stream2);
       stream2.pipe(res);
       function cleanup() {
@@ -37152,7 +37152,7 @@ var require_make_middleware = __commonJS({
 // node_modules/multer/storage/disk.js
 var require_disk = __commonJS({
   "node_modules/multer/storage/disk.js"(exports2, module2) {
-    var fs16 = require("fs");
+    var fs17 = require("fs");
     var os3 = require("os");
     var path22 = require("path");
     var crypto = require("crypto");
@@ -37179,7 +37179,7 @@ var require_disk = __commonJS({
       this.getFilename = opts.filename || getFilename;
       this.flush = opts.flush;
       if (typeof opts.destination === "string") {
-        fs16.mkdirSync(opts.destination, { recursive: true });
+        fs17.mkdirSync(opts.destination, { recursive: true });
         this.getDestination = function($0, $1, cb) {
           cb(null, opts.destination);
         };
@@ -37195,7 +37195,7 @@ var require_disk = __commonJS({
           if (err3) return cb(err3);
           var finalPath = path22.join(destination, filename);
           if (file2.stream.destroyed) return cb(new MulterError("STREAM_DESTROYED"));
-          var outStream = fs16.createWriteStream(finalPath);
+          var outStream = fs17.createWriteStream(finalPath);
           file2.path = finalPath;
           openStreams.set(file2, outStream);
           outStream.once("close", function() {
@@ -37217,13 +37217,13 @@ var require_disk = __commonJS({
               });
             };
             if (!that.flush) return done();
-            fs16.open(finalPath, "r+", function(err5, fd2) {
+            fs17.open(finalPath, "r+", function(err5, fd2) {
               if (err5) {
                 endFlush(file2);
                 return done(err5);
               }
-              fs16.fsync(fd2, function(syncErr) {
-                fs16.close(fd2, function(closeErr) {
+              fs17.fsync(fd2, function(syncErr) {
+                fs17.close(fd2, function(closeErr) {
                   endFlush(file2);
                   done(syncErr || closeErr);
                 });
@@ -37240,9 +37240,9 @@ var require_disk = __commonJS({
       delete file2.path;
       function unlink() {
         var flush = flushingFiles.get(file2);
-        if (!flush) return fs16.unlink(path23, cb);
+        if (!flush) return fs17.unlink(path23, cb);
         flush.onClosed = function() {
-          fs16.unlink(path23, cb);
+          fs17.unlink(path23, cb);
         };
       }
       var outStream = openStreams.get(file2);
@@ -37633,7 +37633,7 @@ function readJsonSync(file2) {
 }
 
 // server/src/server.ts
-var import_node_fs15 = __toESM(require("node:fs"), 1);
+var import_node_fs16 = __toESM(require("node:fs"), 1);
 
 // server/src/pipeline/sku.ts
 function formatSku(p, day, n) {
@@ -57421,6 +57421,9 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 
+// server/src/store/settings.ts
+var import_node_fs4 = __toESM(require("node:fs"), 1);
+
 // server/src/util/mutex.ts
 var Mutex = class {
   tail = Promise.resolve();
@@ -57496,22 +57499,32 @@ var SpapiSchema = external_exports.object({
   tokenUrl: external_exports.string().default("https://api.amazon.com/auth/o2/token")
 });
 var MAX_RECENT_URLS = 10;
-var ParentSchema = external_exports.object({
-  /** 「识别父体」开关，默认关闭：关着时第 6 步直接跳过，不读飞书、不调 SP-API */
-  enabled: external_exports.boolean().default(false),
+var StoreFeishuSchema = external_exports.object({
   sheetUrl: external_exports.string().default(""),
   recentUrls: external_exports.array(external_exports.object({ url: external_exports.string(), title: external_exports.string(), usedAt: external_exports.string() })).default([]),
   /** 最近一次读表读到的标签页名，模版库「对应标签页」下拉用 */
-  tabs: external_exports.array(external_exports.string()).default([]),
+  tabs: external_exports.array(external_exports.string()).default([])
+});
+var StoreSchema = external_exports.object({
+  id: external_exports.string(),
+  name: external_exports.string(),
+  abbr: external_exports.string(),
+  parentSource: external_exports.enum(["feishu", "store"]).default("store"),
+  spapi: SpapiSchema.prefault({}),
+  feishu: StoreFeishuSchema.prefault({})
+});
+var ParentSchema = external_exports.object({
+  /** 「识别父体」开关，默认关闭：关着时第 6 步直接跳过，不读飞书、不调 SP-API */
+  enabled: external_exports.boolean().default(false),
   threshold: external_exports.number().min(0).max(1).default(0.7),
-  /** 建议新建父体 SKU 时的创建人标识 */
+  /** 子体 SKU 的专属号（第 3 段改成按批次、默认 0） */
   creatorMark: external_exports.string().default("5"),
-  feishu: FeishuSchema.prefault({}),
-  spapi: SpapiSchema.prefault({})
+  /** 飞书应用身份，所有店铺共用 */
+  feishu: FeishuSchema.prefault({})
 });
 var SkuSchema = external_exports.object({
-  store: external_exports.string().default("HJ"),
-  region: external_exports.string().default("7")
+  /** 组别（飞书「亚马逊sku目录」：7 = 深圳团队），原来叫「地区标识」（sku.region） */
+  group: external_exports.string().default("7")
 });
 var SettingsSchema = external_exports.object({
   image: ImageApiSchema.prefault({}),
@@ -57529,7 +57542,10 @@ var SettingsSchema = external_exports.object({
   /** 素材图和竞品图印刷面的色差 ΔE 超过这个值不合格 */
   patternQcDeltaE: external_exports.number().min(1).max(100).default(5),
   parent: ParentSchema.prefault({}),
-  sku: SkuSchema.prefault({})
+  sku: SkuSchema.prefault({}),
+  stores: external_exports.array(StoreSchema).default([]),
+  /** 新的一批用哪个店铺 */
+  currentStoreId: external_exports.string().default("")
 });
 var SettingsPatchSchema = external_exports.object({
   image: external_exports.object(imageFields).partial().optional(),
@@ -57542,25 +57558,75 @@ var SettingsPatchSchema = external_exports.object({
   patternQcThreshold: external_exports.number().min(0).max(1).optional(),
   patternQcDeltaE: external_exports.number().min(1).max(100).optional(),
   mainQc: external_exports.boolean().optional(),
-  sku: external_exports.object({ store: external_exports.string().trim().regex(/^[A-Za-z0-9]{1,10}$/, "\u5E97\u94FA\u7F29\u5199\u53EA\u80FD\u7528 1\uFF5E10 \u4E2A\u5B57\u6BCD\u6216\u6570\u5B57"), region: external_exports.string().trim().regex(/^[A-Za-z0-9]{1,5}$/, "\u5730\u533A\u6807\u8BC6\u53EA\u80FD\u7528 1\uFF5E5 \u4E2A\u5B57\u6BCD\u6216\u6570\u5B57") }).partial().optional(),
+  sku: external_exports.object({ group: external_exports.string().trim().regex(/^[A-Za-z0-9]{1,5}$/, "\u7EC4\u522B\u53EA\u80FD\u7528 1\uFF5E5 \u4E2A\u5B57\u6BCD\u6216\u6570\u5B57") }).partial().optional(),
   parent: external_exports.object({
     enabled: external_exports.boolean().optional(),
-    sheetUrl: external_exports.string().max(2e3).optional(),
     threshold: external_exports.number().min(0).max(1).optional(),
     creatorMark: external_exports.string().trim().regex(/^[A-Za-z0-9]{0,10}$/, "\u4E13\u5C5E\u53F7\u53EA\u80FD\u7528\u5B57\u6BCD\u6216\u6570\u5B57").optional(),
     feishu: external_exports.object({
       appId: external_exports.string().max(200),
       appSecret: external_exports.string().max(500)
-    }).partial().optional(),
-    spapi: external_exports.object({
-      sellerId: external_exports.string().max(100),
-      clientId: external_exports.string().max(500),
-      clientSecret: external_exports.string().max(500),
-      refreshToken: external_exports.string().max(4e3),
-      marketplaceId: external_exports.string().max(50)
     }).partial().optional()
   }).optional()
 });
+var ABBR = external_exports.string().trim().regex(/^[A-Za-z0-9]{1,10}$/, "\u5E97\u94FA\u7F29\u5199\u53EA\u80FD\u7528 1\uFF5E10 \u4E2A\u5B57\u6BCD\u6216\u6570\u5B57");
+var STORE_NAME = external_exports.string().trim().min(1, "\u5E97\u94FA\u540D\u79F0\u4E0D\u80FD\u4E3A\u7A7A").max(20, "\u5E97\u94FA\u540D\u79F0\u6700\u591A 20 \u4E2A\u5B57");
+var StoreCreateSchema = external_exports.object({ name: STORE_NAME, abbr: ABBR, parentSource: external_exports.enum(["feishu", "store"]).default("store") });
+var StorePatchSchema = external_exports.object({
+  name: STORE_NAME.optional(),
+  abbr: ABBR.optional(),
+  parentSource: external_exports.enum(["feishu", "store"]).optional(),
+  spapi: external_exports.object({
+    sellerId: external_exports.string().max(100),
+    clientId: external_exports.string().max(500),
+    clientSecret: external_exports.string().max(500),
+    refreshToken: external_exports.string().max(4e3),
+    marketplaceId: external_exports.string().max(50)
+  }).partial().optional(),
+  feishu: external_exports.object({ sheetUrl: external_exports.string().max(2e3) }).partial().optional()
+});
+var DEFAULT_STORES = [
+  { id: "hj", name: "\u7115\u6377", abbr: "HJ", parentSource: "feishu" },
+  { id: "art", name: "\u7231\u777F\u7279", abbr: "ART", parentSource: "store" }
+];
+function migrateRaw(raw2) {
+  if (!raw2 || typeof raw2 !== "object") return null;
+  const r = raw2;
+  if (Array.isArray(r.stores)) return null;
+  const p = r.parent ?? {};
+  const hj = {
+    ...DEFAULT_STORES[0],
+    abbr: typeof r.sku?.store === "string" && r.sku.store.trim() ? r.sku.store.trim() : "HJ",
+    spapi: p.spapi ?? {},
+    feishu: { sheetUrl: p.sheetUrl ?? "", recentUrls: p.recentUrls ?? [], tabs: p.tabs ?? [] }
+  };
+  const { sheetUrl: _u, recentUrls: _r, tabs: _t, spapi: _s, ...parent } = p;
+  const sku = { group: typeof r.sku?.region === "string" && r.sku.region ? r.sku.region : "7" };
+  return { ...r, parent, sku, stores: [hj, { ...DEFAULT_STORES[1] }], currentStoreId: hj.id };
+}
+function ensureStores(s) {
+  const stores = s.stores.length ? s.stores : DEFAULT_STORES.map((d) => StoreSchema.parse(d));
+  const currentStoreId = stores.some((x2) => x2.id === s.currentStoreId) ? s.currentStoreId : stores[0].id;
+  return { ...s, stores, currentStoreId };
+}
+function storeById(s, id) {
+  return s.stores.find((x2) => x2.id === id) ?? null;
+}
+function currentStore(s) {
+  return storeById(s, s.currentStoreId) ?? s.stores[0];
+}
+function newStoreId(s, abbr) {
+  const base = `${abbr.toLowerCase().replace(/[^a-z0-9]/g, "") || "store"}-${Date.now().toString(36)}`;
+  let id = base;
+  for (let i2 = 2; s.stores.some((x2) => x2.id === id); i2++) id = `${base}-${i2}`;
+  return id;
+}
+function checkAbbrUnique(s, abbr, selfId) {
+  const dup = s.stores.find((x2) => x2.id !== selfId && x2.abbr.toLowerCase() === abbr.toLowerCase());
+  if (dup) throw new SettingsError(`\u5E97\u94FA\u7F29\u5199 ${abbr} \u5DF2\u7ECF\u88AB\u300C${dup.name}\u300D\u7528\u4E86`);
+}
+var SettingsError = class extends Error {
+};
 function normalizeBaseUrl(u) {
   return u.trim().replace(/\/+$/, "");
 }
@@ -57580,27 +57646,27 @@ function isMaskedSecret(v) {
 }
 function maskSettings(s) {
   const f2 = s.parent.feishu;
-  const sp = s.parent.spapi;
   return {
     ...s,
     image: { ...s.image, apiKey: maskKey(s.image.apiKey) },
     analysis: { ...s.analysis, apiKey: maskKey(s.analysis.apiKey) },
-    parent: {
-      ...s.parent,
-      feishu: { ...f2, appSecret: maskSecret(f2.appSecret) },
+    parent: { ...s.parent, feishu: { ...f2, appSecret: maskSecret(f2.appSecret) } },
+    stores: s.stores.map((st) => ({
+      ...st,
       spapi: {
-        ...sp,
-        sellerId: maskSecret(sp.sellerId),
-        clientId: maskSecret(sp.clientId),
-        clientSecret: maskSecret(sp.clientSecret),
-        refreshToken: maskSecret(sp.refreshToken)
+        ...st.spapi,
+        sellerId: maskSecret(st.spapi.sellerId),
+        clientId: maskSecret(st.spapi.clientId),
+        clientSecret: maskSecret(st.spapi.clientSecret),
+        refreshToken: maskSecret(st.spapi.refreshToken)
       }
-    }
+    }))
   };
 }
-function registerParentSecrets(p) {
-  for (const v of [p.feishu.appSecret, p.spapi.clientId, p.spapi.clientSecret, p.spapi.refreshToken, p.spapi.sellerId]) {
-    registerSecret(v);
+function registerParentSecrets(s) {
+  registerSecret(s.parent.feishu.appSecret);
+  for (const st of s.stores) {
+    for (const v of [st.spapi.clientId, st.spapi.clientSecret, st.spapi.refreshToken, st.spapi.sellerId]) registerSecret(v);
   }
 }
 function stripMasked(p) {
@@ -57617,16 +57683,39 @@ var SettingsStore = class {
   constructor(file2) {
     this.file = file2;
     const raw2 = readJsonSync(file2);
-    const parsed = SettingsSchema.safeParse(raw2 ?? {});
-    this.value = parsed.success ? parsed.data : SettingsSchema.parse({});
+    const migrated = migrateRaw(raw2);
+    const parsed = SettingsSchema.safeParse(migrated ?? raw2 ?? {});
+    this.value = ensureStores(parsed.success ? parsed.data : SettingsSchema.parse({}));
     if (this.value.outputDir === OLD_DEFAULT_OUTPUT_DIR) this.value.outputDir = DEFAULT_OUTPUT_DIR;
     registerSecret(this.value.image.apiKey);
     registerSecret(this.value.analysis.apiKey);
-    registerParentSecrets(this.value.parent);
+    registerParentSecrets(this.value);
+    if (raw2 !== null && raw2 !== void 0 && (migrated || !parsed.success)) {
+      this.backupPending = parsed.success ? "v1" : "bad";
+      if (this.backup() && parsed.success) {
+        try {
+          writeFileAtomicSync(file2, JSON.stringify(this.value, null, 2));
+        } catch {
+        }
+      }
+    }
   }
   file;
   value;
   mutex = new Mutex();
+  /** 原文件是旧结构或读不懂、还没备份成功：保存前要先补上备份，补不上不许保存（否则会把原文件里的凭证冲掉） */
+  backupPending = null;
+  /** 复制一份原文件（settings.v1-时间.json 或 settings.bad-时间.json）；成功返回 true */
+  backup() {
+    if (!this.backupPending) return true;
+    try {
+      import_node_fs4.default.copyFileSync(this.file, this.file.replace(/\.json$/, "") + `.${this.backupPending}-${Date.now()}.json`);
+      this.backupPending = null;
+      return true;
+    } catch {
+      return false;
+    }
+  }
   get() {
     return this.value;
   }
@@ -57643,9 +57732,8 @@ var SettingsStore = class {
       const pp = patch.parent;
       const parent = {
         ...cur.parent,
-        ...stripUndefined({ enabled: pp?.enabled, sheetUrl: pp?.sheetUrl?.trim(), threshold: pp?.threshold, creatorMark: pp?.creatorMark?.trim() }),
-        feishu: { ...cur.parent.feishu, ...stripMasked(pp?.feishu) },
-        spapi: { ...cur.parent.spapi, ...stripMasked(pp?.spapi) }
+        ...stripUndefined({ enabled: pp?.enabled, threshold: pp?.threshold, creatorMark: pp?.creatorMark?.trim() }),
+        feishu: { ...cur.parent.feishu, ...stripMasked(pp?.feishu) }
       };
       const next = SettingsSchema.parse({
         ...cur,
@@ -57662,26 +57750,69 @@ var SettingsStore = class {
         image,
         analysis,
         parent,
-        sku: { ...cur.sku, ...stripUndefined({ store: patch.sku?.store?.trim(), region: patch.sku?.region?.trim() }) }
+        sku: { ...cur.sku, ...stripUndefined({ group: patch.sku?.group?.trim() }) }
       });
-      registerSecret(next.image.apiKey);
-      registerSecret(next.analysis.apiKey);
-      registerParentSecrets(next.parent);
-      await writeJsonAtomic(this.file, next);
-      this.value = next;
-      return next;
+      return this.commit(next);
     });
   }
-  /** 程序内部改父体设置（授权换到的 token、用过的链接），不经过接口校验 */
+  async commit(draft) {
+    if (!this.backup()) throw new SettingsError("\u539F\u6765\u7684\u8BBE\u7F6E\u6587\u4EF6\u8FD8\u6CA1\u5907\u4EFD\u6210\u529F\uFF0C\u5148\u4E0D\u4FDD\u5B58\uFF0C\u514D\u5F97\u628A\u91CC\u9762\u7684\u51ED\u8BC1\u51B2\u6389\u3002\u8BF7\u68C0\u67E5 data \u6587\u4EF6\u5939\u80FD\u4E0D\u80FD\u5199\u5165");
+    const next = ensureStores(SettingsSchema.parse(draft));
+    registerSecret(next.image.apiKey);
+    registerSecret(next.analysis.apiKey);
+    registerParentSecrets(next);
+    await writeJsonAtomic(this.file, next);
+    this.value = next;
+    return next;
+  }
+  /** 程序内部改父体设置（飞书接口地址等），不经过接口校验 */
   async updateParent(fn) {
     return this.mutex.run(async () => {
       const draft = structuredClone(this.value);
       fn(draft.parent);
-      const next = SettingsSchema.parse(draft);
-      registerParentSecrets(next.parent);
-      await writeJsonAtomic(this.file, next);
-      this.value = next;
-      return next;
+      return this.commit(draft);
+    });
+  }
+  /** 程序内部改某个店铺（用过的链接、读到的标签页、测试时指向模拟服务的接口地址），不经过接口校验 */
+  async updateStoreRaw(id, fn) {
+    return this.mutex.run(async () => {
+      const draft = structuredClone(this.value);
+      const st = storeById(draft, id);
+      if (!st) throw new SettingsError("\u6CA1\u6709\u8FD9\u4E2A\u5E97\u94FA");
+      fn(st);
+      return this.commit(draft);
+    });
+  }
+  /** 接口改店铺：打码的值原样传回时不改原值；缩写不能和别的店铺重 */
+  async updateStore(id, patch) {
+    return this.mutex.run(async () => {
+      const draft = structuredClone(this.value);
+      const st = storeById(draft, id);
+      if (!st) throw new SettingsError("\u6CA1\u6709\u8FD9\u4E2A\u5E97\u94FA");
+      if (patch.abbr !== void 0) checkAbbrUnique(draft, patch.abbr, id);
+      Object.assign(st, stripUndefined({ name: patch.name, abbr: patch.abbr, parentSource: patch.parentSource }));
+      st.spapi = { ...st.spapi, ...stripMasked(patch.spapi) };
+      if (patch.feishu?.sheetUrl !== void 0) st.feishu.sheetUrl = patch.feishu.sheetUrl.trim();
+      return this.commit(draft);
+    });
+  }
+  async addStore(c) {
+    return this.mutex.run(async () => {
+      const draft = structuredClone(this.value);
+      checkAbbrUnique(draft, c.abbr, null);
+      const id = newStoreId(draft, c.abbr);
+      draft.stores.push(StoreSchema.parse({ id, name: c.name, abbr: c.abbr, parentSource: c.parentSource }));
+      return { settings: await this.commit(draft), id };
+    });
+  }
+  /** 当前店铺不能删，至少留一个 */
+  async removeStore(id) {
+    return this.mutex.run(async () => {
+      const draft = structuredClone(this.value);
+      if (!storeById(draft, id)) throw new SettingsError("\u6CA1\u6709\u8FD9\u4E2A\u5E97\u94FA");
+      if (draft.currentStoreId === id) throw new SettingsError("\u5F53\u524D\u5E97\u94FA\u4E0D\u80FD\u5220\uFF0C\u5148\u6362\u5230\u522B\u7684\u5E97\u94FA");
+      draft.stores = draft.stores.filter((x2) => x2.id !== id);
+      return this.commit(draft);
     });
   }
 };
@@ -57696,7 +57827,7 @@ function stripUndefined(o) {
 }
 
 // server/src/pipeline/output.ts
-var import_node_fs4 = __toESM(require("node:fs"), 1);
+var import_node_fs5 = __toESM(require("node:fs"), 1);
 var import_node_path5 = __toESM(require("node:path"), 1);
 var OUTPUT_FOLDER = { main: "\u4E3B\u56FE", pattern: "\u7D20\u6750\u56FE", blank: "\u7A7A\u767D\u56FE" };
 function safeName(s) {
@@ -57723,7 +57854,7 @@ function nextBatchFolder(outputDir, day, after) {
   const i2 = after === null ? null : batchIndex(day, after);
   for (let n = i2 === null ? 0 : i2 + 1; ; n++) {
     const cand = batchFolderName(day, n);
-    if (!import_node_fs4.default.existsSync(import_node_path5.default.join(outputDir, cand))) return cand;
+    if (!import_node_fs5.default.existsSync(import_node_path5.default.join(outputDir, cand))) return cand;
   }
 }
 var BatchFolders = class {
@@ -57781,7 +57912,7 @@ function assignOutputBase(job, others, outputDir, categoryName) {
   for (let n = 1; ; n++) {
     const cand = n === 1 ? base : `${base}_${n}`;
     if (taken.has(cand)) continue;
-    if (import_node_fs4.default.existsSync(import_node_path5.default.join(dir, outputRel("pattern", cand))) || import_node_fs4.default.existsSync(import_node_path5.default.join(dir, outputRel("main", cand)))) continue;
+    if (import_node_fs5.default.existsSync(import_node_path5.default.join(dir, outputRel("pattern", cand))) || import_node_fs5.default.existsSync(import_node_path5.default.join(dir, outputRel("main", cand)))) continue;
     return cand;
   }
 }
@@ -58010,15 +58141,12 @@ var SpapiError = class extends Error {
   retryAfterSec;
 };
 var SpapiClient = class {
-  constructor(settings) {
-    this.settings = settings;
+  constructor(creds) {
+    this.creds = creds;
   }
-  settings;
+  creds;
   cached = null;
   pending = null;
-  creds() {
-    return this.settings.get().parent.spapi;
-  }
   missing() {
     const s = this.creds();
     return [
@@ -58154,6 +58282,28 @@ var SpapiClient = class {
     }
   }
 };
+var SpapiPool = class {
+  constructor(settings) {
+    this.settings = settings;
+  }
+  settings;
+  clients = /* @__PURE__ */ new Map();
+  for(storeId) {
+    let c = this.clients.get(storeId);
+    if (!c) {
+      c = new SpapiClient(() => {
+        const st = storeById(this.settings.get(), storeId);
+        if (!st) throw new SpapiAuthError("\u8FD9\u4E2A\u5E97\u94FA\u5DF2\u7ECF\u5220\u6389\u4E86");
+        return st.spapi;
+      });
+      this.clients.set(storeId, c);
+    }
+    return c;
+  }
+  drop(storeId) {
+    this.clients.delete(storeId);
+  }
+};
 
 // server/src/util/errors.ts
 var HttpError = class extends Error {
@@ -58209,11 +58359,11 @@ var import_promises3 = __toESM(require("node:fs/promises"), 1);
 var import_multer = __toESM(require_multer(), 1);
 
 // server/src/library/store.ts
-var import_node_fs6 = __toESM(require("node:fs"), 1);
+var import_node_fs7 = __toESM(require("node:fs"), 1);
 var import_node_path7 = __toESM(require("node:path"), 1);
 
 // server/src/library/images.ts
-var import_node_fs5 = __toESM(require("node:fs"), 1);
+var import_node_fs6 = __toESM(require("node:fs"), 1);
 var import_promises2 = __toESM(require("node:fs/promises"), 1);
 var import_node_path6 = __toESM(require("node:path"), 1);
 var import_node_crypto3 = require("node:crypto");
@@ -58547,21 +58697,21 @@ var ImageStore = class {
     const { buffer, ext } = await normalizeLibraryImage(buf);
     const hash2 = sha256(buffer);
     const file2 = import_node_path6.default.join(this.dir, `${hash2}.${ext}`);
-    if (!import_node_fs5.default.existsSync(file2)) await writeFileAtomic(file2, buffer);
+    if (!import_node_fs6.default.existsSync(file2)) await writeFileAtomic(file2, buffer);
     await this.ensureThumb(hash2, buffer);
     return hash2;
   }
   /** 导入时用：内容指纹必须和文件名一致 */
   async addExact(hash2, ext, buf) {
     const file2 = import_node_path6.default.join(this.dir, `${hash2}.${ext}`);
-    if (!import_node_fs5.default.existsSync(file2)) await writeFileAtomic(file2, buf);
+    if (!import_node_fs6.default.existsSync(file2)) await writeFileAtomic(file2, buf);
     await this.ensureThumb(hash2, buf);
   }
   find(hash2) {
     if (!HASH_RE.test(hash2)) return null;
     for (const ext of EXTS) {
       const file2 = import_node_path6.default.join(this.dir, `${hash2}.${ext}`);
-      if (import_node_fs5.default.existsSync(file2)) return { file: file2, ext, mime: MIME_BY_EXT[ext] };
+      if (import_node_fs6.default.existsSync(file2)) return { file: file2, ext, mime: MIME_BY_EXT[ext] };
     }
     return null;
   }
@@ -58575,7 +58725,7 @@ var ImageStore = class {
   }
   async thumbFile(hash2) {
     const t = import_node_path6.default.join(this.thumbsDir, `${hash2}.webp`);
-    if (import_node_fs5.default.existsSync(t)) return t;
+    if (import_node_fs6.default.existsSync(t)) return t;
     const f2 = this.find(hash2);
     if (!f2) return null;
     await this.ensureThumb(hash2, await import_promises2.default.readFile(f2.file));
@@ -58592,18 +58742,18 @@ var ImageStore = class {
   }
   async ensureThumb(hash2, buf) {
     const t = import_node_path6.default.join(this.thumbsDir, `${hash2}.webp`);
-    if (import_node_fs5.default.existsSync(t)) return;
+    if (import_node_fs6.default.existsSync(t)) return;
     await writeFileAtomic(t, await thumb(buf));
   }
   cleanOrphans(referenced) {
     let n = 0;
     const sweep = (dir) => {
-      if (!import_node_fs5.default.existsSync(dir)) return;
-      for (const ent of import_node_fs5.default.readdirSync(dir, { withFileTypes: true })) {
+      if (!import_node_fs6.default.existsSync(dir)) return;
+      for (const ent of import_node_fs6.default.readdirSync(dir, { withFileTypes: true })) {
         if (!ent.isFile()) continue;
         const hash2 = ent.name.split(".")[0];
         if (!referenced.has(hash2)) {
-          import_node_fs5.default.rmSync(import_node_path6.default.join(dir, ent.name), { force: true });
+          import_node_fs6.default.rmSync(import_node_path6.default.join(dir, ent.name), { force: true });
           n++;
         }
       }
@@ -58837,26 +58987,26 @@ var MAX_BACKUPS = 10;
 var LibraryStore = class {
   constructor(p) {
     this.p = p;
-    import_node_fs6.default.mkdirSync(p.imagesDir, { recursive: true });
-    import_node_fs6.default.mkdirSync(p.thumbsDir, { recursive: true });
+    import_node_fs7.default.mkdirSync(p.imagesDir, { recursive: true });
+    import_node_fs7.default.mkdirSync(p.thumbsDir, { recursive: true });
     this.images = new ImageStore(p.imagesDir, p.thumbsDir);
     const raw2 = readJsonSync(p.file);
     if (raw2 === null) {
       this.value = initialLibrary();
-      import_node_fs6.default.writeFileSync(p.file, JSON.stringify(this.value, null, 2));
+      import_node_fs7.default.writeFileSync(p.file, JSON.stringify(this.value, null, 2));
     } else {
       const migrated = migrateLibrary(raw2);
       const r = LibrarySchema.safeParse(migrated);
       if (!r.success) {
         const bad = import_node_path7.default.join(import_node_path7.default.dirname(p.file), `library.broken-${Date.now()}.json`);
-        import_node_fs6.default.copyFileSync(p.file, bad);
+        import_node_fs7.default.copyFileSync(p.file, bad);
         log.error(`\u6A21\u7248\u5E93\u6587\u4EF6\u683C\u5F0F\u4E0D\u5BF9\uFF0C\u5DF2\u53E6\u5B58\u4E3A ${bad}\uFF0C\u8FD9\u6B21\u7528\u7A7A\u6A21\u7248\u5E93\u542F\u52A8`);
         this.value = initialLibrary();
       } else {
         this.value = r.data;
         if (migrated !== raw2) {
           const old = import_node_path7.default.join(import_node_path7.default.dirname(p.file), `library.v1-${Date.now()}.json`);
-          import_node_fs6.default.copyFileSync(p.file, old);
+          import_node_fs7.default.copyFileSync(p.file, old);
           writeFileAtomicSync(p.file, JSON.stringify(this.value, null, 2));
           log.info(`\u6A21\u7248\u5E93\u5DF2\u5347\u7EA7\uFF1A\u81EA\u5B9A\u4E49\u6A21\u7248\u6539\u4E3A\u6BCF\u4E2A\u6B3E\u5F0F\u5404\u4E00\u5957\uFF08\u65E7\u6587\u4EF6\u53E6\u5B58\u4E3A ${old}\uFF09`);
         }
@@ -58926,12 +59076,12 @@ var LibraryStore = class {
   }
   /** 只能在 mutate 回调里调用 */
   backupCurrent() {
-    import_node_fs6.default.mkdirSync(this.p.backupsDir, { recursive: true });
+    import_node_fs7.default.mkdirSync(this.p.backupsDir, { recursive: true });
     const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
-    import_node_fs6.default.copyFileSync(this.p.file, import_node_path7.default.join(this.p.backupsDir, `library-${stamp}.json`));
-    const files = import_node_fs6.default.readdirSync(this.p.backupsDir).filter((f2) => /^library-.*\.json$/.test(f2)).sort();
+    import_node_fs7.default.copyFileSync(this.p.file, import_node_path7.default.join(this.p.backupsDir, `library-${stamp}.json`));
+    const files = import_node_fs7.default.readdirSync(this.p.backupsDir).filter((f2) => /^library-.*\.json$/.test(f2)).sort();
     for (const f2 of files.slice(0, Math.max(0, files.length - MAX_BACKUPS))) {
-      import_node_fs6.default.rmSync(import_node_path7.default.join(this.p.backupsDir, f2), { force: true });
+      import_node_fs7.default.rmSync(import_node_path7.default.join(this.p.backupsDir, f2), { force: true });
     }
   }
 };
@@ -60899,12 +61049,48 @@ function parseSpapiCredentials(input2) {
 }
 
 // server/src/api/parent.ts
+async function settle2(fn) {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof SettingsError) throw new HttpError(400, e.message);
+    throw e;
+  }
+}
 function registerParent(r, ctx) {
   const { settings } = ctx;
   const p = ctx.parent;
-  r.post("/settings/parent/test", async (req, res) => {
+  const storeOf = (req) => {
+    const st = storeById(settings.get(), String(req.params.id));
+    if (!st) throw new HttpError(404, "\u6CA1\u6709\u8FD9\u4E2A\u5E97\u94FA");
+    return st;
+  };
+  r.post("/stores", async (req, res) => {
+    const c = parseBody(StoreCreateSchema, req.body);
+    const { settings: next, id } = await settle2(() => settings.addStore(c));
+    ctx.onSettingsSaved();
+    log.info(`\u65B0\u589E\u5E97\u94FA\u300C${c.name}\u300D\uFF08${c.abbr}\uFF09`);
+    res.json({ id, settings: maskSettings(next) });
+  });
+  r.patch("/stores/:id", async (req, res) => {
+    const st = storeOf(req);
+    const patch = parseBody(StorePatchSchema, req.body);
+    const next = await settle2(() => settings.updateStore(st.id, patch));
+    ctx.onSettingsSaved();
+    res.json(maskSettings(next));
+  });
+  r.delete("/stores/:id", async (req, res) => {
+    const st = storeOf(req);
+    const next = await settle2(() => settings.removeStore(st.id));
+    p.spapis.drop(st.id);
+    ctx.onSettingsSaved();
+    log.info(`\u5220\u9664\u5E97\u94FA\u300C${st.name}\u300D`);
+    res.json(maskSettings(next));
+  });
+  r.post("/stores/:id/feishu/test", async (req, res) => {
+    const st = storeOf(req);
     const b = parseBody(external_exports.object({ url: external_exports.string().optional() }), req.body ?? {});
-    const url2 = (b.url ?? settings.get().parent.sheetUrl).trim();
+    const url2 = (b.url ?? st.feishu.sheetUrl).trim();
     if (!url2) throw new HttpError(400, "\u5148\u586B\u7236\u4F53\u8868\u94FE\u63A5");
     try {
       const info = await p.sheets.info(url2, true);
@@ -60918,10 +61104,10 @@ function registerParent(r, ctx) {
           tabs.push({ title: t.title, count: 0, header: false, error: e.message });
         }
       }
-      await settings.updateParent((pp) => {
-        pp.tabs = info.tabs.map((t) => t.title);
-        pp.recentUrls = [{ url: url2, title: info.title, usedAt: (/* @__PURE__ */ new Date()).toISOString() }, ...pp.recentUrls.filter((x2) => x2.url !== url2)].slice(0, MAX_RECENT_URLS);
-      });
+      await settle2(() => settings.updateStoreRaw(st.id, (s2) => {
+        s2.feishu.tabs = info.tabs.map((t) => t.title);
+        s2.feishu.recentUrls = [{ url: url2, title: info.title, usedAt: (/* @__PURE__ */ new Date()).toISOString() }, ...s2.feishu.recentUrls.filter((x2) => x2.url !== url2)].slice(0, MAX_RECENT_URLS);
+      }));
       ctx.onSettingsSaved();
       res.json({ ok: true, title: info.title, tabs });
     } catch (e) {
@@ -60930,7 +61116,8 @@ function registerParent(r, ctx) {
       throw e;
     }
   });
-  r.post("/settings/spapi/import", upload.single("file"), async (req, res) => {
+  r.post("/stores/:id/spapi/import", upload.single("file"), async (req, res) => {
+    const st = storeOf(req);
     const f2 = req.file;
     let text;
     if (f2) {
@@ -60942,14 +61129,14 @@ function registerParent(r, ctx) {
     const found = Object.fromEntries(Object.entries(c).map(([k, v]) => [k, !!v]));
     if (!Object.values(found).some(Boolean)) throw new HttpError(400, "\u6CA1\u5728\u6587\u4EF6\u91CC\u627E\u5230 SP-API \u51ED\u8BC1\uFF08\u5E97\u94FA ID\u3001Client ID\u3001Client Secret\u3001Refresh Token\uFF09");
     const patch = Object.fromEntries(Object.entries(c).filter(([, v]) => v));
-    await settings.update({ parent: { spapi: patch } });
+    await settle2(() => settings.updateStore(st.id, { spapi: patch }));
     ctx.onSettingsSaved();
-    log.info(`\u5BFC\u5165 SP-API \u51ED\u8BC1\uFF1A${Object.entries(found).filter(([, v]) => v).map(([k]) => k).join("\u3001")}`);
+    log.info(`\u300C${st.name}\u300D\u5BFC\u5165 SP-API \u51ED\u8BC1\uFF1A${Object.entries(found).filter(([, v]) => v).map(([k]) => k).join("\u3001")}`);
     res.json({ found, settings: maskSettings(settings.get()) });
   });
   r.get("/parent/rows", async (req, res) => {
-    const url2 = settings.get().parent.sheetUrl;
-    if (!url2) throw new HttpError(400, "\u5148\u5728\u8BBE\u7F6E\u91CC\u586B\u7236\u4F53\u8868\u94FE\u63A5");
+    const url2 = currentStore(settings.get()).feishu.sheetUrl;
+    if (!url2) throw new HttpError(400, "\u5148\u5728\u8BBE\u7F6E\u91CC\u7ED9\u5F53\u524D\u5E97\u94FA\u586B\u7236\u4F53\u8868\u94FE\u63A5");
     const tab = typeof req.query.tab === "string" ? req.query.tab : "";
     try {
       const info = await p.sheets.info(url2);
@@ -60970,13 +61157,14 @@ function registerParent(r, ctx) {
       throw e;
     }
   });
-  r.post("/settings/spapi/test", async (_req, res) => {
-    res.json(await p.spapi.test());
+  r.post("/stores/:id/spapi/test", async (req, res) => {
+    const st = storeOf(req);
+    res.json(await p.spapis.for(st.id).test());
   });
 }
 
 // server/src/parent/reservations.ts
-var import_node_fs7 = __toESM(require("node:fs"), 1);
+var import_node_fs8 = __toESM(require("node:fs"), 1);
 var import_node_path8 = __toESM(require("node:path"), 1);
 var Reservations = class {
   /** dir 不给时只记在内存里（单元测试） */
@@ -61002,7 +61190,7 @@ var Reservations = class {
     const f2 = this.file(folder);
     if (!f2) return;
     try {
-      import_node_fs7.default.mkdirSync(import_node_path8.default.dirname(f2), { recursive: true });
+      import_node_fs8.default.mkdirSync(import_node_path8.default.dirname(f2), { recursive: true });
       writeFileAtomicSync(f2, JSON.stringify(v));
     } catch (e) {
       log.warn(`\u4FDD\u5B58\u5360\u53F7\u8BB0\u5F55\u5931\u8D25\uFF1A${e.message}`);
@@ -61137,7 +61325,9 @@ function registerSettings(r, ctx) {
   });
   r.put("/settings", async (req, res) => {
     const patch = parseBody(SettingsPatchSchema, req.body);
-    const next = await ctx.settings.update(patch);
+    const next = await ctx.settings.update(patch).catch((e) => {
+      throw e instanceof SettingsError ? new HttpError(400, e.message) : e;
+    });
     ctx.onSettingsSaved();
     res.json(maskSettings(next));
   });
@@ -61169,7 +61359,7 @@ function registerSettings(r, ctx) {
 }
 
 // server/src/api/misc.ts
-var import_node_fs8 = __toESM(require("node:fs"), 1);
+var import_node_fs9 = __toESM(require("node:fs"), 1);
 
 // server/src/util/platform.ts
 var import_node_child_process = require("node:child_process");
@@ -61300,8 +61490,8 @@ function registerMisc(r, ctx) {
       if (!job) throw new HttpError(404, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u4E0D\u5728\u961F\u5217\u91CC\u4E86");
       if (job.route) dir = categoryDir(root, job);
     }
-    if (!import_node_fs8.default.existsSync(dir)) dir = root;
-    import_node_fs8.default.mkdirSync(dir, { recursive: true });
+    if (!import_node_fs9.default.existsSync(dir)) dir = root;
+    import_node_fs9.default.mkdirSync(dir, { recursive: true });
     openFolder(dir);
     res.json({ ok: true, dir });
   });
@@ -61343,7 +61533,7 @@ data: ${JSON.stringify(payload)}
 }
 
 // server/src/store/jobs.ts
-var import_node_fs9 = __toESM(require("node:fs"), 1);
+var import_node_fs10 = __toESM(require("node:fs"), 1);
 var import_promises4 = __toESM(require("node:fs/promises"), 1);
 var import_node_path10 = __toESM(require("node:path"), 1);
 var STEP_COUNT = 6;
@@ -61599,7 +61789,7 @@ var JobStore = class {
   }) {
     this.dir = dir;
     this.onChange = onChange;
-    import_node_fs9.default.mkdirSync(dir, { recursive: true });
+    import_node_fs10.default.mkdirSync(dir, { recursive: true });
   }
   dir;
   onChange;
@@ -61611,12 +61801,12 @@ var JobStore = class {
     return import_node_path10.default.join(this.dir, id, name);
   }
   loadAll() {
-    for (const ent of import_node_fs9.default.readdirSync(this.dir, { withFileTypes: true })) {
+    for (const ent of import_node_fs10.default.readdirSync(this.dir, { withFileTypes: true })) {
       if (!ent.isDirectory()) continue;
       const file2 = import_node_path10.default.join(this.dir, ent.name, "job.json");
-      if (!import_node_fs9.default.existsSync(file2)) continue;
+      if (!import_node_fs10.default.existsSync(file2)) continue;
       try {
-        const raw2 = JSON.parse(import_node_fs9.default.readFileSync(file2, "utf8"));
+        const raw2 = JSON.parse(import_node_fs10.default.readFileSync(file2, "utf8"));
         if (Array.isArray(raw2?.steps) && raw2.steps.length === STEP_COUNT - 1) {
           raw2.steps.push({ state: "skipped", attempts: 0, note: "\u8FD9\u5F20\u56FE\u662F\u52A0\u7236\u4F53\u529F\u80FD\u4E4B\u524D\u8DD1\u7684\uFF0C\u6CA1\u6709\u5339\u914D\u7236\u4F53" });
         }
@@ -61677,7 +61867,7 @@ var JobStore = class {
 };
 
 // server/src/scheduler/scheduler.ts
-var import_node_fs13 = __toESM(require("node:fs"), 1);
+var import_node_fs14 = __toESM(require("node:fs"), 1);
 var import_node_path19 = __toESM(require("node:path"), 1);
 
 // server/src/pipeline/step0Route.ts
@@ -61997,17 +62187,17 @@ var step0Route = async (ctx) => {
 };
 
 // server/src/pipeline/step1Extract.ts
-var import_node_fs11 = __toESM(require("node:fs"), 1);
+var import_node_fs12 = __toESM(require("node:fs"), 1);
 var import_promises7 = __toESM(require("node:fs/promises"), 1);
 var import_node_path14 = __toESM(require("node:path"), 1);
 
 // server/src/pipeline/plan.ts
-var import_node_fs10 = __toESM(require("node:fs"), 1);
+var import_node_fs11 = __toESM(require("node:fs"), 1);
 var import_node_path12 = __toESM(require("node:path"), 1);
 function planImageFile(jobDir, hash2) {
   for (const ext of ["png", "jpg", "webp"]) {
     const f2 = import_node_path12.default.join(jobDir, `plan_${hash2}.${ext}`);
-    if (import_node_fs10.default.existsSync(f2)) return f2;
+    if (import_node_fs11.default.existsSync(f2)) return f2;
   }
   return null;
 }
@@ -62488,7 +62678,7 @@ var step1Extract = async (ctx) => {
     return { kind: "attention", state: "pending", attention: { kind: "nomatch", step: 1, message: "\u8FD8\u6CA1\u6709\u786E\u5B9A\u54C1\u7C7B" } };
   }
   const patternFile = import_node_path14.default.join(ctx.dir, JOB_FILES.pattern);
-  if (ctx.job.qc?.state === "pending" && !import_node_fs11.default.existsSync(patternFile)) {
+  if (ctx.job.qc?.state === "pending" && !import_node_fs12.default.existsSync(patternFile)) {
     return { kind: "requeue", patch: (job) => job.qc = null };
   }
   if (ctx.job.qc?.state === "pending") {
@@ -62566,7 +62756,7 @@ async function runQc(ctx, patternFile) {
   const settings = ctx.env.settings();
   const threshold = settings.patternQcThreshold;
   const faceFile = import_node_path14.default.join(ctx.dir, JOB_FILES.face);
-  const useFace = !!ctx.job.face && ctx.job.steps[1].snapshot?.images[0]?.role === "\u5370\u5237\u9762" && import_node_fs11.default.existsSync(faceFile);
+  const useFace = !!ctx.job.face && ctx.job.steps[1].snapshot?.images[0]?.role === "\u5370\u5237\u9762" && import_node_fs12.default.existsSync(faceFile);
   const srcBuf = await import_promises7.default.readFile(useFace ? faceFile : import_node_path14.default.join(ctx.dir, ctx.job.source.file));
   const patBuf = await import_promises7.default.readFile(patternFile);
   const layout = await checkPatternLayout(patBuf, ctx.job.route.ratio);
@@ -62632,7 +62822,7 @@ async function runQc(ctx, patternFile) {
 }
 
 // server/src/pipeline/step2Main.ts
-var import_node_fs12 = __toESM(require("node:fs"), 1);
+var import_node_fs13 = __toESM(require("node:fs"), 1);
 var import_promises8 = __toESM(require("node:fs/promises"), 1);
 var import_node_path15 = __toESM(require("node:path"), 1);
 var LOCAL_PROMPT = "\u672C\u5730\u5408\u6210\uFF0C\u672A\u8C03\u7528 AI";
@@ -62661,7 +62851,7 @@ var step2Main = async (ctx) => {
     return { kind: "attention", state: "pending", attention: { kind: "nomatch", step: 2, message: "\u8FD8\u6CA1\u6709\u786E\u5B9A\u8981\u7528\u7684\u6A21\u7248\uFF0C\u8BF7\u91CD\u65B0\u8BC6\u522B" } };
   }
   const mainFile = import_node_path15.default.join(ctx.dir, JOB_FILES.main);
-  if (ctx.job.mainQc?.state === "pending" && !import_node_fs12.default.existsSync(mainFile)) {
+  if (ctx.job.mainQc?.state === "pending" && !import_node_fs13.default.existsSync(mainFile)) {
     return { kind: "requeue", patch: (job) => job.mainQc = null };
   }
   if (ctx.job.mainQc?.state === "pending") {
@@ -63141,15 +63331,25 @@ function nextName(a, taken = []) {
 var ParentPauseError = class extends Error {
 };
 var NEW_PARENT_NOTE = "\u8FD9\u662F\u5EFA\u8BAE\u65B0\u5EFA\u7684\u7236\u4F53\uFF0C\u98DE\u4E66\u8868\u548C\u5E97\u94FA\u91CC\u90FD\u8FD8\u6CA1\u6709\uFF0C\u9700\u8981\u4F60\u624B\u52A8\u521B\u5EFA";
-function parentSkipReason(s) {
-  const p = s.parent;
-  if (!p.enabled) return "\u8BC6\u522B\u7236\u4F53\u6CA1\u6709\u6253\u5F00\uFF0C\u53EF\u4EE5\u5728\u8BBE\u7F6E\u91CC\u6253\u5F00";
+function storeForJob(s, _job) {
+  return currentStore(s);
+}
+function storeMissing(s, st) {
   const miss = [];
-  if (!p.sheetUrl) miss.push("\u7236\u4F53\u8868\u94FE\u63A5");
-  if (!p.feishu.appId || !p.feishu.appSecret) miss.push("\u98DE\u4E66 App ID / App Secret");
-  const sp = p.spapi;
+  if (st.parentSource === "feishu") {
+    if (!st.feishu.sheetUrl) miss.push("\u7236\u4F53\u8868\u94FE\u63A5");
+    if (!s.parent.feishu.appId || !s.parent.feishu.appSecret) miss.push("\u98DE\u4E66 App ID / App Secret");
+  }
+  const sp = st.spapi;
   if (!sp.sellerId || !sp.clientId || !sp.clientSecret || !sp.refreshToken) miss.push("SP-API \u51ED\u8BC1");
-  return miss.length ? `\u8BC6\u522B\u7236\u4F53\u7F3A\uFF1A${miss.join("\u3001")}\u3002\u8865\u9F50\u540E\u5728\u8BE6\u60C5\u91CC\u5BF9\u7B2C 6 \u6B65\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D` : null;
+  return miss;
+}
+function parentSkipReason(s, st = currentStore(s)) {
+  if (!s.parent.enabled) return "\u8BC6\u522B\u7236\u4F53\u6CA1\u6709\u6253\u5F00\uFF0C\u53EF\u4EE5\u5728\u8BBE\u7F6E\u91CC\u6253\u5F00";
+  const miss = storeMissing(s, st);
+  if (miss.length) return `\u300C${st.name}\u300D\u8BC6\u522B\u7236\u4F53\u7F3A\uFF1A${miss.join("\u3001")}\u3002\u8865\u9F50\u540E\u5728\u8BE6\u60C5\u91CC\u5BF9\u7B2C 6 \u6B65\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D`;
+  if (st.parentSource === "store") return `\u300C${st.name}\u300D\u4ECE\u5E97\u94FA\u68C0\u7D22\u7236\u4F53\u8FD8\u6CA1\u505A\u597D\uFF0C\u8FD9\u4E00\u6B65\u5148\u8DF3\u8FC7`;
+  return null;
 }
 async function guard(fn) {
   try {
@@ -63166,6 +63366,10 @@ async function guard(fn) {
     if (e instanceof SpapiError) throw new AiError(e.status >= 500 ? "server" : e.status >= 400 ? "client" : "network", `SP-API\uFF1A${e.message}`, e.status || void 0);
     throw e;
   }
+}
+function depsFor(env, storeId) {
+  const { spapis, ...rest } = env;
+  return { ...rest, spapi: spapis.for(storeId) };
 }
 function emptyResult(base, status, message) {
   return { ...base, status, message, sku: null, asin: null, theme: null, confidence: null, reason: null, manual: false, candidates: [], naming: null, proposal: null };
@@ -63269,15 +63473,16 @@ async function shiftNumber(deps, job, delta, commit) {
 // server/src/pipeline/step5Parent.ts
 var step5Parent = async (ctx) => {
   const settings = ctx.env.settings();
-  const skip = parentSkipReason(settings);
+  const store = storeForJob(settings, ctx.job);
+  const skip = parentSkipReason(settings, store);
   if (skip) return { kind: "skipped", patch: (j) => j.steps[PARENT_STEP].note = skip };
   const route = ctx.job.route;
   if (!route) return { kind: "skipped", patch: (j) => j.steps[PARENT_STEP].note = "\u8FD8\u6CA1\u6709\u786E\u5B9A\u54C1\u7C7B\uFF0C\u4E0D\u5339\u914D\u7236\u4F53" };
-  const deps = ctx.env.parent;
+  const deps = depsFor(ctx.env.parent, store.id);
   const p = settings.parent;
   const cat = ctx.env.library.get().categories.find((c) => c.id === route.categoryId);
   const tab = cat?.parentTab?.trim() || cat?.name || route.categoryName;
-  const read = await ctx.retry(() => guard(() => deps.sheets.rows(p.sheetUrl, tab)));
+  const read = await ctx.retry(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)));
   const base = { tab, readAt: read?.readAt ?? (/* @__PURE__ */ new Date()).toISOString() };
   const finish2 = (r) => ({ kind: "done", patch: (j) => j.parent = r });
   if (!read) return finish2(emptyResult(base, "none", `\u98DE\u4E66\u8868\u91CC\u6CA1\u6709\u300C${tab}\u300D\u6807\u7B7E\u9875\uFF0C\u53BB\u6A21\u7248\u5E93\u7ED9\u300C${cat?.name ?? route.categoryName}\u300D\u9009\u5BF9\u5E94\u7684\u6807\u7B7E\u9875`));
@@ -63336,7 +63541,7 @@ var Scheduler = class {
       },
       parent: {
         sheets: d.parent?.sheets ?? null,
-        spapi: d.parent?.spapi ?? null,
+        spapis: d.parent?.spapis ?? null,
         mutex: this.parentLock,
         jobs: () => d.jobs.list(),
         reservations: d.parent?.reservations
@@ -63444,7 +63649,7 @@ var Scheduler = class {
     if (job.attention || job.paused || this.holds.has(job.id)) return -1;
     const i2 = currentStep(job);
     if (i2 < 0 || job.steps[i2].state !== "pending") return -1;
-    if (i2 === PARENT_STEP && parentSkipReason(this.d.settings.get())) return i2;
+    if (i2 === PARENT_STEP && this.parentSkip(job)) return i2;
     if (this.authPaused[kindOf(i2, job)]) return -1;
     if (i2 === PARENT_STEP && this.parentPaused) return -1;
     return i2;
@@ -63455,7 +63660,7 @@ var Scheduler = class {
       const i2 = this.dispatchableStep(job);
       if (i2 < 0) continue;
       if (i2 === PARENT_STEP) {
-        const why = parentSkipReason(this.d.settings.get());
+        const why = this.parentSkip(job);
         if (why) {
           this.d.jobs.update(job.id, (j) => {
             markSkipped(j, PARENT_STEP);
@@ -63549,8 +63754,12 @@ var Scheduler = class {
     const s = this.d.settings.get();
     const others = this.d.jobs.list().filter((o) => o.id !== j.id);
     const dir = import_node_path19.default.join(this.env.outputDir(), j.outputFolder, safeName(j.route.categoryName));
-    const taken = (sku) => others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) || import_node_fs13.default.existsSync(import_node_path19.default.join(dir, outputRel("main", sku))) || import_node_fs13.default.existsSync(import_node_path19.default.join(dir, outputRel("pattern", sku)));
-    return this.sku.allocate({ store: s.sku.store, code, region: s.sku.region, mark: s.parent.creatorMark }, taken);
+    const taken = (sku) => others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("main", sku))) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("pattern", sku)));
+    return this.sku.allocate({ store: storeForJob(s, j).abbr, code, region: s.sku.group, mark: s.parent.creatorMark }, taken);
+  }
+  parentSkip(job) {
+    const s = this.d.settings.get();
+    return parentSkipReason(s, storeForJob(s, job));
   }
   applyResult(jobId, i2, r) {
     if (r.patch) this.applyPatch(jobId, r.patch);
@@ -63818,7 +64027,7 @@ var Scheduler = class {
   async setParent(jobId, sku) {
     const job = this.d.jobs.get(jobId);
     if (!job) throw new HttpError(404, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u4E0D\u5728\u961F\u5217\u91CC\u4E86");
-    const why = parentSkipReason(this.d.settings.get());
+    const why = this.parentSkip(job);
     if (why) throw new HttpError(400, why);
     if (!job.route) throw new HttpError(400, "\u8FD9\u5F20\u56FE\u8FD8\u6CA1\u6709\u786E\u5B9A\u54C1\u7C7B");
     const st = job.steps[PARENT_STEP].state;
@@ -63826,7 +64035,10 @@ var Scheduler = class {
     if (this.settingParent.has(jobId) || this.holds.has(jobId)) throw new HttpError(409, "\u8FD9\u5F20\u56FE\u6B63\u5728\u5904\u7406\u4E0A\u4E00\u4E2A\u64CD\u4F5C\uFF0C\u8BF7\u7A0D\u7B49");
     this.settingParent.add(jobId);
     try {
-      const p = this.d.settings.get().parent;
+      const settings = this.d.settings.get();
+      const p = settings.parent;
+      const store = storeForJob(settings, job);
+      const deps = depsFor(this.env.parent, store.id);
       const cat = this.d.library.get().categories.find((c) => c.id === job.route.categoryId);
       const tab = cat?.parentTab?.trim() || job.route.categoryName;
       const call2 = (fn) => fn().catch((e) => {
@@ -63834,7 +64046,7 @@ var Scheduler = class {
         if (e instanceof AiError) throw new HttpError(502, e.message);
         throw e;
       });
-      const read = await call2(() => guard(() => this.env.parent.sheets.rows(p.sheetUrl, tab)));
+      const read = await call2(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)));
       const row = read?.rows?.find((r) => r.sku.trim().toLowerCase() === sku.trim().toLowerCase()) ?? { sku: sku.trim(), asin: "", theme: "", row: 0 };
       const base = {
         tab,
@@ -63846,7 +64058,7 @@ var Scheduler = class {
       };
       let applied = false;
       await bindExisting({
-        deps: this.env.parent,
+        deps,
         job,
         row,
         base,
@@ -63877,7 +64089,7 @@ var Scheduler = class {
     return this.hold(jobId, async (job) => {
       if (job.steps[PARENT_STEP].state === "running") throw new HttpError(400, "\u300C\u5339\u914D\u7236\u4F53\u300D\u6B63\u5728\u8DD1\uFF0C\u7B49\u5B83\u8DD1\u5B8C\u518D\u8C03");
       try {
-        await shiftNumber(this.env.parent, job, delta, (r) => this.d.jobs.update(jobId, (j) => j.parent = r));
+        await shiftNumber(depsFor(this.env.parent, storeForJob(this.d.settings.get(), job).id), job, delta, (r) => this.d.jobs.update(jobId, (j) => j.parent = r));
       } catch (e) {
         throw new HttpError(400, e.message);
       }
@@ -63948,7 +64160,7 @@ var Scheduler = class {
 };
 
 // server/src/api/jobs.ts
-var import_node_fs14 = __toESM(require("node:fs"), 1);
+var import_node_fs15 = __toESM(require("node:fs"), 1);
 var import_promises12 = __toESM(require("node:fs/promises"), 1);
 var import_node_path20 = __toESM(require("node:path"), 1);
 var import_sharp8 = __toESM(require("sharp"), 1);
@@ -64120,7 +64332,7 @@ function registerJobs(r, ctx) {
     if (!["source", "pattern", "main", "blank", "face"].includes(kind)) throw new HttpError(400, "\u6587\u4EF6\u7C7B\u578B\u53EA\u80FD\u662F source\u3001pattern\u3001main\u3001blank\u3001face");
     const dir = jobs.dirOf(job.id);
     const file2 = req.query.size === "thumb" ? import_node_path20.default.join(dir, "thumbs", `${kind}.webp`) : import_node_path20.default.join(dir, kind === "source" ? job.source.file : JOB_FILES[kind]);
-    if (!import_node_fs14.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");
+    if (!import_node_fs15.default.existsSync(file2)) throw new HttpError(404, "\u6587\u4EF6\u8FD8\u6CA1\u6709\u751F\u6210");
     res.setHeader("Cache-Control", "no-cache");
     res.sendFile(file2);
   });
@@ -64140,7 +64352,7 @@ function registerJobs(r, ctx) {
 // server/src/server.ts
 function readVersion(toolDir) {
   try {
-    return JSON.parse(import_node_fs15.default.readFileSync(import_node_path21.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
+    return JSON.parse(import_node_fs16.default.readFileSync(import_node_path21.default.join(toolDir, "package.json"), "utf8")).version ?? "0.0.0";
   } catch {
     return "0.0.0";
   }
@@ -64164,7 +64376,7 @@ async function createContext(paths) {
   let scheduler = null;
   const limiter = new Limiter(() => scheduler?.tick());
   const sheets = new FeishuSheets(settings);
-  const spapi = new SpapiClient(settings);
+  const spapis = new SpapiPool(settings);
   scheduler = new Scheduler({
     jobs,
     library,
@@ -64173,7 +64385,7 @@ async function createContext(paths) {
     bus,
     stateFile: import_node_path21.default.join(paths.dataDir, "queue.json"),
     csvRowsDir: import_node_path21.default.join(paths.dataDir, "batches"),
-    parent: { sheets, spapi, reservations },
+    parent: { sheets, spapis, reservations },
     sku: new SkuCounter(import_node_path21.default.join(paths.dataDir, "sku.json"))
   });
   const sched = scheduler;
@@ -64188,7 +64400,7 @@ async function createContext(paths) {
     jobs,
     scheduler: sched,
     batch: new BatchFolders(import_node_path21.default.join(paths.dataDir, "batch.json"), () => resolveOutputDir(settings.get())),
-    parent: { sheets, spapi },
+    parent: { sheets, spapis },
     sse: { clients: 0 },
     onSettingsSaved: () => {
     },
@@ -64237,7 +64449,7 @@ function createApp(ctx) {
   });
   app.use("/api", api);
   const webDir = ctx.paths.webDir;
-  if (import_node_fs15.default.existsSync(import_node_path21.default.join(webDir, "index.html"))) {
+  if (import_node_fs16.default.existsSync(import_node_path21.default.join(webDir, "index.html"))) {
     app.use(import_express.default.static(webDir, { index: "index.html" }));
     app.get("/{*rest}", (_req, res) => res.sendFile(import_node_path21.default.join(webDir, "index.html")));
   } else {

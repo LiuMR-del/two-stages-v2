@@ -48,49 +48,62 @@ async function useMock() {
   // 接口地址设置接口改不了，测试从程序内部指到模拟服务
   await ctx.settings.updateParent((p) => {
     p.feishu.baseUrl = mock.origin
-    Object.assign(p.spapi, { endpoint: mock.origin, tokenUrl: mock.origin + '/auth/o2/token' })
   })
+  await ctx.settings.updateStoreRaw('hj', (st) => Object.assign(st.spapi, { endpoint: mock.origin, tokenUrl: mock.origin + '/auth/o2/token' }))
   ctx.parent.sheets.clear()
-  await api.json('PUT', '/settings', {
-    parent: {
-      feishu: { appId: mock.parent.feishu.appId, appSecret: mock.parent.feishu.appSecret },
-      spapi: { sellerId: mock.parent.spapi.sellerId, clientId: mock.parent.spapi.clientId, clientSecret: mock.parent.spapi.clientSecret, refreshToken: mock.parent.spapi.refreshToken },
-    },
+  await api.json('PUT', '/settings', { parent: { feishu: { appId: mock.parent.feishu.appId, appSecret: mock.parent.feishu.appSecret } } })
+  await api.json('PATCH', '/stores/hj', {
+    spapi: { sellerId: mock.parent.spapi.sellerId, clientId: mock.parent.spapi.clientId, clientSecret: mock.parent.spapi.clientSecret, refreshToken: mock.parent.spapi.refreshToken },
   })
 }
 
+const hj = () => ctx.settings.get().stores.find((s) => s.id === 'hj')!
+const art = () => ctx.settings.get().stores.find((s) => s.id === 'art')!
+
 describe('父体匹配设置', () => {
-  it('默认关闭；阈值 0.7、创建人标识 5、美国站', async () => {
-    const s = (await api.json('GET', '/settings')).body.parent
-    expect(s).toMatchObject({ enabled: false, threshold: 0.7, creatorMark: '5', sheetUrl: '', recentUrls: [] })
-    expect(s.spapi.marketplaceId).toBe('ATVPDKIKX0DER')
-    expect(Object.keys(s.feishu).sort()).toEqual(['appId', 'appSecret', 'baseUrl'])
+  it('默认关闭；阈值 0.7、创建人标识 5；默认两个店铺（焕捷飞书、爱睿特店铺），美国站', async () => {
+    const body = (await api.json('GET', '/settings')).body
+    expect(body.parent).toMatchObject({ enabled: false, threshold: 0.7, creatorMark: '5' })
+    expect(Object.keys(body.parent.feishu).sort()).toEqual(['appId', 'appSecret', 'baseUrl'])
+    expect(body.stores.map((s: any) => [s.id, s.name, s.abbr, s.parentSource])).toEqual([
+      ['hj', '焕捷', 'HJ', 'feishu'],
+      ['art', '爱睿特', 'ART', 'store'],
+    ])
+    expect(body.currentStoreId).toBe('hj')
+    expect(body.stores[1].spapi.marketplaceId).toBe('ATVPDKIKX0DER')
+    expect(body.stores[0].feishu).toEqual({ sheetUrl: '', recentUrls: [], tabs: [] })
   })
 
   it('密钥打码返回；打码的值原样传回不覆盖原值；日志里也打码', async () => {
-    await api.json('PUT', '/settings', { parent: { feishu: { appId: 'cli_x', appSecret: 'feishu-secret-abcd' }, spapi: { clientSecret: 'amzn1.oa2-cs.v1.zzzz9876' } } })
-    const got = (await api.json('GET', '/settings')).body.parent
-    expect(got.feishu.appSecret).toBe('••••abcd')
-    expect(got.spapi.clientSecret).toBe('••••9876')
+    await api.json('PUT', '/settings', { parent: { feishu: { appId: 'cli_x', appSecret: 'feishu-secret-abcd' } } })
+    await api.json('PATCH', '/stores/art', { spapi: { clientSecret: 'amzn1.oa2-cs.v1.zzzz9876' } })
+    const body = (await api.json('GET', '/settings')).body
+    expect(body.parent.feishu.appSecret).toBe('••••abcd')
+    expect(body.stores[1].spapi.clientSecret).toBe('••••9876')
+    await api.json('PATCH', '/stores/art', { spapi: { clientSecret: '••••9876' } })
+    expect(art().spapi.clientSecret).toBe('amzn1.oa2-cs.v1.zzzz9876')
     await api.json('PUT', '/settings', { parent: { feishu: { appSecret: '••••abcd' } } })
     expect(ctx.settings.get().parent.feishu.appSecret).toBe('feishu-secret-abcd')
     expect(redact('用了 feishu-secret-abcd 和 amzn1.oa2-cs.v1.zzzz9876')).toBe('用了 *** 和 ***')
   })
 
   it('凭证要发往的接口地址不能通过设置接口改', async () => {
-    const before = ctx.settings.get().parent.spapi.tokenUrl
+    const before = hj().spapi.tokenUrl
     await api.json('PUT', '/settings', { parent: { spapi: { tokenUrl: 'http://evil.example/token' }, feishu: { baseUrl: 'http://evil.example' } } } as any)
-    expect(ctx.settings.get().parent.spapi.tokenUrl).toBe(before)
+    await api.json('PATCH', '/stores/hj', { spapi: { tokenUrl: 'http://evil.example/token', endpoint: 'http://evil.example' } } as any)
+    expect(hj().spapi.tokenUrl).toBe(before)
+    expect(hj().spapi.endpoint).not.toBe('http://evil.example')
     expect(ctx.settings.get().parent.feishu.baseUrl).not.toBe('http://evil.example')
   })
 
   it('别的网页跨站提交（带别的 Origin）一律拒绝：换不了凭证、退不了授权', async () => {
     const evil = (path: string, body: string) =>
       fetch(api.base + path, { method: 'POST', headers: { Origin: 'http://evil.example', 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-    expect((await evil('/settings/spapi/import', `text=${encodeURIComponent('店铺ID：AEVIL1234567')}`)).status).toBe(403)
-    expect((await evil('/settings/parent/test', '')).status).toBe(403)
+    expect((await evil('/stores/hj/spapi/import', `text=${encodeURIComponent('店铺ID：AEVIL1234567')}`)).status).toBe(403)
+    expect((await evil('/stores/hj/feishu/test', '')).status).toBe(403)
+    expect((await evil('/stores', 'name=x&abbr=X')).status).toBe(403)
     expect((await evil('/jobs/clear-all', '')).status).toBe(403)
-    expect(ctx.settings.get().parent.spapi.sellerId).not.toBe('AEVIL1234567')
+    expect(hj().spapi.sellerId).not.toBe('AEVIL1234567')
   })
 })
 
@@ -102,13 +115,17 @@ describe('SP-API 凭证导入', () => {
   })
 
   it('上传 RTF：存进设置，接口不回显明文', async () => {
-    const r = await api.upload('POST', '/settings/spapi/import', 'file', [{ name: '凭证.rtf', buffer: Buffer.from(FAKE_RTF, 'latin1'), type: 'application/rtf' }])
+    const hjBefore = structuredClone(hj().spapi)
+    const r = await api.upload('POST', '/stores/art/spapi/import', 'file', [{ name: '凭证.rtf', buffer: Buffer.from(FAKE_RTF, 'latin1'), type: 'application/rtf' }])
     expect(r.status).toBe(200)
     expect(r.body.found).toEqual({ sellerId: true, clientId: true, clientSecret: true, refreshToken: true })
     const text = JSON.stringify(r.body)
     for (const v of Object.values(FAKE)) expect(text).not.toContain(v)
-    expect(ctx.settings.get().parent.spapi).toMatchObject(FAKE)
-    expect(r.body.settings.parent.spapi.refreshToken).toBe('••••' + FAKE.refreshToken.slice(-4))
+    expect(art().spapi).toMatchObject(FAKE)
+    expect(r.body.settings.stores[1].spapi.refreshToken).toBe('••••' + FAKE.refreshToken.slice(-4))
+    // 只写进爱睿特，焕捷的凭证不动
+    expect(hj().spapi).toEqual(hjBefore)
+    expect((await api.json('POST', '/stores/nope/spapi/import', { text: `店铺ID：${FAKE.sellerId}` })).status).toBe(404)
   })
 
   it('没有标签时不把站点 ID、AWS 访问密钥当成店铺 ID', () => {
@@ -118,8 +135,8 @@ describe('SP-API 凭证导入', () => {
   })
 
   it('粘贴文字也行；什么都没找到时报错', async () => {
-    expect((await api.json('POST', '/settings/spapi/import', { text: `店铺ID：${FAKE.sellerId}` })).body.found.sellerId).toBe(true)
-    const bad = await api.json('POST', '/settings/spapi/import', { text: '随便一段字' })
+    expect((await api.json('POST', '/stores/art/spapi/import', { text: `店铺ID：${FAKE.sellerId}` })).body.found.sellerId).toBe(true)
+    const bad = await api.json('POST', '/stores/art/spapi/import', { text: '随便一段字' })
     expect(bad.status).toBe(400)
   })
 })
@@ -128,10 +145,10 @@ describe('SP-API 测试连接', () => {
   it('凭证对：换 token 并查一次店铺；凭证错：给出原因', async () => {
     await useMock()
     mock.parent.spapi.listings = [{ sku: 'X-1' }, { sku: 'X-2' }]
-    const ok = await api.json('POST', '/settings/spapi/test')
+    const ok = await api.json('POST', '/stores/hj/spapi/test')
     expect(ok.body).toEqual({ ok: true, message: '连接正常，店铺里有 2 个商品' })
-    await api.json('PUT', '/settings', { parent: { spapi: { clientSecret: 'amzn1.oa2-cs.v1.wrong' } } })
-    const bad = await api.json('POST', '/settings/spapi/test')
+    await api.json('PATCH', '/stores/hj', { spapi: { clientSecret: 'amzn1.oa2-cs.v1.wrong' } })
+    const bad = await api.json('POST', '/stores/hj/spapi/test')
     expect(bad.body.ok).toBe(false)
     expect(bad.body.message).toContain('SP-API 凭证不对')
     // 只读：没有任何非 GET 的商品接口请求
@@ -146,10 +163,10 @@ describe('飞书应用身份', () => {
   it('只用 App ID / App Secret 读表，不用登录；token 复用，不每次都换', async () => {
     await useMock()
     mock.parent.feishu.sheets.shtA = { title: '父体分类汇总', tabs: [{ sheet_id: 's1', title: '铝板画', values: [['父体SKU'], ['A-1']] }] }
-    const r = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtA' })
+    const r = await api.json('POST', '/stores/hj/feishu/test', { url: 'https://x.feishu.cn/sheets/shtA' })
     expect(r.body).toMatchObject({ ok: true, title: '父体分类汇总' })
     ctx.parent.sheets.clear()
-    await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtA' })
+    await api.json('POST', '/stores/hj/feishu/test', { url: 'https://x.feishu.cn/sheets/shtA' })
     expect(mock.parent.calls.filter((c) => c.path === '/auth/v3/tenant_access_token/internal')).toHaveLength(1)
     // 飞书只读：除了换 token，全是 GET
     expect(mock.parent.calls.filter((c) => c.service === 'feishu' && c.method !== 'GET' && c.path !== '/auth/v3/tenant_access_token/internal')).toEqual([])
@@ -159,7 +176,7 @@ describe('飞书应用身份', () => {
     await useMock()
     await api.json('PUT', '/settings', { parent: { feishu: { appSecret: 'wrong-secret-0000' } } })
     mock.parent.feishu.sheets.shtA = { title: 'T', tabs: [] }
-    const r = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtA' })
+    const r = await api.json('POST', '/stores/hj/feishu/test', { url: 'https://x.feishu.cn/sheets/shtA' })
     expect(r.body).toMatchObject({ ok: false, auth: true })
     expect(r.body.message).toContain('App ID 或 App Secret 不对')
   })
@@ -170,7 +187,7 @@ describe('飞书应用身份', () => {
     mock.parent.feishu.wiki.wikiE = 'shtE'
     for (const url of ['https://x.feishu.cn/sheets/shtE', 'https://x.feishu.cn/wiki/wikiE']) {
       ctx.parent.sheets.clear()
-      const r = await api.json('POST', '/settings/parent/test', { url })
+      const r = await api.json('POST', '/stores/hj/feishu/test', { url })
       expect(r.body.ok).toBe(false)
       expect(r.body.message).toContain('「添加文档应用」')
     }
@@ -179,14 +196,14 @@ describe('飞书应用身份', () => {
   it('token 被飞书提前作废：重新换一次再试；连不上飞书报普通错误', async () => {
     await useMock()
     mock.parent.feishu.sheets.shtD = { title: '表D', tabs: [] }
-    await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtD' })
+    await api.json('POST', '/stores/hj/feishu/test', { url: 'https://x.feishu.cn/sheets/shtD' })
     mock.parent.feishu.access.clear()
     ctx.parent.sheets.clear()
-    expect((await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtD' })).body.ok).toBe(true)
+    expect((await api.json('POST', '/stores/hj/feishu/test', { url: 'https://x.feishu.cn/sheets/shtD' })).body.ok).toBe(true)
     await ctx.settings.updateParent((p) => (p.feishu.baseUrl = 'http://127.0.0.1:9'))
     resetAppToken()
     ctx.parent.sheets.clear()
-    const net = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/shtD' })
+    const net = await api.json('POST', '/stores/hj/feishu/test', { url: 'https://x.feishu.cn/sheets/shtD' })
     expect(net.body.ok).toBe(false)
     expect(net.body.auth).toBeUndefined()
   })
@@ -228,7 +245,7 @@ describe('读飞书表', () => {
       ],
     }
     const url = 'https://jvp0pdxrgz8.feishu.cn/wiki/wikiTok?sheet=s1'
-    const r = await api.json('POST', '/settings/parent/test', { url })
+    const r = await api.json('POST', '/stores/hj/feishu/test', { url })
     expect(r.body).toEqual({
       ok: true,
       title: '父体分类汇总',
@@ -237,16 +254,18 @@ describe('读飞书表', () => {
         { title: '说明', count: 0, header: false },
       ],
     })
-    const p = ctx.settings.get().parent
-    expect(p.recentUrls[0]).toMatchObject({ url, title: '父体分类汇总' })
-    expect(p.tabs).toEqual(['铝板画', '说明'])
+    const f = hj().feishu
+    expect(f.recentUrls[0]).toMatchObject({ url, title: '父体分类汇总' })
+    expect(f.tabs).toEqual(['铝板画', '说明'])
+    // 读的是焕捷的表，爱睿特的不动
+    expect(art().feishu.tabs).toEqual([])
     // 某一页读不了只标在那一页，不让整张表失败
     mock.parent.feishu.sheets.shtB!.tabs.push({ sheet_id: 'gone', title: '坏页', values: null })
-    const partial = await api.json('POST', '/settings/parent/test', { url })
+    const partial = await api.json('POST', '/stores/hj/feishu/test', { url })
     expect(partial.body.ok).toBe(true)
     expect(partial.body.tabs[0]).toEqual({ title: '铝板画', count: 2, header: true })
     expect(partial.body.tabs[2]).toMatchObject({ title: '坏页', count: 0, header: false, error: expect.stringContaining('sheet not found') })
-    const bad = await api.json('POST', '/settings/parent/test', { url: 'https://x.feishu.cn/sheets/nope' })
+    const bad = await api.json('POST', '/stores/hj/feishu/test', { url: 'https://x.feishu.cn/sheets/nope' })
     expect(bad.body.ok).toBe(false)
     expect(bad.body.message).toMatch(/^这个链接读不了/)
   })

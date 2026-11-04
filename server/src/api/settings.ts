@@ -1,8 +1,8 @@
 import type { Router } from 'express'
 import { z } from 'zod'
 import type { AppContext } from '../context'
-import { maskSettings, SettingsPatchSchema } from '../store/settings'
-import { parseBody } from './util'
+import { maskSettings, SettingsError, SettingsPatchSchema } from '../store/settings'
+import { HttpError, parseBody } from './util'
 import { pingChat, pingModels } from '../ai/chatClient'
 import { AiError, ERROR_LABEL } from '../ai/errors'
 
@@ -15,7 +15,9 @@ export function registerSettings(r: Router, ctx: AppContext): void {
 
   r.put('/settings', async (req, res) => {
     const patch = parseBody(SettingsPatchSchema, req.body)
-    const next = await ctx.settings.update(patch)
+    const next = await ctx.settings.update(patch).catch((e) => {
+      throw e instanceof SettingsError ? new HttpError(400, e.message) : e
+    })
     ctx.onSettingsSaved()
     res.json(maskSettings(next))
   })

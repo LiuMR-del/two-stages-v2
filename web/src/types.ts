@@ -68,20 +68,29 @@ export type Settings = {
   patternQcThreshold: number
   patternQcDeltaE: number
   mainQc: boolean
-  /** 子体 SKU 的店铺缩写、地区标识；专属号用 parent.creatorMark */
-  sku: { store: string; region: string }
-  /** 父体匹配；密钥、token 都是打码后的（••••末 4 位） */
+  /** 子体 SKU 的组别（7 = 深圳团队）；店铺缩写在店铺档案里，专属号用 parent.creatorMark */
+  sku: { group: string }
+  /** 父体匹配；飞书 App Secret 是打码后的（••••末 4 位） */
   parent: {
     enabled: boolean
-    sheetUrl: string
-    recentUrls: { url: string; title: string; usedAt: string }[]
-    tabs: string[]
     threshold: number
     creatorMark: string
-    /** 飞书用应用身份读表，只要 App ID / App Secret */
+    /** 飞书用应用身份读表，只要 App ID / App Secret，所有店铺共用 */
     feishu: { appId: string; appSecret: string }
-    spapi: { sellerId: string; clientId: string; clientSecret: string; refreshToken: string; marketplaceId: string }
   }
+  stores: Store[]
+  currentStoreId: string
+}
+
+/** 店铺档案；SP-API 凭证都是打码后的 */
+export type Store = {
+  id: string
+  name: string
+  abbr: string
+  /** feishu = 从飞书父体表挑父体；store = 从店铺里扫描父体 */
+  parentSource: 'feishu' | 'store'
+  spapi: { sellerId: string; clientId: string; clientSecret: string; refreshToken: string; marketplaceId: string }
+  feishu: { sheetUrl: string; recentUrls: { url: string; title: string; usedAt: string }[]; tabs: string[] }
 }
 
 export type StepState = 'pending' | 'running' | 'done' | 'skipped' | 'failed'

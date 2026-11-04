@@ -52,15 +52,17 @@ beforeEach(async () => {
     analysis: { baseUrl: mock.url, apiKey: 'sk-test-chat-0002', concurrency: 3 },
     parent: {
       enabled: true,
-      sheetUrl: URL_,
       feishu: { appId: mock.parent.feishu.appId, appSecret: mock.parent.feishu.appSecret },
-      spapi: { sellerId: mock.parent.spapi.sellerId, clientId: mock.parent.spapi.clientId, clientSecret: mock.parent.spapi.clientSecret, refreshToken: mock.parent.spapi.refreshToken },
     },
+  })
+  await ctx.settings.updateStore('hj', {
+    feishu: { sheetUrl: URL_ },
+    spapi: { sellerId: mock.parent.spapi.sellerId, clientId: mock.parent.spapi.clientId, clientSecret: mock.parent.spapi.clientSecret, refreshToken: mock.parent.spapi.refreshToken },
   })
   await ctx.settings.updateParent((p) => {
     p.feishu.baseUrl = mock.origin
-    Object.assign(p.spapi, { endpoint: mock.origin, tokenUrl: mock.origin + '/auth/o2/token' })
   })
+  await ctx.settings.updateStoreRaw('hj', (st) => Object.assign(st.spapi, { endpoint: mock.origin, tokenUrl: mock.origin + '/auth/o2/token' }))
   ctx.onSettingsSaved()
 })
 afterEach(async () => {
