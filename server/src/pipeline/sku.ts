@@ -5,7 +5,7 @@ import { log } from '../util/log'
 /** 子体 SKU 的固定部分；store 是店铺缩写，code 是（款式标记 +）材质缩写，region 是组别，mark 是这一批的专属号 */
 export type SkuParts = { store: string; code: string; region: string; mark: string }
 /** 发出去的 SKU 和它的三截：专属号前面、专属号、序号（「改专属号」只换中间那截） */
-export type IssuedSku = { sku: string; head: string; mark: string; seq: string }
+export type IssuedSku = { sku: string; head: string; mark: string; seq: string; code: string }
 
 /**
  * 款式标记（横版 HB、竖版 SB）放在材质缩写前面；材质缩写带 cn- 时放在 cn- 后面：xkfb → HBxkfb，cn-xkfb → cn-HBxkfb
@@ -115,6 +115,6 @@ export class SkuCounter {
     let n = (v.counts[day]?.[key] ?? 0) + 1
     while (taken(formatSku(p, day, n)) || this.issued(formatSku(p, day, n))) n++
     this.write({ counts: { ...v.counts, [day]: { ...(v.counts[day] ?? {}), [key]: n } }, extra: v.extra }, day)
-    return { sku: formatSku(p, day, n), head: skuHead(p, day), mark: p.mark, seq: String(n).padStart(2, '0') }
+    return { sku: formatSku(p, day, n), head: skuHead(p, day), mark: p.mark, seq: String(n).padStart(2, '0'), code: p.code }
   }
 }

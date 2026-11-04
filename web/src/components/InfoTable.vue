@@ -116,7 +116,7 @@ async function copy(text: string) {
               </button>
             </td>
             <td v-if="showSku">
-              <template v-if="j.sku"><b class="name">{{ j.sku }}</b><button type="button" class="cp" aria-label="复制 SKU" @click="copy(j.sku)"><Copy aria-hidden="true" /></button></template>
+              <template v-if="j.sku"><b class="name">{{ j.sku }}</b><button type="button" class="cp" aria-label="复制 SKU" @click="copy(j.sku)"><Copy aria-hidden="true" /></button><div v-if="j.skuNote" class="muted tiny">{{ j.skuNote }}</div></template>
               <span v-else class="muted small" :title="`去模版库给「${j.route?.categoryName}」填 SKU 材质缩写`">—</span>
             </td>
             <td>{{ j.info!.scene }}<button type="button" class="cp" aria-label="复制场景" @click="copy(j.info!.scene)"><Copy aria-hidden="true" /></button></td>

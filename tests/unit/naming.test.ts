@@ -25,11 +25,16 @@ describe('命名推算：实施方案里的三个真实父体', () => {
 })
 
 describe('命名推算：其他情况', () => {
-  it('父体还没有子体：Design 01 起，并说明', () => {
+  it('父体还没有子体：没有可参照的同品类父体时 Style01 起（2026-11-04 用户确认），并说明', () => {
     const r = next([])
-    expect(r).toMatchObject({ next: 'Design 01', note: '这个父体还没有子体，按 Design 01 起' })
-    // 同一批里别的图已经分到 Design 01
-    expect(next([], [1]).next).toBe('Design 02')
+    expect(r).toMatchObject({ next: 'Style01', note: '这个父体还没有子体，按 Style01 起（同品类没有可参照的父体）', key: 'Style##' })
+    // 同一批里别的图已经分到 Style01
+    expect(next([], [1]).next).toBe('Style02')
+  })
+
+  it('父体还没有子体：按参照的写法起（如同品类多用 Design ##）', () => {
+    const r = nextName(analyzeNaming(['color'], []), [], { prefix: 'Design ', width: 2 }, '同品类最近的父体 A')
+    expect(r).toMatchObject({ next: 'Design 01', key: 'Design ##', note: '这个父体还没有子体，按 Design 01 起（参照同品类最近的父体 A）' })
   })
 
   it('最多的那种命名没有编号：不推荐，提示手动起名并列出现有名字', () => {

@@ -108,7 +108,9 @@ const PARENT_STATUS: Record<string, string> = { matched: '已匹配', unsure: '�
 const parentPickBusy = ref(false)
 const parentSearchOpen = ref(false)
 const parentSearchBusy = ref(false)
-const parentSearch = ref<{ title: string; rows: { tab: string; sku: string; asin: string; theme: string }[]; failed: { tab: string; message: string }[] } | null>(null)
+const parentSearch = ref<{ title: string; rows: { tab: string; sku: string; asin: string; theme: string }[]; failed: { tab: string; message: string }[]; tabs?: string[] } | null>(null)
+/** 搜索的范围：飞书来源是标签页，店铺来源是商品类型（搜过一次后从结果里拿） */
+const parentTabs = computed(() => (settings.currentStore?.parentSource === 'store' ? (parentSearch.value?.tabs ?? []) : (settings.currentStore?.feishu.tabs ?? [])))
 const parentTab = ref('')
 
 async function copy(text: string) {
@@ -133,7 +135,11 @@ async function pickParent(sku: string) {
 }
 async function searchParents() {
   parentSearchBusy.value = true
-  const r = await ui.act(() => api.get<{ title: string; rows: { tab: string; sku: string; asin: string; theme: string }[]; failed: { tab: string; message: string }[] }>(`/parent/rows${parentTab.value ? `?tab=${encodeURIComponent(parentTab.value)}` : ''}`))
+  const r = await ui.act(() =>
+    api.get<{ title: string; rows: { tab: string; sku: string; asin: string; theme: string }[]; failed: { tab: string; message: string }[]; tabs?: string[] }>(`/parent/rows${parentTab.value ? `?tab=${encodeURIComponent(parentTab.value)}` : ''}`),
+  )
+  // 店铺来源按商品类型筛过后，下拉里仍保留所有商品类型
+  if (r && parentSearch.value?.tabs && !r.tabs?.length) r.tabs = parentSearch.value.tabs
   parentSearch.value = r ?? null
   parentSearchBusy.value = false
 }
@@ -322,9 +328,9 @@ async function openFolder() {
               <dt>建议新建</dt>
               <dd class="small">
                 <div>前缀：{{ job.parent.proposal.prefix }} · 主题：{{ job.parent.proposal.theme }}</div>
-                <div>参照表里 SKU：{{ job.parent.proposal.basedOn.join('、') || '—' }}</div>
+                <div>参照的父体：{{ job.parent.proposal.basedOn.join('、') || '店里这类父体的 SKU 都看不出主题，按「店铺缩写-材质缩写」起' }}</div>
                 <div>试过的主题：{{ job.parent.proposal.themeCandidates.join('、') || '—' }}</div>
-                <div class="muted">飞书表和店铺里都还没有，需要你手动创建</div>
+                <div class="muted">店铺里还没有，需要你手动创建</div>
               </dd>
             </template>
             <template v-if="job.parent.naming">
@@ -335,6 +341,7 @@ async function openFolder() {
                 <div v-for="group in job.parent.naming.groups" :key="group.pattern" class="muted small">{{ group.pattern }}：{{ group.count }} 个</div>
                 <div class="row" style="margin-top: 8px"><span class="muted">推荐变体名</span><b class="name">{{ job.parent.naming.next ?? '需要手动起名' }}</b><button v-if="job.parent.naming.next" type="button" class="cp" aria-label="复制推荐变体名" @click="copy(job.parent.naming.next)"><Copy aria-hidden="true" /></button><template v-if="job.parent.naming.number !== null"><button type="button" class="btn txt sm" aria-label="变体名往后调一格" title="往后调一格（跳过占着的号）" @click="shift(1)">▲</button><button type="button" class="btn txt sm" aria-label="变体名往前调一格" title="往前调一格（跳过占着的号）" @click="shift(-1)">▼</button></template><span v-if="job.parent.confidence !== null" class="pill" :class="{ ac: job.parent.confidence >= 0.7, am: job.parent.confidence < 0.7 }">{{ job.parent.confidence >= 0.7 ? '把握' : '待确认' }} · {{ job.parent.confidence.toFixed(2) }}</span></div>
                 <div v-if="job.parent.naming.note" class="muted tiny">{{ job.parent.naming.note }}</div>
+                <div v-if="job.skuNote" class="muted tiny">子体 SKU：{{ job.skuNote }}</div>
               </dd>
             </template>
             <template v-if="job.parent.candidates.length">
@@ -348,7 +355,7 @@ async function openFolder() {
           </dl>
           <div v-else-if="rec!.state === 'done'" class="none">没有父体结果，可以搜索并手动选择</div>
           <div v-if="rec!.state === 'done'" class="parent-search">
-            <div class="row"><button type="button" class="btn sm" @click="parentSearchOpen = !parentSearchOpen"><Search aria-hidden="true" />搜索别的父体</button><select v-if="parentSearchOpen" v-model="parentTab" aria-label="搜索父体标签页"><option value="">所有标签页</option><option v-for="tab in (settings.currentStore?.feishu.tabs ?? [])" :key="tab" :value="tab">{{ tab }}</option></select><button v-if="parentSearchOpen" type="button" class="btn sm" :disabled="parentSearchBusy" @click="searchParents">{{ parentSearchBusy ? '搜索中…' : '搜索' }}</button></div>
+            <div class="row"><button type="button" class="btn sm" @click="parentSearchOpen = !parentSearchOpen"><Search aria-hidden="true" />搜索别的父体</button><select v-if="parentSearchOpen" v-model="parentTab" aria-label="搜索父体标签页"><option value="">{{ settings.currentStore?.parentSource === 'store' ? '所有商品类型' : '所有标签页' }}</option><option v-for="tab in parentTabs" :key="tab" :value="tab">{{ tab }}</option></select><button v-if="parentSearchOpen" type="button" class="btn sm" :disabled="parentSearchBusy" @click="searchParents">{{ parentSearchBusy ? '搜索中…' : '搜索' }}</button></div>
             <div v-if="parentSearch" class="search-results">
               <div v-if="parentSearch.failed.length" class="warn">读不了的标签页：{{ parentSearch.failed.map((f) => `${f.tab}（${f.message}）`).join('；') }}</div>
               <button v-for="row in parentSearch.rows" :key="row.tab + row.sku" type="button" class="cand" :disabled="parentPickBusy" @click="pickParent(row.sku)"><span class="s"><b>{{ row.theme || row.sku }}</b> · {{ row.sku }} · {{ row.asin }}</span><span class="muted small">{{ row.tab }}</span></button>

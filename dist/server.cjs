@@ -37714,7 +37714,7 @@ var SkuCounter = class {
     let n = (v.counts[day]?.[key] ?? 0) + 1;
     while (taken(formatSku(p, day, n)) || this.issued(formatSku(p, day, n))) n++;
     this.write({ counts: { ...v.counts, [day]: { ...v.counts[day] ?? {}, [key]: n } }, extra: v.extra }, day);
-    return { sku: formatSku(p, day, n), head: skuHead(p, day), mark: p.mark, seq: String(n).padStart(2, "0") };
+    return { sku: formatSku(p, day, n), head: skuHead(p, day), mark: p.mark, seq: String(n).padStart(2, "0"), code: p.code };
   }
 };
 
@@ -58407,10 +58407,17 @@ var SpapiPool = class {
 };
 
 // server/src/parent/skuParse.ts
+var CODE_RE = /^((?:cn-)?(?:[HS]B-?)?[a-z]+)(?=[0-9\s-]|$)/;
 function stripStore(sku, abbr) {
   const s = sku.trim();
   const head = `${abbr}-`.toLowerCase();
   return s.toLowerCase().startsWith(head) && abbr ? { rest: s.slice(head.length).trimStart(), hadStore: true } : { rest: s, hadStore: false };
+}
+function materialCode(sku, abbr) {
+  const { rest } = stripStore(sku, abbr);
+  const code = CODE_RE.exec(rest)?.[1];
+  if (!code || /(^|-)cn$/.test(code)) return null;
+  return code;
 }
 function themeParent(sku, abbr) {
   const { rest, hadStore } = stripStore(sku, abbr);
@@ -58420,6 +58427,20 @@ function themeParent(sku, abbr) {
   const theme = m[2].trim();
   if (!/[A-Za-z]/.test(theme) || /^\d/.test(theme) || /^[A-Z]{1,2}\d?$/i.test(theme)) return null;
   return { prefix: `${sku.trim().slice(0, abbr.length)}-${m[1]}`, code: m[1], theme };
+}
+function majorityCode(skus, abbr) {
+  const stat = /* @__PURE__ */ new Map();
+  skus.forEach((s, i2) => {
+    const c = materialCode(s, abbr);
+    if (!c) return;
+    const g = stat.get(c) ?? { count: 0, last: -1 };
+    g.count++;
+    g.last = i2;
+    stat.set(c, g);
+  });
+  let best = null;
+  for (const e of stat) if (!best || e[1].count > best[1].count || e[1].count === best[1].count && e[1].last > best[1].last) best = e;
+  return best?.[0] ?? null;
 }
 
 // server/src/parent/storeIndex.ts
@@ -58721,6 +58742,9 @@ var ERROR_LABEL = {
 };
 
 // server/src/parent/naming.ts
+var DEFAULT_SEED = { prefix: "Style", width: 2 };
+var seedName = (s, n = 1) => s.prefix + String(n).padStart(s.width, "0");
+var seedKey = (s) => s.prefix + "#".repeat(s.width);
 var SPLIT = /^(.*?)(\d+)\s*$/;
 function splitValue(v) {
   const m = SPLIT.exec(v.trim());
@@ -58763,11 +58787,17 @@ function analyzeNaming(themeAttrs, children) {
     top: t ? { key: t[0], prefix: t[1].prefix, width: t[1].width, numbered: t[1].numbered, max: t[1].max } : null
   };
 }
-function nextName(a, taken = []) {
+function nextName(a, taken = [], seed = DEFAULT_SEED, seedFrom = null) {
   const base = { attribute: a.attribute, existing: a.existing, groups: a.groups };
   if (!a.top) {
     const n2 = Math.max(1, ...taken.map((x2) => x2 + 1));
-    return { ...base, next: `Design ${String(n2).padStart(2, "0")}`, note: "\u8FD9\u4E2A\u7236\u4F53\u8FD8\u6CA1\u6709\u5B50\u4F53\uFF0C\u6309 Design 01 \u8D77", key: "Design ##", number: n2 };
+    return {
+      ...base,
+      next: seedName(seed, n2),
+      note: `\u8FD9\u4E2A\u7236\u4F53\u8FD8\u6CA1\u6709\u5B50\u4F53\uFF0C\u6309 ${seedName(seed)} \u8D77${seedFrom ? `\uFF08\u53C2\u7167${seedFrom}\uFF09` : "\uFF08\u540C\u54C1\u7C7B\u6CA1\u6709\u53EF\u53C2\u7167\u7684\u7236\u4F53\uFF09"}`,
+      key: seedKey(seed),
+      number: n2
+    };
   }
   if (!a.top.numbered) {
     return { ...base, next: null, note: `\u8FD9\u4E2A\u7236\u4F53\u7684\u547D\u540D\u6CA1\u6709\u7F16\u53F7\uFF0C\u8BF7\u624B\u52A8\u8D77\u540D\uFF08\u73B0\u6709\uFF1A${a.existing.join("\u3001")}\uFF09`, key: null, number: null };
@@ -58860,7 +58890,8 @@ async function proposeParent(opts) {
 // server/src/parent/match.ts
 var ParentPauseError = class extends Error {
 };
-var NEW_PARENT_NOTE = "\u8FD9\u662F\u5EFA\u8BAE\u65B0\u5EFA\u7684\u7236\u4F53\uFF0C\u98DE\u4E66\u8868\u548C\u5E97\u94FA\u91CC\u90FD\u8FD8\u6CA1\u6709\uFF0C\u9700\u8981\u4F60\u624B\u52A8\u521B\u5EFA";
+var NEW_PARENT_NOTE = "\u8FD9\u662F\u5EFA\u8BAE\u65B0\u5EFA\u7684\u7236\u4F53\uFF0C\u5E97\u94FA\u91CC\u8FD8\u6CA1\u6709\uFF0C\u9700\u8981\u4F60\u624B\u52A8\u521B\u5EFA";
+var DEFAULT_SEED_INFO = { seed: DEFAULT_SEED, from: null };
 function storeForJob(s, job) {
   return (job?.storeId ? storeById(s, job.storeId) : null) ?? currentStore(s);
 }
@@ -58878,7 +58909,6 @@ function parentSkipReason(s, st = currentStore(s)) {
   if (!s.parent.enabled) return "\u8BC6\u522B\u7236\u4F53\u6CA1\u6709\u6253\u5F00\uFF0C\u53EF\u4EE5\u5728\u8BBE\u7F6E\u91CC\u6253\u5F00";
   const miss = storeMissing(s, st);
   if (miss.length) return `\u300C${st.name}\u300D\u8BC6\u522B\u7236\u4F53\u7F3A\uFF1A${miss.join("\u3001")}\u3002\u8865\u9F50\u540E\u5728\u8BE6\u60C5\u91CC\u5BF9\u7B2C 6 \u6B65\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D`;
-  if (st.parentSource === "store") return `\u300C${st.name}\u300D\u4ECE\u5E97\u94FA\u68C0\u7D22\u7236\u4F53\u8FD8\u6CA1\u505A\u597D\uFF0C\u8FD9\u4E00\u6B65\u5148\u8DF3\u8FC7`;
   return null;
 }
 async function guard(fn) {
@@ -58925,16 +58955,18 @@ var namingOf = (n) => ({
 async function bindExisting(opts) {
   const { deps, row } = opts;
   const listing = await opts.call(() => guard(() => deps.spapi.parent(row.sku, opts.signal)));
-  const common = { ...opts.base, sku: row.sku, asin: row.asin || null, theme: row.theme || null, proposal: null };
+  const common = { ...opts.base, sku: row.sku, asin: row.asin || null, theme: row.theme || opts.fallbackTheme || null, proposal: null };
   if (!listing) {
-    const r = { ...common, status: "unsure", message: "\u5E97\u94FA\u91CC\u67E5\u4E0D\u5230\u8FD9\u4E2A\u7236\u4F53 SKU\uFF0C\u68C0\u67E5\u98DE\u4E66\u8868\u91CC\u7684 SKU \u662F\u5426\u5199\u5BF9", naming: null };
+    const r = { ...common, status: "unsure", message: "\u5E97\u94FA\u91CC\u67E5\u4E0D\u5230\u8FD9\u4E2A\u7236\u4F53 SKU\uFF0C\u68C0\u67E5\u7236\u4F53 SKU \u662F\u5426\u5199\u5BF9\uFF08\u98DE\u4E66\u7236\u4F53\u8868\u91CC\u7684\uFF0C\u6216\u8005\u521A\u5728\u5E97\u91CC\u5220\u6389\u4E86\uFF09", naming: null };
     opts.commit(r);
     return r;
   }
   const kids = await opts.call(() => guard(() => deps.spapi.children(row.sku, listing.themeAttributes, opts.signal)));
+  opts.onKids?.(kids.map((k) => k.sku));
   const analysis = analyzeNaming(listing.themeAttributes, kids.map((k) => k.values));
+  const seed = opts.seed ?? DEFAULT_SEED_INFO;
   return deps.mutex.run(lower(row.sku), () => {
-    const naming = nextName(analysis, takenNumbers(deps, opts.job, row.sku, analysis.top?.key ?? "Design ##"));
+    const naming = nextName(analysis, takenNumbers(deps, opts.job, row.sku, analysis.top?.key ?? seedKey(seed.seed)), seed.seed, seed.from);
     const sure = opts.base.manual || (opts.base.confidence ?? 0) >= opts.threshold;
     const message = !naming.next ? naming.note : sure ? null : `\u628A\u63E1\u53EA\u6709 ${(opts.base.confidence ?? 0).toFixed(2)}\uFF0C\u4F4E\u4E8E ${opts.threshold.toFixed(2)}\uFF0C\u8BF7\u786E\u8BA4`;
     const r = { ...common, asin: listing.asin ?? common.asin, status: sure && naming.next ? "matched" : "unsure", message, naming: namingOf(naming) };
@@ -58953,7 +58985,7 @@ async function bindNew(opts) {
     rows: opts.rows,
     themes: opts.themes,
     queued,
-    existsInStore: (sku) => opts.call(() => guard(async () => await deps.spapi.parent(sku, opts.signal) !== null))
+    existsInStore: (sku) => opts.storeSkus?.has(sku.toLowerCase()) ? Promise.resolve(true) : opts.call(() => guard(async () => await deps.spapi.parent(sku, opts.signal) !== null))
   });
   const common = { ...opts.base, manual: false };
   if (!p.ok) {
@@ -58963,7 +58995,12 @@ async function bindNew(opts) {
   }
   const prop = p.proposal;
   return deps.mutex.run(lower(prop.sku), () => {
-    const n = nextName(analyzeNaming([], []), takenNumbers(deps, opts.job, prop.sku, "Design ##"));
+    const sibling = deps.jobs().find((j) => j.id !== opts.job.id && j.parent?.status === "new" && j.parent.proposal && lower(j.parent.proposal.sku) === lower(prop.sku) && j.parent.naming?.key);
+    const key = sibling?.parent?.naming?.key;
+    const own2 = opts.seed ?? DEFAULT_SEED_INFO;
+    const sharedSeed = key && /#+$/.test(key) && key !== seedKey(own2.seed) ? { seed: { prefix: key.replace(/#+$/, ""), width: key.length - key.replace(/#+$/, "").length }, from: `\u8FD9\u4E00\u6279\u91CC\u522B\u7684\u56FE\u5EFA\u8BAE\u7684\u540C\u4E00\u4E2A\u65B0\u7236\u4F53` } : null;
+    const seed = sharedSeed ?? own2;
+    const n = nextName(analyzeNaming([], []), takenNumbers(deps, opts.job, prop.sku, seedKey(seed.seed)), seed.seed, seed.from);
     const r = {
       ...common,
       status: "new",
@@ -58972,7 +59009,7 @@ async function bindNew(opts) {
       asin: null,
       theme: prop.theme,
       proposal: prop,
-      naming: { ...namingOf(n), attribute: "color", note: NEW_PARENT_NOTE }
+      naming: { ...namingOf(n), attribute: "color", note: `${NEW_PARENT_NOTE}\u3002${n.note}` }
     };
     opts.commit(r);
     return r;
@@ -59262,6 +59299,11 @@ var CategorySchema = external_exports.object({
   styles: external_exports.array(StyleSchema).min(1),
   /** 飞书父体表里对应的标签页；null = 和品类同名（旧库没有这个字段，读入时补 null，不升版本） */
   parentTab: external_exports.string().nullable().default(null),
+  /**
+   * 店铺里对应的亚马逊商品类型（如毛毯 BLANKET），从店铺扫描父体的店铺（爱睿特）按它挑候选父体（多店铺方案 2.3）。
+   * 旧库没有这个字段，读入时补 []，不升版本
+   */
+  productTypes: external_exports.array(external_exports.string()).default([]),
   /** 子体 SKU 里的材质缩写，如毛毯 mtfl；null = 不生成 SKU，文件名用原图名（旧库没有这个字段，读入时补 null） */
   skuCode: external_exports.string().nullable().default(null)
 });
@@ -59811,6 +59853,12 @@ function checkSkuCode(code) {
   if (!/^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$/.test(t)) throw new HttpError(400, "SKU \u6750\u8D28\u7F29\u5199\u53EA\u80FD\u7528\u5B57\u6BCD\u3001\u6570\u5B57\u548C -\uFF0C\u6BD4\u5982 mtfl\u3001cn-tyntyd");
   return t;
 }
+function checkProductTypes(list) {
+  const out = [...new Set(list.map((t) => t.trim().toUpperCase()).filter(Boolean))];
+  if (out.some((t) => !/^[A-Z][A-Z0-9_]{1,59}$/.test(t))) throw new HttpError(400, "\u5E97\u94FA\u5546\u54C1\u7C7B\u578B\u8981\u5199\u6210\u4E9A\u9A6C\u900A\u7684\u82F1\u6587\u7C7B\u578B\u540D\uFF0C\u6BD4\u5982 BLANKET\u3001HANGING_ORNAMENT");
+  if (out.length > 10) throw new HttpError(400, "\u4E00\u4E2A\u54C1\u7C7B\u6700\u591A\u5BF9\u5E94 10 \u4E2A\u5546\u54C1\u7C7B\u578B");
+  return out;
+}
 function checkSkuMark(mark) {
   const t = mark?.trim().toUpperCase() ?? "";
   if (!t) return null;
@@ -59833,6 +59881,7 @@ var ops = {
       hint: "",
       extractPrompt: null,
       parentTab: null,
+      productTypes: [],
       skuCode: null,
       styles: [{ id: newStyleId(), name: "", ratio: "1:1", whiteImage: null, activeTemplate: "default", templates: [], pasteMode: "auto", skuMark: null }]
     };
@@ -59845,6 +59894,7 @@ var ops = {
     if (p.hint !== void 0) c.hint = p.hint;
     if (p.extractPrompt !== void 0) c.extractPrompt = p.extractPrompt;
     if (p.parentTab !== void 0) c.parentTab = p.parentTab?.trim() || null;
+    if (p.productTypes !== void 0) c.productTypes = checkProductTypes(p.productTypes);
     if (p.skuCode !== void 0) c.skuCode = checkSkuCode(p.skuCode);
     return c;
   },
@@ -61450,6 +61500,7 @@ function registerLibrary(r, ctx) {
         hint: external_exports.string().max(500).optional(),
         extractPrompt: external_exports.string().nullable().optional(),
         parentTab: external_exports.string().max(200).nullable().optional(),
+        productTypes: external_exports.array(external_exports.string().max(60)).max(20).optional(),
         skuCode: external_exports.string().max(30).nullable().optional()
       }),
       req.body
@@ -61678,19 +61729,115 @@ function parseSpapiCredentials(input2) {
   return { sellerId: labeled ?? (loose.length === 1 ? loose[0] : null), clientId, clientSecret, refreshToken };
 }
 
+// server/src/parent/storeParents.ts
+var bareCode = (c) => c.replace(/^cn-/, "").replace(/^[HS]B-?/, "");
+function candidateParents(snap, productTypes) {
+  const want = new Set(productTypes.map((t) => t.toUpperCase()));
+  return snap.items.filter((x2) => x2.kind === "parent" && x2.productType && want.has(x2.productType.toUpperCase())).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((x2, i2) => ({ sku: x2.sku, asin: x2.asin ?? "", theme: x2.theme, row: i2 + 1, title: x2.title, productType: x2.productType, createdAt: x2.createdAt }));
+}
+function themedRows(rows, abbr) {
+  return rows.map((r) => ({ r, t: themeParent(r.sku, abbr) })).filter((x2) => x2.t).sort((a, b) => a.r.createdAt.localeCompare(b.r.createdAt)).map(({ r, t }, i2) => ({ sku: r.sku, asin: r.asin, theme: t.theme, row: i2 + 1 }));
+}
+function childrenOf(snap, parentSku) {
+  const low = parentSku.toLowerCase();
+  return snap.items.filter((x2) => x2.kind === "child" && x2.parentSkus.some((p) => p.toLowerCase() === low));
+}
+var SEED_PARENTS = 10;
+function namingSeed(snap, parentSkus) {
+  if (!snap) return null;
+  const wanted = new Set(parentSkus.map((s) => s.toLowerCase()));
+  const parents = snap.items.filter((x2) => x2.kind === "parent" && wanted.has(x2.sku.toLowerCase())).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const stat = /* @__PURE__ */ new Map();
+  let used = 0;
+  parents.forEach((p, i2) => {
+    if (used >= SEED_PARENTS) return;
+    const kids = childrenOf(snap, p.sku);
+    if (!kids.length) return;
+    const a = analyzeNaming(p.themeAttributes, kids.map((k) => k.values));
+    if (!a.top?.numbered) return;
+    used++;
+    const g = stat.get(a.top.key) ?? { seed: { prefix: a.top.prefix, width: a.top.width }, count: 0, newest: i2, basedOn: [] };
+    g.count++;
+    g.basedOn.push(p.sku);
+    stat.set(a.top.key, g);
+  });
+  let best = null;
+  for (const g of stat.values()) if (!best || g.count > best.count || g.count === best.count && g.newest < best.newest) best = g;
+  return best ? { ...best.seed, basedOn: best.basedOn } : null;
+}
+function seedInfo(snap, parentSkus) {
+  const s = namingSeed(snap, parentSkus);
+  if (!s) return { seed: DEFAULT_SEED, from: null };
+  const shown = s.basedOn.slice(0, 3).join("\u3001") + (s.basedOn.length > 3 ? ` \u7B49 ${s.basedOn.length} \u4E2A\u7236\u4F53` : "");
+  return { seed: { prefix: s.prefix, width: s.width }, from: `\u540C\u54C1\u7C7B\u6700\u8FD1\u7684\u7236\u4F53 ${shown}\uFF0C\u5B83\u4EEC\u591A\u7528 ${seedName(s)} \u8FD9\u79CD\u5199\u6CD5` };
+}
+var RECENT_DAYS = 60;
+function stripStyleMark(c) {
+  const cn = c.startsWith("cn-");
+  const rest = (cn ? c.slice(3) : c).replace(/^[HS]B-?/, "");
+  return (cn ? "cn-" : "") + rest;
+}
+function styleMarkOf(c) {
+  return /^(?:cn-)?([HS]B)-?[a-z]/.exec(c)?.[1] ?? null;
+}
+function withOwnMark(d, ownMark) {
+  const own2 = ownMark?.trim().toUpperCase() || null;
+  const bare = stripStyleMark(d.code);
+  const add = (m) => !m ? bare : bare.startsWith("cn-") ? `cn-${m}${bare.slice(3)}` : `${m}${bare}`;
+  if (d.fromKids) {
+    const kidMark = styleMarkOf(d.code);
+    if (!kidMark) return bare;
+    if (!own2 || kidMark === own2) return d.code;
+    return add(own2);
+  }
+  return add(own2);
+}
+function decideChildCode(o) {
+  if (o.newPrefix) {
+    const c = materialCode(o.newPrefix + "-x", o.abbr);
+    if (c) return { code: c, why: `\u6309\u5EFA\u8BAE\u65B0\u5EFA\u7684\u7236\u4F53 ${o.newPrefix}`, fromKids: false };
+  }
+  if (o.parentSku) {
+    const k = majorityCode(o.kids, o.abbr);
+    if (k) return { code: k, why: `\u6309\u7236\u4F53 ${o.parentSku} \u4E0B\u7684\u5B50\u4F53`, fromKids: true };
+    const p = materialCode(o.parentSku, o.abbr);
+    if (p) return { code: p, why: `\u6309\u7236\u4F53 SKU ${o.parentSku}`, fromKids: false };
+  }
+  if (o.snap && o.productTypes.length) {
+    const want = new Set(o.productTypes.map((t) => t.toUpperCase()));
+    const since = new Date((o.now ?? Date.now()) - RECENT_DAYS * 864e5).toISOString();
+    const recent = o.snap.items.filter((x2) => x2.productType && want.has(x2.productType.toUpperCase()) && x2.createdAt >= since).map((x2) => x2.sku);
+    const c = majorityCode(recent, o.abbr);
+    if (c && (!o.libraryCode || bareCode(c).toLowerCase() === bareCode(o.libraryCode).toLowerCase())) {
+      return { code: c, why: `\u6309\u5E97\u94FA\u91CC\u6700\u8FD1 ${RECENT_DAYS} \u5929\u540C\u7C7B\u5546\u54C1\uFF08${o.productTypes.join("/")}\uFF09`, fromKids: false };
+    }
+  }
+  return null;
+}
+
 // server/src/api/parent.ts
-function summary(snap) {
+function summary(snap, abbr) {
   if (!snap) return null;
   const parents = snap.items.filter((x2) => x2.kind === "parent");
   const types = /* @__PURE__ */ new Map();
   for (const x2 of parents) if (x2.productType) types.set(x2.productType, (types.get(x2.productType) ?? 0) + 1);
+  const byCode = /* @__PURE__ */ new Map();
+  for (const x2 of snap.items) {
+    const c = x2.productType ? materialCode(x2.sku, abbr) : null;
+    if (!c) continue;
+    const k = bareCode(c);
+    const m = byCode.get(k) ?? /* @__PURE__ */ new Map();
+    m.set(x2.productType, (m.get(x2.productType) ?? 0) + 1);
+    byCode.set(k, m);
+  }
   return {
     scannedAt: snap.scannedAt,
     items: snap.items.length,
     parents: parents.length,
     themed: parents.filter((x2) => x2.theme).length,
     truncated: snap.truncated,
-    productTypes: [...types].sort((a, b) => b[1] - a[1]).map(([type, count]) => ({ type, count }))
+    productTypes: [...types].sort((a, b) => b[1] - a[1]).map(([type, count]) => ({ type, count })),
+    codeTypes: Object.fromEntries([...byCode].map(([k, m]) => [k, [...m].sort((a, b) => b[1] - a[1]).map(([type, count]) => ({ type, count }))]))
   };
 }
 async function settle2(fn) {
@@ -61795,7 +61942,20 @@ function registerParent(r, ctx) {
     res.json({ found, settings: maskSettings(settings.get()) });
   });
   r.get("/parent/rows", async (req, res) => {
-    const url2 = currentStore(settings.get()).feishu.sheetUrl;
+    const cur = currentStore(settings.get());
+    if (cur.parentSource === "store") {
+      const want = typeof req.query.tab === "string" ? req.query.tab.toUpperCase() : "";
+      try {
+        const snap = await p.index.get(cur.id);
+        const parents = snap.items.filter((x2) => x2.kind === "parent").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        const rows = parents.filter((x2) => !want || (x2.productType ?? "").toUpperCase() === want).map((x2) => ({ tab: x2.productType ?? "", sku: x2.sku, asin: x2.asin ?? "", theme: x2.theme || x2.title }));
+        const tabs = [...new Set(parents.map((x2) => x2.productType).filter((t) => !!t))];
+        return void res.json({ title: `\u300C${cur.name}\u300D\u5E97\u94FA\u91CC\u7684\u7236\u4F53`, rows, failed: [], tabs });
+      } catch (e) {
+        throw new HttpError(502, `\u626B\u63CF\u300C${cur.name}\u300D\u5E97\u94FA\u5546\u54C1\u5931\u8D25\uFF1A${e.message}`);
+      }
+    }
+    const url2 = cur.feishu.sheetUrl;
     if (!url2) throw new HttpError(400, "\u5148\u5728\u8BBE\u7F6E\u91CC\u7ED9\u5F53\u524D\u5E97\u94FA\u586B\u7236\u4F53\u8868\u94FE\u63A5");
     const tab = typeof req.query.tab === "string" ? req.query.tab : "";
     try {
@@ -61819,13 +61979,13 @@ function registerParent(r, ctx) {
   });
   r.get("/stores/:id/scan", (req, res) => {
     const st = storeOf(req);
-    res.json({ scanning: p.index.scanning(st.id), snapshot: summary(p.index.peek(st.id)) });
+    res.json({ scanning: p.index.scanning(st.id), snapshot: summary(p.index.peek(st.id), st.abbr) });
   });
   r.post("/stores/:id/scan", async (req, res) => {
     const st = storeOf(req);
     try {
       const snap = await p.index.get(st.id, { force: true });
-      res.json({ ok: true, snapshot: summary(snap) });
+      res.json({ ok: true, snapshot: summary(snap, st.abbr) });
     } catch (e) {
       res.json({ ok: false, message: `\u626B\u63CF\u5931\u8D25\uFF1A${e.message}` });
     }
@@ -62384,8 +62544,12 @@ var JobSchema = external_exports.object({
     mark: external_exports.string(),
     seq: external_exports.string(),
     /** 改专属号之前用过的 SKU：改回去时不算和「已经发过的号」冲突 */
-    was: external_exports.array(external_exports.string()).default([])
+    was: external_exports.array(external_exports.string()).default([]),
+    /** 材质编码（含横竖版标记），如 HBxkfb、cn-yklgj；第 6 步跟着父体下的子体改（第 3 段的数据没有，按 head 推） */
+    code: external_exports.string().default("")
   }).nullable().default(null),
+  /** 第 6 步按父体改过 SKU 的材质编码时的说明，如「按父体 ART-cn-mtfl-cookie 下的子体改成 cn-mtfl（原 mtfl）」 */
+  skuNote: external_exports.string().nullable().default(null),
   /** 这张图属于哪个店铺（加进队列时从批次取，之后不变）；改版前的任务都是焕捷 */
   storeId: external_exports.string().default("hj"),
   /** 用户单独暂停了这张图：调度器不再派发它，点「继续」后从停下的那一步接着跑 */
@@ -63890,16 +64054,17 @@ var import_node_path18 = __toESM(require("node:path"), 1);
 
 // server/src/prompts/parent.ts
 var MAX_CANDIDATES = 300;
-function parentSystem(tab, samples) {
-  return `\u4F60\u662F\u4E9A\u9A6C\u900A\u7236\u4F53\u5339\u914D\u52A9\u624B\u3002\u7ED9\u4F60\u4E00\u5F20\u7ADE\u54C1\u5546\u54C1\u56FE\u3001\u5B83\u7684\u54C1\u7C7B\u3001\u573A\u666F\u548C\u5173\u952E\u8BCD\uFF0C\u4EE5\u53CA\u98DE\u4E66\u7236\u4F53\u8868\u300C${tab}\u300D\u6807\u7B7E\u9875\u91CC\u7684\u7236\u4F53\u6E05\u5355\uFF08\u7F16\u53F7\uFF5C\u4E3B\u9898\uFF5C\u7236\u4F53SKU\uFF09\u3002\u5224\u65AD\u8FD9\u5F20\u56FE\u5E94\u8BE5\u6302\u5230\u54EA\u4E2A\u7236\u4F53\u4E0B\uFF1A\u7236\u4F53\u7684\u4E3B\u9898\u8981\u548C\u56FE\u6848\u5185\u5BB9\uFF08\u8282\u65E5\u3001\u4EBA\u7269\u3001\u52A8\u7269\u3001\u98CE\u683C\u3001\u7528\u9014\uFF09\u5BF9\u5F97\u4E0A\u3002\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
+function parentSystem(tab, samples, source = "feishu") {
+  const intro = source === "store" ? `\u5E97\u94FA\u91CC\u300C${tab}\u300D\u7684\u7236\u4F53\u6E05\u5355\uFF08\u7F16\u53F7\uFF5C\u4E3B\u9898\uFF5C\u7236\u4F53SKU\uFF5C\u5546\u54C1\u6807\u9898\uFF1B\u6709\u7684\u7236\u4F53 SKU \u91CC\u6CA1\u5199\u4E3B\u9898\uFF0C\u770B\u5546\u54C1\u6807\u9898\u5224\u65AD\u5B83\u662F\u4EC0\u4E48\u4E3B\u9898\uFF09` : `\u98DE\u4E66\u7236\u4F53\u8868\u300C${tab}\u300D\u6807\u7B7E\u9875\u91CC\u7684\u7236\u4F53\u6E05\u5355\uFF08\u7F16\u53F7\uFF5C\u4E3B\u9898\uFF5C\u7236\u4F53SKU\uFF09`;
+  return `\u4F60\u662F\u4E9A\u9A6C\u900A\u7236\u4F53\u5339\u914D\u52A9\u624B\u3002\u7ED9\u4F60\u4E00\u5F20\u7ADE\u54C1\u5546\u54C1\u56FE\u3001\u5B83\u7684\u54C1\u7C7B\u3001\u573A\u666F\u548C\u5173\u952E\u8BCD\uFF0C\u4EE5\u53CA${intro}\u3002\u5224\u65AD\u8FD9\u5F20\u56FE\u5E94\u8BE5\u6302\u5230\u54EA\u4E2A\u7236\u4F53\u4E0B\uFF1A\u7236\u4F53\u7684\u4E3B\u9898\u8981\u548C\u56FE\u6848\u5185\u5BB9\uFF08\u8282\u65E5\u3001\u4EBA\u7269\u3001\u52A8\u7269\u3001\u98CE\u683C\u3001\u7528\u9014\uFF09\u5BF9\u5F97\u4E0A\u3002\u53EA\u8F93\u51FA JSON\uFF0C\u4E0D\u8981\u4EFB\u4F55\u5176\u4ED6\u6587\u5B57\uFF1A
 {"pick": \u6E05\u5355\u91CC\u7684\u7F16\u53F7\u6216 null, "confidence": 0 \u5230 1 \u4E4B\u95F4\u7684\u5C0F\u6570, "reason": "\u4E00\u53E5\u8BDD\u4E2D\u6587\u7406\u7531", "alternatives": [\u5176\u4ED6\u53EF\u80FD\u7684\u7F16\u53F7\uFF0C\u6700\u591A 2 \u4E2A], "new_themes": ["pick \u4E3A null \u65F6\u7ED9 2\uFF5E3 \u4E2A\u82F1\u6587\u4E3B\u9898\uFF0C\u5426\u5219\u7A7A\u6570\u7EC4"]}
 \u89C4\u5219\uFF1A
 1. \u53EA\u80FD\u4ECE\u6E05\u5355\u91CC\u9009\u7F16\u53F7\uFF0C\u4E0D\u8981\u7F16\u9020\u3002\u6E05\u5355\u91CC\u6CA1\u6709\u5408\u9002\u7684\u7236\u4F53\u65F6 pick \u586B null\u3002
 2. confidence \u8868\u793A\u4F60\u5BF9 pick \u7684\u628A\u63E1\uFF0C\u4E0D\u8981\u4E60\u60EF\u6027\u7ED9\u9AD8\u5206\u3002
-3. pick \u4E3A null \u65F6\uFF0Cnew_themes \u7ED9 2\uFF5E3 \u4E2A\u82F1\u6587\u4E3B\u9898\uFF0C\u6309\u5408\u9002\u7A0B\u5EA6\u6392\u5E8F\uFF1A\u6BCF\u4E2A 1\uFF5E3 \u4E2A\u8BCD\uFF0C\u6BCF\u4E2A\u8BCD\u9996\u5B57\u6BCD\u5927\u5199\uFF0C\u98CE\u683C\u7167\u7740\u8FD9\u4E2A\u6807\u7B7E\u9875\u5DF2\u6709\u7684\u4E3B\u9898${samples.length ? `\uFF08\u6837\u4F8B\uFF1A${samples.join("\u3001")}\uFF09` : ""}\u3002pick \u4E0D\u4E3A null \u65F6 new_themes \u7ED9\u7A7A\u6570\u7EC4\u3002`;
+${source === "store" ? "3. \u6E05\u5355\u91CC\u540C\u4E00\u5546\u54C1\u7C7B\u578B\u53EF\u80FD\u6709\u4E0D\u540C\u6750\u8D28\uFF08\u6BD4\u5982\u4E9A\u514B\u529B\u6302\u4EF6\u548C\u9676\u74F7\u6302\u4EF6 Ceramic\u3001\u6728\u8D28\u6302\u4EF6 Wooden\uFF09\uFF0C\u7236\u4F53\u7684\u6750\u8D28\u8981\u548C\u8FD9\u5F20\u56FE\u7684\u54C1\u7C7B\u4E00\u81F4\uFF0C\u770B\u7236\u4F53 SKU \u548C\u5546\u54C1\u6807\u9898\u533A\u5206\uFF0C\u5BF9\u4E0D\u4E0A\u7684\u4E0D\u8981\u9009\u3002\n" : ""}${source === "store" ? 4 : 3}. pick \u4E3A null \u65F6\uFF0Cnew_themes \u7ED9 2\uFF5E3 \u4E2A\u82F1\u6587\u4E3B\u9898\uFF0C\u6309\u5408\u9002\u7A0B\u5EA6\u6392\u5E8F\uFF1A\u6BCF\u4E2A 1\uFF5E3 \u4E2A\u8BCD\uFF0C\u6BCF\u4E2A\u8BCD\u9996\u5B57\u6BCD\u5927\u5199\uFF0C\u98CE\u683C\u7167\u7740\u8FD9\u4E2A\u6807\u7B7E\u9875\u5DF2\u6709\u7684\u4E3B\u9898${samples.length ? `\uFF08\u6837\u4F8B\uFF1A${samples.join("\u3001")}\uFF09` : ""}\u3002pick \u4E0D\u4E3A null \u65F6 new_themes \u7ED9\u7A7A\u6570\u7EC4\u3002`;
 }
 function parentUser(p) {
-  const list = p.rows.slice(0, MAX_CANDIDATES).map((r, i2) => `${i2 + 1}\uFF5C${r.theme || "\uFF08\u6CA1\u5199\u4E3B\u9898\uFF09"}\uFF5C${r.sku}`).join("\n");
+  const list = p.rows.slice(0, MAX_CANDIDATES).map((r, i2) => `${i2 + 1}\uFF5C${r.theme || "\uFF08\u6CA1\u5199\u4E3B\u9898\uFF09"}\uFF5C${r.sku}${r.title !== void 0 ? `\uFF5C${r.title || "\uFF08\u6CA1\u6709\u6807\u9898\uFF09"}` : ""}`).join("\n");
   return [
     `\u54C1\u7C7B\uFF1A${p.category}`,
     `\u573A\u666F\uFF1A${p.scene || "\uFF08\u6CA1\u6709\uFF09"}`,
@@ -63929,41 +64094,127 @@ var step5Parent = async (ctx) => {
   const deps = depsFor(ctx.env.parent, store.id);
   const p = settings.parent;
   const cat = ctx.env.library.get().categories.find((c) => c.id === route.categoryId);
-  const tab = cat?.parentTab?.trim() || cat?.name || route.categoryName;
-  const read = await ctx.retry(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)));
-  const base = { tab, readAt: read?.readAt ?? (/* @__PURE__ */ new Date()).toISOString() };
-  const finish2 = (r) => ({ kind: "done", patch: (j) => j.parent = r });
-  if (!read) return finish2(emptyResult(base, "none", `\u98DE\u4E66\u8868\u91CC\u6CA1\u6709\u300C${tab}\u300D\u6807\u7B7E\u9875\uFF0C\u53BB\u6A21\u7248\u5E93\u7ED9\u300C${cat?.name ?? route.categoryName}\u300D\u9009\u5BF9\u5E94\u7684\u6807\u7B7E\u9875`));
-  if (!read.rows) return finish2(emptyResult(base, "none", `\u300C${tab}\u300D\u6807\u7B7E\u9875\u91CC\u627E\u4E0D\u5230\u300C\u7236\u4F53SKU\u300D\u8868\u5934`));
-  if (!read.rows.length) return finish2(emptyResult(base, "none", `\u300C${tab}\u300D\u6807\u7B7E\u9875\u91CC\u8FD8\u6CA1\u6709\u7236\u4F53`));
-  const rows = read.rows.slice(0, MAX_CANDIDATES);
-  const system = parentSystem(tab, themeSamples(rows));
-  const user = parentUser({ category: route.categoryName, scene: ctx.job.info?.scene ?? null, keywords: ctx.job.info?.keywords ?? [], rows });
-  const src = await import_promises10.default.readFile(import_node_path18.default.join(ctx.dir, ctx.job.source.file));
-  const jpeg = await shrinkForAnalysis(src);
-  ctx.setSnapshot({
-    images: [{ no: 1, role: "\u7ADE\u54C1\u56FE", sha256: ctx.job.source.sha256 }],
-    prefix: "",
-    prompt: system,
-    model: settings.analysis.model,
-    params: { user, tab, candidates: rows.length }
+  const catName = cat?.name ?? route.categoryName;
+  const productTypes = cat?.productTypes ?? [];
+  let snap = null;
+  const finish2 = async (r) => {
+    if (ctx.env.syncChildCode && ctx.job.sku && !ctx.signal.aborted) await ctx.env.syncChildCode(ctx.job.id, { result: r, kids: [], snap, productTypes });
+    return { kind: "done", patch: (j) => j.parent = r };
+  };
+  const index = ctx.env.parent.index;
+  if (!index) throw new Error("\u7A0B\u5E8F\u6CA1\u6709\u63A5\u4E0A\u5E97\u94FA\u5546\u54C1\u5FEB\u7167");
+  const untilAbort = (p2) => new Promise((resolve, reject) => {
+    if (ctx.signal.aborted) return reject(new Error("\u5DF2\u4E2D\u6B62"));
+    const onAbort = () => reject(new Error("\u5DF2\u4E2D\u6B62"));
+    ctx.signal.addEventListener("abort", onAbort, { once: true });
+    p2.then(resolve, reject).finally(() => ctx.signal.removeEventListener("abort", onAbort));
   });
-  const { data } = await ctx.retry(() => chatJson(settings.analysis, { system, user, imageJpeg: jpeg, signal: ctx.signal }, ParentAnswerSchema));
+  let tab;
+  let readAt;
+  let rows;
+  let allRows;
+  let usedFallback = false;
+  if (store.parentSource === "store") {
+    tab = productTypes.length ? productTypes.join(" / ") : catName;
+    if (!productTypes.length) return finish2(emptyResult({ tab, readAt: (/* @__PURE__ */ new Date()).toISOString() }, "none", `\u53BB\u6A21\u7248\u5E93\u7ED9\u300C${catName}\u300D\u9009\u300C\u5E97\u94FA\u5546\u54C1\u7C7B\u578B\u300D\uFF08\u6BD4\u5982\u6BDB\u6BEF\u9009 BLANKET\uFF09\uFF0C\u624D\u80FD\u4ECE\u300C${store.name}\u300D\u5E97\u94FA\u91CC\u6311\u7236\u4F53`));
+    snap = await ctx.retry(() => guard(() => untilAbort(index.get(store.id))));
+    readAt = snap.scannedAt;
+    const cands = candidateParents(snap, productTypes);
+    if (!cands.length) {
+      rows = [];
+      allRows = [];
+    } else {
+      rows = cands.slice(0, MAX_CANDIDATES);
+      allRows = themedRows(cands, store.abbr);
+      if (!allRows.length && cat?.skuCode) {
+        allRows = [{ sku: `${store.abbr}-${cat.skuCode}-${FALLBACK_THEME}`, asin: "", theme: FALLBACK_THEME, row: 0 }];
+        usedFallback = true;
+      }
+    }
+  } else {
+    tab = cat?.parentTab?.trim() || catName;
+    const read = await ctx.retry(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)));
+    const base2 = { tab, readAt: read?.readAt ?? (/* @__PURE__ */ new Date()).toISOString() };
+    if (!read) return finish2(emptyResult(base2, "none", `\u98DE\u4E66\u8868\u91CC\u6CA1\u6709\u300C${tab}\u300D\u6807\u7B7E\u9875\uFF0C\u53BB\u6A21\u7248\u5E93\u7ED9\u300C${catName}\u300D\u9009\u5BF9\u5E94\u7684\u6807\u7B7E\u9875`));
+    if (!read.rows) return finish2(emptyResult(base2, "none", `\u300C${tab}\u300D\u6807\u7B7E\u9875\u91CC\u627E\u4E0D\u5230\u300C\u7236\u4F53SKU\u300D\u8868\u5934`));
+    if (!read.rows.length) return finish2(emptyResult(base2, "none", `\u300C${tab}\u300D\u6807\u7B7E\u9875\u91CC\u8FD8\u6CA1\u6709\u7236\u4F53`));
+    readAt = base2.readAt;
+    rows = read.rows.slice(0, MAX_CANDIDATES);
+    allRows = read.rows;
+    snap = await untilAbort(index.get(store.id)).catch((e) => {
+      if (ctx.signal.aborted) throw e;
+      log.warn(`\u300C${store.name}\u300D\u626B\u63CF\u5E97\u94FA\u5546\u54C1\u5931\u8D25\uFF0C\u7B2C\u4E00\u4E2A\u53D8\u4F53\u540D\u6309 Style01\u3001\u5B50\u4F53\u7F16\u7801\u53EA\u770B\u7236\u4F53\uFF1A${e.message}`);
+      return null;
+    });
+  }
+  const base = { tab, readAt };
+  const seed = seedInfo(snap, (store.parentSource === "store" ? rows : allRows).map((r) => r.sku));
+  let data;
+  if (rows.length) {
+    const samples = store.parentSource === "store" ? themeSamples(usedFallback ? [] : allRows) : themeSamples(rows);
+    const system = parentSystem(tab, samples, store.parentSource);
+    const user = parentUser({ category: route.categoryName, scene: ctx.job.info?.scene ?? null, keywords: ctx.job.info?.keywords ?? [], rows });
+    const src = await import_promises10.default.readFile(import_node_path18.default.join(ctx.dir, ctx.job.source.file));
+    const jpeg = await shrinkForAnalysis(src);
+    ctx.setSnapshot({
+      images: [{ no: 1, role: "\u7ADE\u54C1\u56FE", sha256: ctx.job.source.sha256 }],
+      prefix: "",
+      prompt: system,
+      model: settings.analysis.model,
+      params: { user, tab, candidates: rows.length, store: store.name, source: store.parentSource === "store" ? "\u5E97\u94FA\u626B\u63CF" : "\u98DE\u4E66\u7236\u4F53\u8868" }
+    });
+    data = (await ctx.retry(() => chatJson(settings.analysis, { system, user, imageJpeg: jpeg, signal: ctx.signal }, ParentAnswerSchema))).data;
+  } else {
+    return finish2(emptyResult(base, "none", `\u300C${store.name}\u300D\u5E97\u94FA\u91CC\u8FD8\u6CA1\u6709\u300C${tab}\u300D\u7684\u7236\u4F53\uFF0C\u6CA1\u6CD5\u53C2\u7167\u547D\u540D\u5EFA\u8BAE\u65B0\u7236\u4F53\uFF1B\u53EF\u4EE5\u624B\u52A8\u9009\u7236\u4F53`));
+  }
   const rowAt = (n) => n !== null && n >= 1 && n <= rows.length ? rows[n - 1] : null;
   const pick2 = rowAt(data.pick);
   const seen = /* @__PURE__ */ new Set();
-  const candidates = [data.pick, ...data.alternatives].map((n, i2) => ({ row: rowAt(n), confidence: i2 === 0 ? data.confidence : null })).filter((c) => !!c.row && !seen.has(c.row.sku) && !!seen.add(c.row.sku)).slice(0, 3).map((c) => ({ sku: c.row.sku, asin: c.row.asin, theme: c.row.theme, confidence: c.confidence }));
+  const candidates = [data.pick, ...data.alternatives].map((n, i2) => ({ row: rowAt(n), confidence: i2 === 0 ? data.confidence : null })).filter((c) => !!c.row && !seen.has(c.row.sku) && !!seen.add(c.row.sku)).slice(0, 3).map((c) => ({ sku: c.row.sku, asin: c.row.asin, theme: c.row.theme || titleOf(c.row), confidence: c.confidence }));
   const info = { ...base, candidates, confidence: data.confidence, reason: data.reason || null };
   const call2 = (fn) => ctx.retry(fn);
   const save = (r) => ctx.commit((j) => j.parent = r);
   const job = ctx.job;
+  let kids = [];
+  let result;
   if (pick2) {
-    await bindExisting({ deps, job, row: pick2, base: { ...info, manual: false }, threshold: p.threshold, commit: save, call: call2, signal: ctx.signal });
+    result = await bindExisting({
+      deps,
+      job,
+      row: pick2,
+      base: { ...info, manual: false },
+      threshold: p.threshold,
+      commit: save,
+      call: call2,
+      signal: ctx.signal,
+      seed,
+      onKids: (k) => kids = k,
+      fallbackTheme: titleOf(pick2) || null
+    });
   } else {
-    await bindNew({ deps, job, rows: read.rows, themes: data.new_themes, base: info, commit: save, call: call2, signal: ctx.signal });
+    result = await bindNew({
+      deps,
+      job,
+      rows: allRows,
+      themes: data.new_themes,
+      base: info,
+      commit: save,
+      call: call2,
+      signal: ctx.signal,
+      seed,
+      storeSkus: snap ? new Set(snap.items.map((x2) => x2.sku.toLowerCase())) : void 0
+    });
+    if (usedFallback && result.proposal) {
+      const fixed = { ...result, proposal: { ...result.proposal, basedOn: [] } };
+      save(fixed);
+      result = fixed;
+    }
   }
+  if (ctx.env.syncChildCode && ctx.job.sku && !ctx.signal.aborted) await ctx.env.syncChildCode(ctx.job.id, { result, kids, snap, productTypes });
   return { kind: "done" };
 };
+var titleOf = (r) => r.title ?? "";
+var FALLBACK_THEME = "Theme";
 
 // server/src/scheduler/scheduler.ts
 var import_promises11 = __toESM(require("node:fs/promises"), 1);
@@ -63987,12 +64238,14 @@ var Scheduler = class {
         log.warn(`\u4E2D\u8F6C\u7AD9\u4E0D\u652F\u6301\u4FDD\u771F\u53C2\u6570\uFF08${message}\uFF09\uFF0C\u5DF2\u81EA\u52A8\u5173\u95ED\uFF0C\u4E4B\u540E\u7684\u8BF7\u6C42\u4E0D\u518D\u5E26 quality / input_fidelity`);
         d.bus.toast("warn", "\u4E2D\u8F6C\u7AD9\u4E0D\u652F\u6301\u4FDD\u771F\u53C2\u6570\uFF0C\u5DF2\u81EA\u52A8\u5173\u95ED");
       },
+      syncChildCode: (jobId, o) => this.syncChildCode(jobId, o),
       parent: {
         sheets: d.parent?.sheets ?? null,
         spapis: d.parent?.spapis ?? null,
         mutex: this.parentLock,
         jobs: () => d.jobs.list(),
-        reservations: d.parent?.reservations
+        reservations: d.parent?.reservations,
+        index: d.parent?.index
       }
     };
   }
@@ -64194,7 +64447,8 @@ var Scheduler = class {
       if (newCat) {
         const issued = this.allocSku(j);
         j.sku = issued?.sku ?? null;
-        j.skuMeta = issued ? { head: issued.head, mark: issued.mark, seq: issued.seq, was: [] } : null;
+        j.skuMeta = issued ? { head: issued.head, mark: issued.mark, seq: issued.seq, was: [], code: issued.code } : null;
+        j.skuNote = null;
       }
       if (newCat || j.route.categoryName !== prev) {
         j.outputBase = j.sku ?? assignOutputBase(j, this.d.jobs.list(), this.env.outputDir(), j.route.categoryName);
@@ -64212,12 +64466,102 @@ var Scheduler = class {
     if (!code) return null;
     const style = cat.styles.find((x2) => x2.id === j.route.styleId);
     const s = this.d.settings.get();
+    const mark = this.d.batch?.meta(j.outputFolder).mark ?? DEFAULT_MARK;
+    return this.sku.issue({ store: storeForJob(s, j).abbr, code: withStyleMark(code, style?.skuMark), region: s.sku.group, mark }, this.skuTaken(j));
+  }
+  /** 发号时跳过：队列里别的图已经用的、店铺里已有的（只看已扫好的快照）、这张图品类文件夹里已有的 */
+  skuTaken(j) {
     const others = this.d.jobs.list().filter((o) => o.id !== j.id);
     const dir = import_node_path19.default.join(this.env.outputDir(), j.outputFolder, safeName(j.route.categoryName));
     const inStore = new Set((this.d.parent?.index?.peek(j.storeId)?.items ?? []).map((x2) => x2.sku.toLowerCase()));
-    const taken = (sku) => others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) || inStore.has(sku.toLowerCase()) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("main", sku))) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("pattern", sku)));
-    const mark = this.d.batch?.meta(j.outputFolder).mark ?? DEFAULT_MARK;
-    return this.sku.issue({ store: storeForJob(s, j).abbr, code: withStyleMark(code, style?.skuMark), region: s.sku.group, mark }, taken);
+    return (sku) => others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) || inStore.has(sku.toLowerCase()) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("main", sku))) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("pattern", sku)));
+  }
+  /**
+   * 第 6 步定下父体后（含手动指定），子体 SKU 的材质编码跟着父体走（多店铺方案第六节，2026-11-04 审查后）：
+   * - 已匹配、建议新建、手动指定：按 decideChildCode 定编码，横竖版标记按 withOwnMark 取舍；没有可参照的用模版库的编码。
+   * - 待确认、没有合适的父体：不按这个父体改；SKU 退回模版库的编码（之前按别的父体改过的改回来），待确认时写一句「确认后会改成 X」。
+   */
+  async syncChildCode(jobId, o) {
+    const job = this.d.jobs.get(jobId);
+    if (!job?.sku || !job.skuMeta || !job.route) return;
+    const cat = this.d.library.get().categories.find((c) => c.id === job.route.categoryId);
+    const libBase = cat?.skuCode?.trim();
+    if (!libBase) return;
+    const style = cat.styles.find((x2) => x2.id === job.route.styleId);
+    const libCode = withStyleMark(libBase, style?.skuMark);
+    const store = storeForJob(this.d.settings.get(), job);
+    const r = o.result;
+    const sure = r.status === "matched" || r.status === "new" || r.manual;
+    const d = r.sku && r.status !== "none" ? decideChildCode({
+      abbr: store.abbr,
+      parentSku: r.status === "new" ? null : r.sku,
+      kids: o.kids,
+      newPrefix: r.status === "new" ? r.proposal?.prefix ?? null : null,
+      snap: o.snap,
+      productTypes: o.productTypes,
+      libraryCode: libBase
+    }) : null;
+    const want = d ? withOwnMark(d, style?.skuMark) : null;
+    if (sure) {
+      const keep = want && want.toLowerCase() !== libCode.toLowerCase() ? `${d.why}\uFF0C\u5B50\u4F53\u7F16\u7801\u7528 ${want}` : null;
+      await this.followCode(jobId, want ?? libCode, want ? d.why : "\u7236\u4F53\u4E0B\u6CA1\u6709\u53EF\u53C2\u7167\u7684\u5B50\u4F53\uFF0C\u7528\u6A21\u7248\u5E93\u7684\u7F16\u7801\uFF0C", null, keep);
+    } else {
+      const hint = want && want.toLowerCase() !== libCode.toLowerCase() ? `\u786E\u8BA4\u7236\u4F53\u540E\uFF0C\u5B50\u4F53\u7F16\u7801\u4F1A${d.why}\u6539\u6210 ${want}` : null;
+      await this.followCode(jobId, libCode, "\u7236\u4F53\u8FD8\u6CA1\u5B9A\u4E0B\u6765\uFF0C\u9000\u56DE\u6A21\u7248\u5E93\u7684\u7F16\u7801\uFF0C", hint, null);
+    }
+  }
+  /**
+   * 把这张图的 SKU 换成 code 这个材质编码：一样就只更新说明；不一样就按新编码重新发号（新前缀下取当天序号，旧号不收回）、三个输出文件改名。
+   * 改名失败就把已经改的改回去、保持原 SKU，在 skuNote 里写明没改成。返回改后的 SKU，没改返回 null。
+   */
+  async followCode(jobId, code, why, hint = null, keepNote = null) {
+    const job = this.d.jobs.get(jobId);
+    if (!job?.sku || !job.skuMeta || !job.route || job.outputBase !== job.sku) return null;
+    if (this.renaming.has(job.outputFolder)) return null;
+    const s = this.d.settings.get();
+    const abbr = storeForJob(s, job).abbr;
+    const cur = job.skuMeta.code || codeFromHead(job.skuMeta.head, abbr);
+    const setNote = (note2) => {
+      if (this.d.jobs.get(jobId)) this.d.jobs.update(jobId, (j) => j.skuNote = note2);
+    };
+    if (!cur || cur.toLowerCase() === code.toLowerCase()) {
+      setNote(hint ?? keepNote);
+      return null;
+    }
+    const issued = this.sku.issue({ store: abbr, code, region: s.sku.group, mark: job.skuMeta.mark }, this.skuTaken(job));
+    const dir = categoryDir(this.env.outputDir(), job);
+    const moved = [];
+    try {
+      for (const kind of ["main", "pattern", "blank"]) {
+        const from = import_node_path19.default.join(dir, outputRel(kind, job.sku));
+        if (!import_node_fs14.default.existsSync(from)) continue;
+        const to = import_node_path19.default.join(dir, outputRel(kind, issued.sku));
+        await renameSafe(from, to);
+        moved.push({ from, to });
+      }
+    } catch (e) {
+      for (const m of moved.reverse()) {
+        await renameSafe(m.to, m.from).catch((e2) => log.warn(`\u300C${job.source.originalName}\u300D\u6539\u56DE\u539F\u6587\u4EF6\u540D\u5931\u8D25\uFF0C\u6587\u4EF6\u73B0\u5728\u53EB ${import_node_path19.default.basename(m.to)}\uFF1A${e2.message}`));
+      }
+      log.warn(`\u300C${job.source.originalName}\u300DSKU \u8981\u6539\u6210 ${issued.sku}\uFF0C\u4F46\u6587\u4EF6\u6539\u540D\u5931\u8D25\uFF0C\u4FDD\u6301 ${job.sku}\uFF1A${e.message}`);
+      setNote(`\u6CA1\u80FD\u628A SKU \u6539\u6210 ${issued.sku}\uFF08\u6587\u4EF6\u6539\u4E0D\u4E86\u540D\uFF0C\u53EF\u80FD\u6B63\u88AB\u522B\u7684\u7A0B\u5E8F\u6253\u5F00\uFF09\uFF0C\u8FD8\u662F ${job.sku}\uFF1B\u5173\u6389\u5360\u7528\u7684\u7A0B\u5E8F\u540E\u5728\u8BE6\u60C5\u91CC\u5BF9\u7B2C 6 \u6B65\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D`);
+      return null;
+    }
+    const old = job.sku;
+    const note = `${why}\u6539\u6210 ${code}\uFF08\u539F ${cur}\uFF09\uFF1A${old} \u2192 ${issued.sku}`;
+    if (!this.d.jobs.get(jobId)) {
+      for (const m of moved.reverse()) await renameSafe(m.to, m.from).catch(() => {
+      });
+      return null;
+    }
+    this.d.jobs.update(jobId, (j) => {
+      j.sku = issued.sku;
+      j.outputBase = issued.sku;
+      j.skuMeta = { head: issued.head, mark: issued.mark, seq: issued.seq, was: [.../* @__PURE__ */ new Set([...j.skuMeta?.was ?? [], old])], code: issued.code };
+      j.skuNote = hint ? `${note}\u3002${hint}` : note;
+    });
+    log.info(`\u300C${job.source.originalName}\u300D${note}`);
+    return issued.sku;
   }
   parentSkip(job) {
     const s = this.d.settings.get();
@@ -64337,7 +64681,7 @@ var Scheduler = class {
   async hold(jobId, fn) {
     const job = this.d.jobs.get(jobId);
     if (!job) throw new HttpError(404, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u4E0D\u5728\u961F\u5217\u91CC\u4E86");
-    if (this.holds.has(jobId)) throw new HttpError(409, "\u8FD9\u5F20\u56FE\u6B63\u5728\u5904\u7406\u4E0A\u4E00\u4E2A\u64CD\u4F5C\uFF0C\u8BF7\u7A0D\u7B49");
+    if (this.holds.has(jobId) || this.settingParent.has(jobId)) throw new HttpError(409, "\u8FD9\u5F20\u56FE\u6B63\u5728\u5904\u7406\u4E0A\u4E00\u4E2A\u64CD\u4F5C\uFF0C\u8BF7\u7A0D\u7B49");
     if (this.renaming.has(job.outputFolder)) throw new HttpError(409, "\u6B63\u5728\u6539\u8FD9\u4E00\u6279\u7684\u4E13\u5C5E\u53F7\uFF0C\u8BF7\u7A0D\u7B49");
     this.holds.add(jobId);
     try {
@@ -64504,28 +64848,54 @@ var Scheduler = class {
       const store = storeForJob(settings, job);
       const deps = depsFor(this.env.parent, store.id);
       const cat = this.d.library.get().categories.find((c) => c.id === job.route.categoryId);
-      const tab = cat?.parentTab?.trim() || job.route.categoryName;
+      const productTypes = cat?.productTypes ?? [];
       const call2 = (fn) => fn().catch((e) => {
         if (e instanceof ParentPauseError) throw new HttpError(409, e.message);
         if (e instanceof AiError) throw new HttpError(502, e.message);
         throw e;
       });
-      const read = await call2(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)));
-      const row = read?.rows?.find((r) => r.sku.trim().toLowerCase() === sku.trim().toLowerCase()) ?? { sku: sku.trim(), asin: "", theme: "", row: 0 };
+      const want = sku.trim().toLowerCase();
+      let tab;
+      let readAt;
+      let row;
+      let sameCategory;
+      let snap = null;
+      let fallbackTheme = null;
+      if (store.parentSource === "store") {
+        snap = this.d.parent?.index ? await call2(() => guard(() => this.d.parent.index.get(store.id))) : null;
+        const cands = snap ? candidateParents(snap, productTypes) : [];
+        const hit = cands.find((r) => r.sku.toLowerCase() === want) ?? snap?.items.find((x2) => x2.kind === "parent" && x2.sku.toLowerCase() === want);
+        tab = productTypes.length ? productTypes.join(" / ") : job.route.categoryName;
+        readAt = snap?.scannedAt ?? (/* @__PURE__ */ new Date()).toISOString();
+        row = { sku: hit?.sku ?? sku.trim(), asin: hit?.asin ?? "", theme: hit?.theme ?? "", row: 0 };
+        fallbackTheme = hit && "title" in hit ? hit.title || null : null;
+        sameCategory = cands.map((r) => r.sku);
+      } else {
+        tab = cat?.parentTab?.trim() || job.route.categoryName;
+        const read = await call2(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)));
+        row = read?.rows?.find((r) => r.sku.trim().toLowerCase() === want) ?? { sku: sku.trim(), asin: "", theme: "", row: 0 };
+        readAt = read?.readAt ?? (/* @__PURE__ */ new Date()).toISOString();
+        sameCategory = (read?.rows ?? []).map((r) => r.sku);
+        snap = this.d.parent?.index ? await this.d.parent.index.get(store.id).catch(() => null) : null;
+      }
       const base = {
         tab,
-        readAt: read?.readAt ?? (/* @__PURE__ */ new Date()).toISOString(),
+        readAt,
         candidates: job.parent?.candidates ?? [],
         confidence: null,
         reason: "\u624B\u52A8\u6307\u5B9A",
         manual: true
       };
       let applied = false;
-      await bindExisting({
+      let kids = [];
+      const result = await bindExisting({
         deps,
         job,
         row,
         base,
+        seed: seedInfo(snap, sameCategory),
+        onKids: (k) => kids = k,
+        fallbackTheme,
         threshold: p.threshold,
         commit: (r) => {
           const cur = this.d.jobs.get(jobId);
@@ -64542,6 +64912,7 @@ var Scheduler = class {
       });
       if (!applied) throw new HttpError(409, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u5220\u6389\u6216\u6B63\u5728\u91CD\u65B0\u5339\u914D\uFF0C\u8FD9\u6B21\u624B\u52A8\u6307\u5B9A\u6CA1\u6709\u4FDD\u5B58");
       log.info(`\u300C${job.source.originalName}\u300D\u624B\u52A8\u6307\u5B9A\u7236\u4F53 ${row.sku}`);
+      await this.syncChildCode(jobId, { result, kids, snap, productTypes });
       void this.rewriteCsv(job.outputFolder);
       return this.d.jobs.get(jobId);
     } finally {
@@ -64710,7 +65081,7 @@ var Scheduler = class {
           this.d.jobs.update(t.jobId, (j) => {
             j.sku = t.next;
             j.outputBase = t.next;
-            j.skuMeta = { head: t.head, mark, seq: t.seq, was: [.../* @__PURE__ */ new Set([...t.was, t.old])] };
+            j.skuMeta = { head: t.head, mark, seq: t.seq, was: [.../* @__PURE__ */ new Set([...t.was, t.old])], code: j.skuMeta?.code ?? "" };
           });
         }
         if (rowsFile) {
@@ -64753,6 +65124,9 @@ var Scheduler = class {
     return { ...plan, applied: true };
   }
 };
+function codeFromHead(head, abbr) {
+  return head.toLowerCase().startsWith(`${abbr.toLowerCase()}-`) ? head.slice(abbr.length + 1).replace(/\d+$/, "") : "";
+}
 async function renameSafe(from, to) {
   if (from.toLowerCase() === to.toLowerCase()) {
     const tmp = `${from}.renaming-${process.pid}`;
@@ -64861,6 +65235,7 @@ function registerJobs(r, ctx) {
           outputBase: baseNameOf(name),
           sku: null,
           skuMeta: null,
+          skuNote: null,
           storeId,
           paused: false,
           route: null,

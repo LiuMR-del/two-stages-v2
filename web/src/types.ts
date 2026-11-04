@@ -22,6 +22,8 @@ export type Category = {
   hint: string
   extractPrompt: string | null
   parentTab: string | null
+  /** 店铺里对应的亚马逊商品类型（从店铺扫描父体的店铺用），如 BLANKET */
+  productTypes: string[]
   /** 子体 SKU 的材质缩写，如 mtfl */
   skuCode: string | null
   styles: Style[]
@@ -171,6 +173,8 @@ export type Job = {
   skuMeta?: { head: string; mark: string; seq: string } | null
   /** 这张图属于哪个店铺 */
   storeId?: string
+  /** 第 6 步按父体下的子体改过材质编码时的说明 */
+  skuNote?: string | null
   /** 单独暂停了这张图 */
   paused?: boolean
   route: null | {

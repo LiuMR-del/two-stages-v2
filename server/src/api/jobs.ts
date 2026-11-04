@@ -121,6 +121,7 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           outputBase: baseNameOf(name),
           sku: null,
           skuMeta: null,
+          skuNote: null,
           storeId,
           paused: false,
           route: null,

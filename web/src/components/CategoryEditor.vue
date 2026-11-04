@@ -79,6 +79,32 @@ const parentTabs = computed(() => {
   return current && !tabs.includes(current) ? [current, ...tabs] : tabs
 })
 const saveSkuCode = saver((v) => api.patch(base.value, { skuCode: v.trim() || null }))
+
+/** 当前店铺的扫描概况：商品类型选项、按材质缩写推荐 */
+type ScanSummary = { productTypes: { type: string; count: number }[]; codeTypes: Record<string, { type: string; count: number }[]> }
+const scan = ref<ScanSummary | null>(null)
+watch(
+  () => settings.currentStore?.id,
+  async (id) => {
+    scan.value = null
+    if (!id) return
+    const r = await api.get<{ snapshot: ScanSummary | null }>(`/stores/${encodeURIComponent(id)}/scan`).catch(() => null)
+    scan.value = r?.snapshot ?? null
+  },
+  { immediate: true },
+)
+const bare = (c: string) => c.replace(/^cn-/, '').replace(/^[HS]B-?/, '')
+const suggestedType = computed(() => (cat.value.skuCode ? (scan.value?.codeTypes[bare(cat.value.skuCode)]?.[0]?.type ?? null) : null))
+const typeOptions = computed(() => {
+  const list = [...(scan.value?.productTypes ?? [])]
+  for (const t of [...cat.value.productTypes, ...(suggestedType.value ? [suggestedType.value] : [])]) if (!list.some((x) => x.type === t)) list.unshift({ type: t, count: 0 })
+  return list
+})
+async function toggleType(t: string) {
+  const cur = cat.value.productTypes
+  const next = cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]
+  await ui.act(() => lib.mutate(() => api.patch(base.value, { productTypes: next })))
+}
 /** 今天的第一个 SKU 长什么样，给用户核对规则 */
 const skuSample = computed(() => {
   const s = settings.settings
@@ -337,13 +363,33 @@ function coverageOf(s: Style): { dot: string; text: string } {
           </div>
         </template>
 
-        <span class="k">父体表标签页</span>
-        <div class="v edit-row">
-          <select :value="cat.parentTab ?? ''" aria-label="父体表标签页" @change="saveParentTab(($event.target as HTMLSelectElement).value)">
-            <option value="">同名（{{ cat.name }}）</option>
-            <option v-for="tab in parentTabs" :key="tab" :value="tab">{{ tab }}</option>
-          </select>
-          <span v-if="!settings.currentStore?.feishu.tabs.length" class="muted tiny">先去设置里给「{{ settings.currentStore?.name }}」点「读一下试试」</span>
+        <template v-if="settings.currentStore?.parentSource !== 'store'">
+          <span class="k">父体表标签页</span>
+          <div class="v edit-row">
+            <select :value="cat.parentTab ?? ''" aria-label="父体表标签页" @change="saveParentTab(($event.target as HTMLSelectElement).value)">
+              <option value="">同名（{{ cat.name }}）</option>
+              <option v-for="tab in parentTabs" :key="tab" :value="tab">{{ tab }}</option>
+            </select>
+            <span v-if="!settings.currentStore?.feishu.tabs.length" class="muted tiny">先去设置里给「{{ settings.currentStore?.name }}」点「读一下试试」</span>
+          </div>
+        </template>
+
+        <span class="k">店铺商品类型</span>
+        <div class="v">
+          <div class="chips">
+            <button v-for="t in typeOptions" :key="t.type" type="button" class="chip" :aria-pressed="cat.productTypes.includes(t.type)" @click="toggleType(t.type)">
+              {{ t.type }}<span class="rt">{{ t.count ? `${t.count} 个父体` : '' }}{{ t.type === suggestedType && !cat.productTypes.includes(t.type) ? ' · 推荐' : '' }}</span>
+            </button>
+          </div>
+          <div class="muted tiny">
+            {{
+              !scan
+                ? `去设置里给「${settings.currentStore?.name ?? ''}」点「重新扫描」，这里才有选项`
+                : settings.currentStore?.parentSource === 'store'
+                  ? `「${settings.currentStore?.name}」从店铺里挑父体：只看这些商品类型的父体${suggestedType ? `；按材质缩写 ${cat.skuCode}，店里多是 ${suggestedType}` : ''}`
+                  : '子体材质编码拆不出来时，按店里这些商品类型最近的商品判断'
+            }}
+          </div>
         </div>
 
         <span class="k">SKU 材质缩写</span>

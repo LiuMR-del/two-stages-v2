@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Scheduler } from '../../server/src/scheduler/scheduler'
 import { JobStore, markDone } from '../../server/src/store/jobs'
 import { LibraryStore } from '../../server/src/library/store'
@@ -177,10 +177,10 @@ describe('调度器', () => {
     await flush()
     expect(startedKeys()).toEqual(['a:3'])
     finish('a', 3, { kind: 'done', skipNext: true })
-    await flush()
-    expect(jobs.get('a')!.steps[4]!.state).toBe('skipped')
+    // 不按固定时长等（机器忙时 5 毫秒不够，原来偶发失败），等到状态出现为止
+    await vi.waitFor(() => expect(jobs.get('a')!.steps[4]!.state).toBe('skipped'))
+    await vi.waitFor(() => expect(sched.isIdle()).toBe(true))
     expect(startedKeys()).toEqual(['a:3'])
-    expect(sched.isIdle()).toBe(true)
   })
 
   it('单张图暂停：排队的跳过、别的图照常；继续后接着跑', async () => {

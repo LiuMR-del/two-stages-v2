@@ -160,6 +160,14 @@ function checkSkuCode(code: string | null): string | null {
   return t
 }
 
+/** 亚马逊商品类型：大写字母和下划线（BLANKET、HANGING_ORNAMENT），去重 */
+function checkProductTypes(list: string[]): string[] {
+  const out = [...new Set(list.map((t) => t.trim().toUpperCase()).filter(Boolean))]
+  if (out.some((t) => !/^[A-Z][A-Z0-9_]{1,59}$/.test(t))) throw new HttpError(400, '店铺商品类型要写成亚马逊的英文类型名，比如 BLANKET、HANGING_ORNAMENT')
+  if (out.length > 10) throw new HttpError(400, '一个品类最多对应 10 个商品类型')
+  return out
+}
+
 /** 款式标记：1～4 个大写字母（HB、SB），空 = 不加 */
 function checkSkuMark(mark: string | null): string | null {
   const t = mark?.trim().toUpperCase() ?? ''
@@ -185,6 +193,7 @@ export const ops = {
       hint: '',
       extractPrompt: null,
       parentTab: null,
+      productTypes: [],
       skuCode: null,
       styles: [{ id: newStyleId(), name: '', ratio: '1:1', whiteImage: null, activeTemplate: 'default', templates: [], pasteMode: 'auto', skuMark: null }],
     }
@@ -192,12 +201,17 @@ export const ops = {
     return c
   },
 
-  patchCategory(lib: Library, cid: string, p: { name?: string; hint?: string; extractPrompt?: string | null; parentTab?: string | null; skuCode?: string | null }): Category {
+  patchCategory(
+    lib: Library,
+    cid: string,
+    p: { name?: string; hint?: string; extractPrompt?: string | null; parentTab?: string | null; skuCode?: string | null; productTypes?: string[] },
+  ): Category {
     const c = findCat(lib, cid)
     if (p.name !== undefined) c.name = checkCategoryName(lib, p.name, cid)
     if (p.hint !== undefined) c.hint = p.hint
     if (p.extractPrompt !== undefined) c.extractPrompt = p.extractPrompt
     if (p.parentTab !== undefined) c.parentTab = p.parentTab?.trim() || null
+    if (p.productTypes !== undefined) c.productTypes = checkProductTypes(p.productTypes)
     if (p.skuCode !== undefined) c.skuCode = checkSkuCode(p.skuCode)
     return c
   },

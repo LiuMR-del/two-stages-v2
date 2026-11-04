@@ -117,7 +117,8 @@ describe('e2e 17：第 6 步匹配父体', () => {
     for (const d of done) {
       expect(d.parent).toMatchObject({ status: 'new', sku: 'HJ-cn-yklgj-Snowman', asin: null, theme: 'Snowman' })
       expect(d.parent.proposal).toMatchObject({ prefix: 'HJ-cn-yklgj', theme: 'Snowman', themeCandidates: ['Snowman', 'Winter'] })
-      expect(d.parent.naming.note).toBe('这是建议新建的父体，飞书表和店铺里都还没有，需要你手动创建')
+      // 同品类的父体都用 Design ##，新父体也从 Design 01 起，并写明参照了谁
+      expect(d.parent.naming.note).toMatch(/^这是建议新建的父体，店铺里还没有，需要你手动创建。这个父体还没有子体，按 Design 01 起（参照同品类最近的父体 .*Design 01 这种写法）$/)
     }
     expect(done.map((d) => d.parent.naming.next).sort()).toEqual(['Design 01', 'Design 02'])
   })
@@ -152,7 +153,7 @@ describe('e2e 17：第 6 步匹配父体', () => {
     mock.parent.spapi.listings = mock.parent.spapi.listings.filter((l) => l.sku !== 'HJ-cn-yklgj-Christmas')
     mock.script({ parent: [{ parent: { pick: 2, confidence: 0.95 } }] })
     const [a] = await uploadJobs(api, ['a.png'])
-    expect((await waitJob(api, a.id, isDone)).parent).toMatchObject({ status: 'unsure', message: '店铺里查不到这个父体 SKU，检查飞书表里的 SKU 是否写对', naming: null })
+    expect((await waitJob(api, a.id, isDone)).parent).toMatchObject({ status: 'unsure', message: '店铺里查不到这个父体 SKU，检查父体 SKU 是否写对（飞书父体表里的，或者刚在店里删掉了）', naming: null })
   })
 
   it('飞书凭证不对：只暂停第 6 步，前 5 步照常；改好设置后自动继续', async () => {

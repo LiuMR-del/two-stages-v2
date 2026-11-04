@@ -165,9 +165,13 @@ export const JobSchema = z.object({
       seq: z.string(),
       /** 改专属号之前用过的 SKU：改回去时不算和「已经发过的号」冲突 */
       was: z.array(z.string()).default([]),
+      /** 材质编码（含横竖版标记），如 HBxkfb、cn-yklgj；第 6 步跟着父体下的子体改（第 3 段的数据没有，按 head 推） */
+      code: z.string().default(''),
     })
     .nullable()
     .default(null),
+  /** 第 6 步按父体改过 SKU 的材质编码时的说明，如「按父体 ART-cn-mtfl-cookie 下的子体改成 cn-mtfl（原 mtfl）」 */
+  skuNote: z.string().nullable().default(null),
   /** 这张图属于哪个店铺（加进队列时从批次取，之后不变）；改版前的任务都是焕捷 */
   storeId: z.string().default('hj'),
   /** 用户单独暂停了这张图：调度器不再派发它，点「继续」后从停下的那一步接着跑 */

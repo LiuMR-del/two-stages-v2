@@ -19,6 +19,7 @@ import {
   type Attention,
   type Job,
   type JobStore,
+  type ParentResult,
 } from '../store/jobs'
 import type { JobPatch, StepCtx, StepEnv, StepHandler, StepResult } from '../pipeline/types'
 import { step0Route } from '../pipeline/step0Route'
@@ -30,7 +31,8 @@ import { step5Parent } from '../pipeline/step5Parent'
 import { bindExisting, depsFor, guard, ParentPauseError, parentSkipReason, shiftNumber, storeForJob } from '../parent/match'
 import type { FeishuSheets } from '../parent/feishu'
 import type { SpapiPool } from '../parent/spapi'
-import type { StoreIndex } from '../parent/storeIndex'
+import type { StoreIndex, StoreSnapshot } from '../parent/storeIndex'
+import { candidateParents, decideChildCode, seedInfo, withOwnMark } from '../parent/storeParents'
 import type { Reservations } from '../parent/reservations'
 import { resolvePlan } from '../pipeline/plan'
 import { assignOutputBase, categoryDir, DEFAULT_MARK, LEGACY_STORE_ID, OUTPUT_FOLDER, outputRel, safeName, writeOutput, type BatchFolders } from '../pipeline/output'
@@ -120,12 +122,14 @@ export class Scheduler {
         log.warn(`中转站不支持保真参数（${message}），已自动关闭，之后的请求不再带 quality / input_fidelity`)
         d.bus.toast('warn', '中转站不支持保真参数，已自动关闭')
       },
+      syncChildCode: (jobId, o) => this.syncChildCode(jobId, o),
       parent: {
         sheets: d.parent?.sheets ?? (null as unknown as FeishuSheets),
         spapis: d.parent?.spapis ?? (null as unknown as SpapiPool),
         mutex: this.parentLock,
         jobs: () => d.jobs.list(),
         reservations: d.parent?.reservations,
+        index: d.parent?.index,
       },
     }
   }
@@ -336,7 +340,8 @@ export class Scheduler {
       if (newCat) {
         const issued = this.allocSku(j)
         j.sku = issued?.sku ?? null
-        j.skuMeta = issued ? { head: issued.head, mark: issued.mark, seq: issued.seq, was: [] } : null
+        j.skuMeta = issued ? { head: issued.head, mark: issued.mark, seq: issued.seq, was: [], code: issued.code } : null
+        j.skuNote = null
       }
       if (newCat || j.route.categoryName !== prev) {
         j.outputBase = j.sku ?? assignOutputBase(j, this.d.jobs.list(), this.env.outputDir(), j.route.categoryName)
@@ -355,16 +360,113 @@ export class Scheduler {
     if (!code) return null
     const style = cat!.styles.find((x) => x.id === j.route!.styleId)
     const s = this.d.settings.get()
+    const mark = this.d.batch?.meta(j.outputFolder).mark ?? DEFAULT_MARK
+    return this.sku.issue({ store: storeForJob(s, j).abbr, code: withStyleMark(code, style?.skuMark), region: s.sku.group, mark }, this.skuTaken(j))
+  }
+
+  /** 发号时跳过：队列里别的图已经用的、店铺里已有的（只看已扫好的快照）、这张图品类文件夹里已有的 */
+  private skuTaken(j: Job): (sku: string) => boolean {
     const others = this.d.jobs.list().filter((o) => o.id !== j.id)
     const dir = path.join(this.env.outputDir(), j.outputFolder, safeName(j.route!.categoryName))
     const inStore = new Set((this.d.parent?.index?.peek(j.storeId)?.items ?? []).map((x) => x.sku.toLowerCase()))
-    const taken = (sku: string) =>
+    return (sku: string) =>
       others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) ||
       inStore.has(sku.toLowerCase()) ||
       fs.existsSync(path.join(dir, outputRel('main', sku))) ||
       fs.existsSync(path.join(dir, outputRel('pattern', sku)))
-    const mark = this.d.batch?.meta(j.outputFolder).mark ?? DEFAULT_MARK
-    return this.sku.issue({ store: storeForJob(s, j).abbr, code: withStyleMark(code, style?.skuMark), region: s.sku.group, mark }, taken)
+  }
+
+  /**
+   * 第 6 步定下父体后（含手动指定），子体 SKU 的材质编码跟着父体走（多店铺方案第六节，2026-11-04 审查后）：
+   * - 已匹配、建议新建、手动指定：按 decideChildCode 定编码，横竖版标记按 withOwnMark 取舍；没有可参照的用模版库的编码。
+   * - 待确认、没有合适的父体：不按这个父体改；SKU 退回模版库的编码（之前按别的父体改过的改回来），待确认时写一句「确认后会改成 X」。
+   */
+  async syncChildCode(jobId: string, o: { result: ParentResult; kids: string[]; snap: StoreSnapshot | null; productTypes: string[] }): Promise<void> {
+    const job = this.d.jobs.get(jobId)
+    if (!job?.sku || !job.skuMeta || !job.route) return
+    const cat = this.d.library.get().categories.find((c) => c.id === job.route!.categoryId)
+    const libBase = cat?.skuCode?.trim()
+    if (!libBase) return
+    const style = cat!.styles.find((x) => x.id === job.route!.styleId)
+    const libCode = withStyleMark(libBase, style?.skuMark)
+    const store = storeForJob(this.d.settings.get(), job)
+    const r = o.result
+    const sure = r.status === 'matched' || r.status === 'new' || r.manual
+    const d =
+      r.sku && r.status !== 'none'
+        ? decideChildCode({
+            abbr: store.abbr,
+            parentSku: r.status === 'new' ? null : r.sku,
+            kids: o.kids,
+            newPrefix: r.status === 'new' ? (r.proposal?.prefix ?? null) : null,
+            snap: o.snap,
+            productTypes: o.productTypes,
+            libraryCode: libBase,
+          })
+        : null
+    const want = d ? withOwnMark(d, style?.skuMark) : null
+    if (sure) {
+      const keep = want && want.toLowerCase() !== libCode.toLowerCase() ? `${d!.why}，子体编码用 ${want}` : null
+      await this.followCode(jobId, want ?? libCode, want ? d!.why : '父体下没有可参照的子体，用模版库的编码，', null, keep)
+    } else {
+      const hint = want && want.toLowerCase() !== libCode.toLowerCase() ? `确认父体后，子体编码会${d!.why}改成 ${want}` : null
+      await this.followCode(jobId, libCode, '父体还没定下来，退回模版库的编码，', hint, null)
+    }
+  }
+
+  /**
+   * 把这张图的 SKU 换成 code 这个材质编码：一样就只更新说明；不一样就按新编码重新发号（新前缀下取当天序号，旧号不收回）、三个输出文件改名。
+   * 改名失败就把已经改的改回去、保持原 SKU，在 skuNote 里写明没改成。返回改后的 SKU，没改返回 null。
+   */
+  async followCode(jobId: string, code: string, why: string, hint: string | null = null, keepNote: string | null = null): Promise<string | null> {
+    const job = this.d.jobs.get(jobId)
+    if (!job?.sku || !job.skuMeta || !job.route || job.outputBase !== job.sku) return null
+    if (this.renaming.has(job.outputFolder)) return null
+    const s = this.d.settings.get()
+    const abbr = storeForJob(s, job).abbr
+    const cur = job.skuMeta.code || codeFromHead(job.skuMeta.head, abbr)
+    const setNote = (note: string | null) => {
+      if (this.d.jobs.get(jobId)) this.d.jobs.update(jobId, (j) => (j.skuNote = note))
+    }
+    if (!cur || cur.toLowerCase() === code.toLowerCase()) {
+      // 编码不用改：说明换成这次的（待确认的提示、或者「按父体 X 下的子体，编码用 Y」；和模版库一样时清空）
+      setNote(hint ?? keepNote)
+      return null
+    }
+    const issued = this.sku.issue({ store: abbr, code, region: s.sku.group, mark: job.skuMeta.mark }, this.skuTaken(job))
+    const dir = categoryDir(this.env.outputDir(), job)
+    const moved: { from: string; to: string }[] = []
+    try {
+      for (const kind of ['main', 'pattern', 'blank'] as const) {
+        const from = path.join(dir, outputRel(kind, job.sku))
+        if (!fs.existsSync(from)) continue
+        const to = path.join(dir, outputRel(kind, issued.sku))
+        await renameSafe(from, to)
+        moved.push({ from, to })
+      }
+    } catch (e) {
+      for (const m of moved.reverse()) {
+        await renameSafe(m.to, m.from).catch((e2) => log.warn(`「${job.source.originalName}」改回原文件名失败，文件现在叫 ${path.basename(m.to)}：${(e2 as Error).message}`))
+      }
+      log.warn(`「${job.source.originalName}」SKU 要改成 ${issued.sku}，但文件改名失败，保持 ${job.sku}：${(e as Error).message}`)
+      setNote(`没能把 SKU 改成 ${issued.sku}（文件改不了名，可能正被别的程序打开），还是 ${job.sku}；关掉占用的程序后在详情里对第 6 步点「重新匹配」`)
+      return null
+    }
+    const old = job.sku
+    const note = `${why}改成 ${code}（原 ${cur}）：${old} → ${issued.sku}`
+    if (!this.d.jobs.get(jobId)) {
+      // 改名期间这张图被删了：文件改回去，免得留下没人管的文件
+      for (const m of moved.reverse()) await renameSafe(m.to, m.from).catch(() => {})
+      return null
+    }
+    this.d.jobs.update(jobId, (j) => {
+      j.sku = issued.sku
+      j.outputBase = issued.sku
+      j.skuMeta = { head: issued.head, mark: issued.mark, seq: issued.seq, was: [...new Set([...(j.skuMeta?.was ?? []), old])], code: issued.code }
+      j.skuNote = hint ? `${note}。${hint}` : note
+    })
+    log.info(`「${job.source.originalName}」${note}`)
+    return issued.sku
   }
 
   private parentSkip(job: Job): string | null {
@@ -495,7 +597,7 @@ export class Scheduler {
   private async hold<T>(jobId: string, fn: (job: Job) => Promise<T>): Promise<T> {
     const job = this.d.jobs.get(jobId)
     if (!job) throw new HttpError(404, '这张图已经不在队列里了')
-    if (this.holds.has(jobId)) throw new HttpError(409, '这张图正在处理上一个操作，请稍等')
+    if (this.holds.has(jobId) || this.settingParent.has(jobId)) throw new HttpError(409, '这张图正在处理上一个操作，请稍等')
     if (this.renaming.has(job.outputFolder)) throw new HttpError(409, '正在改这一批的专属号，请稍等')
     this.holds.add(jobId)
     try {
@@ -672,29 +774,56 @@ export class Scheduler {
       const store = storeForJob(settings, job)
       const deps = depsFor(this.env.parent, store.id)
       const cat = this.d.library.get().categories.find((c) => c.id === job.route!.categoryId)
-      const tab = cat?.parentTab?.trim() || job.route.categoryName
+      const productTypes = cat?.productTypes ?? []
       const call = <T,>(fn: () => Promise<T>) =>
         fn().catch((e) => {
           if (e instanceof ParentPauseError) throw new HttpError(409, e.message)
           if (e instanceof AiError) throw new HttpError(502, e.message)
           throw e
         })
-      const read = await call(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)))
-      const row = read?.rows?.find((r) => r.sku.trim().toLowerCase() === sku.trim().toLowerCase()) ?? { sku: sku.trim(), asin: '', theme: '', row: 0 }
+      const want = sku.trim().toLowerCase()
+      let tab: string
+      let readAt: string
+      let row: { sku: string; asin: string; theme: string; row: number }
+      let sameCategory: string[]
+      let snap: StoreSnapshot | null = null
+      let fallbackTheme: string | null = null
+      if (store.parentSource === 'store') {
+        // 店铺来源：从店铺商品快照里找这个父体（找不到也照样去店铺里查，可能是刚建的）
+        snap = this.d.parent?.index ? await call(() => guard(() => this.d.parent!.index!.get(store.id))) : null
+        const cands = snap ? candidateParents(snap, productTypes) : []
+        const hit = cands.find((r) => r.sku.toLowerCase() === want) ?? snap?.items.find((x) => x.kind === 'parent' && x.sku.toLowerCase() === want)
+        tab = productTypes.length ? productTypes.join(' / ') : job.route.categoryName
+        readAt = snap?.scannedAt ?? new Date().toISOString()
+        row = { sku: hit?.sku ?? sku.trim(), asin: hit?.asin ?? '', theme: hit?.theme ?? '', row: 0 }
+        fallbackTheme = hit && 'title' in hit ? hit.title || null : null
+        sameCategory = cands.map((r) => r.sku)
+      } else {
+        tab = cat?.parentTab?.trim() || job.route.categoryName
+        const read = await call(() => guard(() => deps.sheets.rows(store.feishu.sheetUrl, tab)))
+        row = read?.rows?.find((r) => r.sku.trim().toLowerCase() === want) ?? { sku: sku.trim(), asin: '', theme: '', row: 0 }
+        readAt = read?.readAt ?? new Date().toISOString()
+        sameCategory = (read?.rows ?? []).map((r) => r.sku)
+        snap = this.d.parent?.index ? await this.d.parent.index.get(store.id).catch(() => null) : null
+      }
       const base = {
         tab,
-        readAt: read?.readAt ?? new Date().toISOString(),
+        readAt,
         candidates: job.parent?.candidates ?? [],
         confidence: null,
         reason: '手动指定',
         manual: true,
       }
       let applied = false
-      await bindExisting({
+      let kids: string[] = []
+      const result = await bindExisting({
         deps,
         job,
         row,
         base,
+        seed: seedInfo(snap, sameCategory),
+        onKids: (k) => (kids = k),
+        fallbackTheme,
         threshold: p.threshold,
         commit: (r) => {
           const cur = this.d.jobs.get(jobId)
@@ -711,6 +840,8 @@ export class Scheduler {
       })
       if (!applied) throw new HttpError(409, '这张图已经删掉或正在重新匹配，这次手动指定没有保存')
       log.info(`「${job.source.originalName}」手动指定父体 ${row.sku}`)
+      // 子体材质编码跟着新父体走（店里查不到这个父体时退回模版库的编码）
+      await this.syncChildCode(jobId, { result, kids, snap, productTypes })
       void this.rewriteCsv(job.outputFolder)
       return this.d.jobs.get(jobId)!
     } finally {
@@ -890,7 +1021,7 @@ export class Scheduler {
           this.d.jobs.update(t.jobId, (j) => {
             j.sku = t.next
             j.outputBase = t.next
-            j.skuMeta = { head: t.head, mark, seq: t.seq, was: [...new Set([...t.was, t.old])] }
+            j.skuMeta = { head: t.head, mark, seq: t.seq, was: [...new Set([...t.was, t.old])], code: j.skuMeta?.code ?? '' }
           })
         }
         if (rowsFile) {
@@ -931,6 +1062,12 @@ export class Scheduler {
     log.info(`「${folder}」专属号 ${plan.from} → ${mark}，改了 ${targets.length} 个 SKU`)
     return { ...plan, applied: true }
   }
+}
+
+/** 第 3 段的 skuMeta 没记编码：head = 店铺缩写-编码 + 年份末位 + 组别 + 月日 */
+function codeFromHead(head: string, abbr: string): string {
+  // 编码一定以字母结尾，后面是年份、组别、月日这些数字；不依赖现在设置里组别有几位
+  return head.toLowerCase().startsWith(`${abbr.toLowerCase()}-`) ? head.slice(abbr.length + 1).replace(/\d+$/, '') : ''
 }
 
 /** 改名：目标已经有文件就报错（不覆盖）；只差大小写时（macOS 默认不分大小写）先改成临时名再改过去 */

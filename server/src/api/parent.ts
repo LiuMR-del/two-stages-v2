@@ -8,13 +8,25 @@ import { FeishuAuthError, FeishuError } from '../parent/feishu'
 import { parseSpapiCredentials } from '../parent/credentials'
 import { log } from '../util/log'
 import type { StoreSnapshot } from '../parent/storeIndex'
+import { materialCode } from '../parent/skuParse'
+import { bareCode } from '../parent/storeParents'
 
 /** 快照给界面看的概况 */
-function summary(snap: StoreSnapshot | null) {
+function summary(snap: StoreSnapshot | null, abbr: string) {
   if (!snap) return null
   const parents = snap.items.filter((x) => x.kind === 'parent')
   const types = new Map<string, number>()
   for (const x of parents) if (x.productType) types.set(x.productType, (types.get(x.productType) ?? 0) + 1)
+  // 每个材质编码（不分 cn- 和横竖版标记）在店里主要是哪些商品类型：模版库按品类的材质缩写推荐「店铺商品类型」
+  const byCode = new Map<string, Map<string, number>>()
+  for (const x of snap.items) {
+    const c = x.productType ? materialCode(x.sku, abbr) : null
+    if (!c) continue
+    const k = bareCode(c)
+    const m = byCode.get(k) ?? new Map<string, number>()
+    m.set(x.productType!, (m.get(x.productType!) ?? 0) + 1)
+    byCode.set(k, m)
+  }
   return {
     scannedAt: snap.scannedAt,
     items: snap.items.length,
@@ -22,6 +34,7 @@ function summary(snap: StoreSnapshot | null) {
     themed: parents.filter((x) => x.theme).length,
     truncated: snap.truncated,
     productTypes: [...types].sort((a, b) => b[1] - a[1]).map(([type, count]) => ({ type, count })),
+    codeTypes: Object.fromEntries([...byCode].map(([k, m]) => [k, [...m].sort((a, b) => b[1] - a[1]).map(([type, count]) => ({ type, count }))])),
   }
 }
 
@@ -144,9 +157,25 @@ export function registerParent(r: Router, ctx: AppContext): void {
     res.json({ found, settings: maskSettings(settings.get()) })
   })
 
-  /** 手动选父体时搜索用（当前店铺的父体表）：给了 tab 就返回这一页，不给就返回所有页 */
+  /**
+   * 手动选父体时搜索用（当前店铺）：飞书来源给了 tab 就返回这一页，不给就返回所有页；
+   * 店铺来源从店铺商品快照里列父体，tab 是商品类型（BLANKET），主题为空时用商品标题。
+   */
   r.get('/parent/rows', async (req, res) => {
-    const url = currentStore(settings.get()).feishu.sheetUrl
+    const cur = currentStore(settings.get())
+    if (cur.parentSource === 'store') {
+      const want = typeof req.query.tab === 'string' ? req.query.tab.toUpperCase() : ''
+      try {
+        const snap = await p.index.get(cur.id)
+        const parents = snap.items.filter((x) => x.kind === 'parent').sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        const rows = parents.filter((x) => !want || (x.productType ?? '').toUpperCase() === want).map((x) => ({ tab: x.productType ?? '', sku: x.sku, asin: x.asin ?? '', theme: x.theme || x.title }))
+        const tabs = [...new Set(parents.map((x) => x.productType).filter((t): t is string => !!t))]
+        return void res.json({ title: `「${cur.name}」店铺里的父体`, rows, failed: [], tabs })
+      } catch (e) {
+        throw new HttpError(502, `扫描「${cur.name}」店铺商品失败：${(e as Error).message}`)
+      }
+    }
+    const url = cur.feishu.sheetUrl
     if (!url) throw new HttpError(400, '先在设置里给当前店铺填父体表链接')
     const tab = typeof req.query.tab === 'string' ? req.query.tab : ''
     try {
@@ -172,7 +201,7 @@ export function registerParent(r: Router, ctx: AppContext): void {
   /** 店铺商品快照的情况（只看缓存，不发请求） */
   r.get('/stores/:id/scan', (req, res) => {
     const st = storeOf(req)
-    res.json({ scanning: p.index.scanning(st.id), snapshot: summary(p.index.peek(st.id)) })
+    res.json({ scanning: p.index.scanning(st.id), snapshot: summary(p.index.peek(st.id), st.abbr) })
   })
 
   /** 重新扫描店铺商品（不管缓存）：只读，按创建日期分段翻完 */
@@ -180,7 +209,7 @@ export function registerParent(r: Router, ctx: AppContext): void {
     const st = storeOf(req)
     try {
       const snap = await p.index.get(st.id, { force: true })
-      res.json({ ok: true, snapshot: summary(snap) })
+      res.json({ ok: true, snapshot: summary(snap, st.abbr) })
     } catch (e) {
       res.json({ ok: false, message: `扫描失败：${(e as Error).message}` })
     }

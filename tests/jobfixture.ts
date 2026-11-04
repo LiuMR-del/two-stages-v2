@@ -11,6 +11,7 @@ export function fakeJob(id = 'j1', order = 1): Job {
     outputBase: id,
     sku: null,
     skuMeta: null,
+    skuNote: null,
     storeId: 'hj',
     paused: false,
     route: null,

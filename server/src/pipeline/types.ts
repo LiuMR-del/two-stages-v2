@@ -1,6 +1,7 @@
 import type { Settings } from '../store/settings'
 import type { LibraryStore } from '../library/store'
-import type { Attention, Job, StepSnapshot } from '../store/jobs'
+import type { Attention, Job, ParentResult, StepSnapshot } from '../store/jobs'
+import type { StoreSnapshot } from '../parent/storeIndex'
 import type { ParentEnv } from '../parent/match'
 
 export type StepEnv = {
@@ -11,6 +12,8 @@ export type StepEnv = {
   onFidelityDowngrade: (message: string) => Promise<void>
   /** 第 6 步：飞书读表、SP-API、占号的锁、队列里所有任务 */
   parent: ParentEnv
+  /** 第 6 步定下父体后，子体 SKU 的材质编码跟着父体走（多店铺方案第六节，见 Scheduler.syncChildCode）；改不了不让第 6 步失败 */
+  syncChildCode?: (jobId: string, o: { result: ParentResult; kids: string[]; snap: StoreSnapshot | null; productTypes: string[] }) => Promise<void>
 }
 
 export type StepCtx = {

@@ -27,8 +27,15 @@ export type Naming = {
   number: number | null
 }
 
-/** 没有子体时从这个起 */
-export const FIRST_NAME = 'Design 01'
+/** 第一个变体名的写法：前缀 + 编号位数，如 { prefix: 'Style', width: 2 } → Style01 */
+export type NamingSeed = { prefix: string; width: number }
+
+/**
+ * 没有子体、也没有可参考的同品类父体时从这个起（2026-11-04 用户确认：参考同品类最近父体最多的写法，没有用 Style01；原来固定 Design 01）
+ */
+export const DEFAULT_SEED: NamingSeed = { prefix: 'Style', width: 2 }
+export const seedName = (s: NamingSeed, n = 1) => s.prefix + String(n).padStart(s.width, '0')
+export const seedKey = (s: NamingSeed) => s.prefix + '#'.repeat(s.width)
 
 const SPLIT = /^(.*?)(\d+)\s*$/
 
@@ -88,11 +95,17 @@ export function analyzeNaming(themeAttrs: string[], children: Record<string, str
  * 下一个变体名。taken：队列里其他任务已经分到的同父体、同命名方式的号。
  * 同一前缀不同位数的值（Design 9、Design 10）也算进最大编号，再跳过已经存在的名字，保证不撞号。
  */
-export function nextName(a: NamingAnalysis, taken: number[] = []): Naming {
+export function nextName(a: NamingAnalysis, taken: number[] = [], seed: NamingSeed = DEFAULT_SEED, seedFrom: string | null = null): Naming {
   const base = { attribute: a.attribute, existing: a.existing, groups: a.groups }
   if (!a.top) {
     const n = Math.max(1, ...taken.map((x) => x + 1))
-    return { ...base, next: `Design ${String(n).padStart(2, '0')}`, note: '这个父体还没有子体，按 Design 01 起', key: 'Design ##', number: n }
+    return {
+      ...base,
+      next: seedName(seed, n),
+      note: `这个父体还没有子体，按 ${seedName(seed)} 起${seedFrom ? `（参照${seedFrom}）` : '（同品类没有可参照的父体）'}`,
+      key: seedKey(seed),
+      number: n,
+    }
   }
   if (!a.top.numbered) {
     return { ...base, next: null, note: `这个父体的命名没有编号，请手动起名（现有：${a.existing.join('、')}）`, key: null, number: null }

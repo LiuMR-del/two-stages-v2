@@ -52,6 +52,11 @@ export const CategorySchema = z.object({
   styles: z.array(StyleSchema).min(1),
   /** 飞书父体表里对应的标签页；null = 和品类同名（旧库没有这个字段，读入时补 null，不升版本） */
   parentTab: z.string().nullable().default(null),
+  /**
+   * 店铺里对应的亚马逊商品类型（如毛毯 BLANKET），从店铺扫描父体的店铺（爱睿特）按它挑候选父体（多店铺方案 2.3）。
+   * 旧库没有这个字段，读入时补 []，不升版本
+   */
+  productTypes: z.array(z.string()).default([]),
   /** 子体 SKU 里的材质缩写，如毛毯 mtfl；null = 不生成 SKU，文件名用原图名（旧库没有这个字段，读入时补 null） */
   skuCode: z.string().nullable().default(null),
 })
