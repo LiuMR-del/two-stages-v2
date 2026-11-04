@@ -41,8 +41,8 @@ describe('设置接口', () => {
     expect((await j('PUT', '/settings', { sku: { group: ' 8 ' } })).body.sku).toEqual({ group: '8' })
     expect((await j('PUT', '/settings', { sku: { group: '8-' } })).status).toBe(400)
     expect((await j('PATCH', '/stores/hj', { abbr: 'H J' })).status).toBe(400)
-    expect((await j('PUT', '/settings', { parent: { creatorMark: '1-' } })).status).toBe(400)
-    expect((await j('PUT', '/settings', { parent: { creatorMark: '1' } })).body.parent.creatorMark).toBe('1')
+    // 专属号不在设置里了（按批次，默认 0）：传了也不存
+    expect((await j('PUT', '/settings', { parent: { creatorMark: '1' } })).body.parent.creatorMark).toBeUndefined()
     await j('PUT', '/settings', { sku: { group: '7' } })
   })
 

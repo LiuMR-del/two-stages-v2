@@ -63,7 +63,7 @@ export const step5Parent: StepHandler = async (ctx) => {
     await bindExisting({ deps, job, row: pick, base: { ...info, manual: false }, threshold: p.threshold, commit: save, call, signal: ctx.signal })
   } else {
     // 新建建议的前缀统计和查重要看表里所有父体，不只是给 AI 的前 300 个
-    await bindNew({ deps, job, rows: read.rows, themes: data.new_themes, creatorMark: p.creatorMark, base: info, commit: save, call, signal: ctx.signal })
+    await bindNew({ deps, job, rows: read.rows, themes: data.new_themes, base: info, commit: save, call, signal: ctx.signal })
   }
   return { kind: 'done' }
 }

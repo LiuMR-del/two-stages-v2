@@ -13,6 +13,7 @@ import { SpapiPool } from './parent/spapi'
 import { StoreIndex } from './parent/storeIndex'
 import { storeMissing } from './parent/match'
 import { registerParent } from './api/parent'
+import { registerBatch } from './api/batch'
 import { Reservations } from './parent/reservations'
 import { Limiter } from './ai/limiter'
 import { registerSettings } from './api/settings'
@@ -61,7 +62,13 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     const st = storeById(settings.get(), id)
     return { abbr: st?.abbr ?? '', sellerId: st?.spapi.sellerId ?? '', marketplaceId: st?.spapi.marketplaceId ?? '' }
   })
+  // 每批的店铺和专属号记在 data/batches/<文件夹>.meta.json；新的一批用设置里的当前店铺
+  const batch = new BatchFolders(path.join(paths.dataDir, 'batch.json'), () => resolveOutputDir(settings.get()), {
+    metaDir: path.join(paths.dataDir, 'batches'),
+    storeId: () => settings.get().currentStoreId,
+  })
   scheduler = new Scheduler({
+    batch,
     jobs,
     library,
     settings,
@@ -69,7 +76,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     bus,
     stateFile: path.join(paths.dataDir, 'queue.json'),
     csvRowsDir: path.join(paths.dataDir, 'batches'),
-    parent: { sheets, spapis, reservations },
+    parent: { sheets, spapis, reservations, index },
     sku: new SkuCounter(path.join(paths.dataDir, 'sku.json')),
   })
   const sched = scheduler
@@ -83,7 +90,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     library,
     jobs,
     scheduler: sched,
-    batch: new BatchFolders(path.join(paths.dataDir, 'batch.json'), () => resolveOutputDir(settings.get())),
+    batch,
     parent: { sheets, spapis, index },
     sse: { clients: 0 },
     onSettingsSaved: () => {},
@@ -133,6 +140,7 @@ export function createApp(ctx: AppContext): express.Express {
   registerLibrary(api, ctx)
   registerJobs(api, ctx)
   registerParent(api, ctx)
+  registerBatch(api, ctx)
   api.use(() => {
     throw new HttpError(404, '接口不存在')
   })

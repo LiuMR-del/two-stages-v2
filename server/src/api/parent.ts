@@ -59,13 +59,31 @@ export function registerParent(r: Router, ctx: AppContext): void {
   r.patch('/stores/:id', async (req, res) => {
     const st = storeOf(req)
     const patch = parseBody(StorePatchSchema, req.body)
+    // 队列里有这个店铺的图时不能改缩写，否则同一批会有两种 SKU 前缀
+    if (patch.abbr !== undefined && patch.abbr.toLowerCase() !== st.abbr.toLowerCase() && ctx.jobs.list().some((j) => j.storeId === st.id)) {
+      throw new HttpError(409, `队列里还有「${st.name}」的图，先清空队列再改店铺缩写`)
+    }
     const next = await settle(() => settings.updateStore(st.id, patch))
     ctx.onSettingsSaved()
     res.json(maskSettings(next))
   })
 
+  /** 换店铺：只有队列空了才能换（一批只属于一个店铺），换了之后加的图进新的文件夹 */
+  r.post('/stores/:id/use', async (req, res) => {
+    const st = storeOf(req)
+    if (settings.get().currentStoreId === st.id) return void res.json(maskSettings(settings.get()))
+    if (ctx.jobs.list().length || ctx.batch.adding) throw new HttpError(409, '队列里还有图（或正在加图），先「清空队列」再换店铺（一批图只能属于一个店铺）')
+    const next = await settle(() => settings.setCurrentStore(st.id))
+    ctx.batch.close()
+    ctx.onSettingsSaved()
+    log.info(`换到店铺「${st.name}」，之后加的图进新的文件夹`)
+    if (next.parent.enabled && st.spapi.refreshToken) p.index.warm(st.id)
+    res.json(maskSettings(next))
+  })
+
   r.delete('/stores/:id', async (req, res) => {
     const st = storeOf(req)
+    if (ctx.jobs.list().some((j) => j.storeId === st.id)) throw new HttpError(409, `队列里还有「${st.name}」的图，先清空队列再删这个店铺`)
     const next = await settle(() => settings.removeStore(st.id))
     p.spapis.drop(st.id)
     p.index.clear(st.id)

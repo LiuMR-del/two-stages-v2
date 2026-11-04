@@ -12,6 +12,8 @@ export type Style = {
   templates: Template[]
   /** 默认模版的贴图方式 */
   pasteMode: PasteMode
+  /** 子体 SKU 材质缩写前的款式标记，如横版 HB、竖版 SB；null = 不加 */
+  skuMark: string | null
 }
 export type WhiteShape = { ok: boolean; shape: 'rect' | 'ellipse' | null; bbox: { x: number; y: number; w: number; h: number } | null; fill: number | null; holes: number; reason: string }
 export type Category = {
@@ -68,13 +70,12 @@ export type Settings = {
   patternQcThreshold: number
   patternQcDeltaE: number
   mainQc: boolean
-  /** 子体 SKU 的组别（7 = 深圳团队）；店铺缩写在店铺档案里，专属号用 parent.creatorMark */
+  /** 子体 SKU 的组别（7 = 深圳团队）；店铺缩写在店铺档案里，专属号按批次（默认 0） */
   sku: { group: string }
   /** 父体匹配；飞书 App Secret 是打码后的（••••末 4 位） */
   parent: {
     enabled: boolean
     threshold: number
-    creatorMark: string
     /** 飞书用应用身份读表，只要 App ID / App Secret，所有店铺共用 */
     feishu: { appId: string; appSecret: string }
   }
@@ -166,6 +167,10 @@ export type Job = {
   deformed?: boolean
   /** 子体 SKU；品类没填材质缩写时为 null */
   sku: string | null
+  /** SKU 的三截（专属号前面、专属号、序号）；改版前发的 SKU 没有 */
+  skuMeta?: { head: string; mark: string; seq: string } | null
+  /** 这张图属于哪个店铺 */
+  storeId?: string
   /** 单独暂停了这张图 */
   paused?: boolean
   route: null | {
@@ -241,3 +246,17 @@ export type QueueState = {
 }
 
 export type ToastLevel = 'info' | 'warn' | 'error'
+
+/** 当前这一批：属于哪个店铺、专属号 */
+export type BatchInfo = { folder: string | null; storeId: string; storeName: string; abbr: string; mark: string; queued: number }
+export type MarkPlan = {
+  folder: string
+  from: string
+  to: string
+  items: { name: string; old: string; next: string; conflict: string | null; inQueue: boolean }[]
+  skipped: { name: string; sku: string; reason: string }[]
+  applied: boolean
+  /** ok = 查过店铺；noCredentials = 没填凭证，只查了本地；truncated = 店铺商品没扫全，不能改 */
+  storeCheck: 'ok' | 'noCredentials' | 'truncated'
+  storeName: string | null
+}

@@ -160,6 +160,14 @@ function checkSkuCode(code: string | null): string | null {
   return t
 }
 
+/** 款式标记：1～4 个大写字母（HB、SB），空 = 不加 */
+function checkSkuMark(mark: string | null): string | null {
+  const t = mark?.trim().toUpperCase() ?? ''
+  if (!t) return null
+  if (!/^[A-Z]{1,4}$/.test(t)) throw new HttpError(400, 'SKU 款式标记只能用 1～4 个字母，比如横版 HB、竖版 SB')
+  return t
+}
+
 function checkRatio(ratio: string): string {
   try {
     const [w, h] = ratioToWH(ratio)
@@ -178,7 +186,7 @@ export const ops = {
       extractPrompt: null,
       parentTab: null,
       skuCode: null,
-      styles: [{ id: newStyleId(), name: '', ratio: '1:1', whiteImage: null, activeTemplate: 'default', templates: [], pasteMode: 'auto' }],
+      styles: [{ id: newStyleId(), name: '', ratio: '1:1', whiteImage: null, activeTemplate: 'default', templates: [], pasteMode: 'auto', skuMark: null }],
     }
     lib.categories.push(c)
     return c
@@ -215,12 +223,12 @@ export const ops = {
     if (c.styles.some((s) => s.name === n)) throw new HttpError(400, `「${c.name}」已经有叫「${n}」的款式了`)
     // 单款式品类的款式没有名字；加第二个款式时给它补一个，否则两个款式没法区分
     for (const s of c.styles) if (!s.name) s.name = n === '默认' ? '原款式' : '默认'
-    const st: Style = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: 'default', templates: [], pasteMode: 'auto' }
+    const st: Style = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: 'default', templates: [], pasteMode: 'auto', skuMark: null }
     c.styles.push(st)
     return st
   },
 
-  patchStyle(lib: Library, cid: string, sid: string, p: { name?: string; ratio?: string; activeTemplate?: string; pasteMode?: Style['pasteMode'] }) {
+  patchStyle(lib: Library, cid: string, sid: string, p: { name?: string; ratio?: string; activeTemplate?: string; pasteMode?: Style['pasteMode']; skuMark?: string | null }) {
     const c = findCat(lib, cid)
     const s = c.styles.find((x) => x.id === sid)
     if (!s) throw new HttpError(404, '款式不存在，可能已被删除')
@@ -237,6 +245,7 @@ export const ops = {
       s.activeTemplate = p.activeTemplate
     }
     if (p.pasteMode !== undefined) s.pasteMode = p.pasteMode
+    if (p.skuMark !== undefined) s.skuMark = checkSkuMark(p.skuMark)
     return s
   },
 

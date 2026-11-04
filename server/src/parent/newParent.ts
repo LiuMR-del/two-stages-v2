@@ -2,7 +2,8 @@ import type { ParentRow } from './feishu'
 
 /**
  * 建议新建父体（实施方案 4.2）：表里没有合适的父体时，按同一标签页的命名方式起一个新父体 SKU，主题跟着图变。
- * 例：毛毯 HJ-mtfl5-Love（HJ 店铺、mtfl 材质缩写、5 创建人标识、Love 主题），亚克力挂件 HJ-cn-yklgj-Christmas（cn = 中国发货）。
+ * 例：毛毯 HJ-mtfl-Love（HJ 店铺、mtfl 材质缩写、Love 主题），亚克力挂件 HJ-cn-yklgj-Christmas（cn = 中国发货）。
+ * 2026-11-04 起父体不加专属号（多店铺方案第一节）：表里的 HJ-mtfl5-… 前缀去掉末尾数字后是 HJ-mtfl。
  */
 
 export const MAX_BASED_ON = 5
@@ -84,14 +85,13 @@ export type Proposal = { sku: string; prefix: string; theme: string; basedOn: st
 export async function proposeParent(opts: {
   rows: ParentRow[]
   themes: string[]
-  creatorMark: string
   /** 同一批里已经建议的新父体 SKU */
   queued: string[]
   existsInStore: (sku: string) => Promise<boolean>
 }): Promise<{ ok: true; proposal: Proposal } | { ok: false; reason: 'noPrefix' | 'noThemes' } | { ok: false; reason: 'taken'; tried: string[] }> {
   const base = derivePrefix(opts.rows)
   if (!base) return { ok: false, reason: 'noPrefix' }
-  const prefix = withCreator(base.prefix, opts.creatorMark)
+  const prefix = withCreator(base.prefix, '')
   const themes = [...new Set(opts.themes.map(cleanTheme).filter(Boolean))]
   if (!themes.length) return { ok: false, reason: 'noThemes' }
   const inTable = new Set(opts.rows.map((r) => r.sku.trim().toLowerCase()))

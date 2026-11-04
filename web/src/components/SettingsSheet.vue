@@ -141,15 +141,12 @@ function authDot(kind: 'image' | 'analysis') {
 
         <div class="grp">
           <h4>SKU 命名</h4>
-          <div class="muted tiny">子体 SKU = 店铺缩写-材质缩写 + 年份末位 + 组别 + 月日 + 专属号 + 当天序号，如 HJ-mtfl671029101。店铺缩写在下面「店铺」里，材质缩写在模版库里按品类填；每个品类每天从 01 起，输出的图也用 SKU 命名</div>
+          <div class="muted tiny">子体 SKU = 店铺缩写-款式标记 + 材质缩写 + 年份末位 + 组别 + 月日 + 专属号 + 当天序号，如 HJ-mtfl671104001、HJ-HBxkfb671104001。店铺缩写在下面「店铺」里，材质缩写和款式标记（横版 HB、竖版 SB）在模版库里填；每个品类每天从 01 起，输出的图也用 SKU 命名</div>
           <div class="fld">
             <label>组别（7 = 深圳团队）</label>
             <AutoText :value="st.settings.sku.group" :save="saver((v) => ({ sku: { group: v.trim() } }))" label="组别" />
           </div>
-          <div class="fld">
-            <label>专属号（子体 SKU 和建议新建的父体 SKU 都用它）</label>
-            <AutoText :value="st.settings.parent.creatorMark" :save="saver((v) => ({ parent: { creatorMark: v.trim() } }))" label="专属号" />
-          </div>
+          <div class="muted tiny">专属号每一批默认 0，图生完后在「识别信息」里点「改专属号」一次改掉这一批所有 SKU。</div>
         </div>
 
         <ParentSettings />

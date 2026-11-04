@@ -37636,38 +37636,85 @@ function readJsonSync(file2) {
 var import_node_fs16 = __toESM(require("node:fs"), 1);
 
 // server/src/pipeline/sku.ts
+function withStyleMark(code, mark) {
+  const m = mark?.trim();
+  if (!m) return code;
+  return code.startsWith("cn-") ? `cn-${m}${code.slice(3)}` : `${m}${code}`;
+}
 function formatSku(p, day, n) {
   return skuPrefix(p, day) + String(n).padStart(2, "0");
 }
-function skuPrefix(p, day) {
+function skuHead(p, day) {
   const [y, m, d] = day.split("-");
-  return `${p.store}-${p.code}${y.slice(-1)}${p.region}${m}${d}${p.mark}`;
+  return `${p.store}-${p.code}${y.slice(-1)}${p.region}${m}${d}`;
 }
+function skuPrefix(p, day) {
+  return skuHead(p, day) + p.mark;
+}
+var KEEP_DAYS2 = 7;
 var SkuCounter = class {
   constructor(file2) {
     this.file = file2;
   }
   file;
-  mem = {};
+  mem = { counts: {}, extra: {} };
   read() {
-    return this.file ? readJsonSync(this.file) ?? {} : this.mem;
+    if (!this.file) return this.mem;
+    const raw2 = readJsonSync(this.file);
+    if (!raw2 || typeof raw2 !== "object") return { counts: {}, extra: {} };
+    if (!raw2.counts) return { counts: raw2, extra: {} };
+    return { counts: raw2.counts ?? {}, extra: raw2.extra ?? {} };
+  }
+  write(v, today) {
+    const days = [.../* @__PURE__ */ new Set([...Object.keys(v.counts), ...Object.keys(v.extra)])].sort().slice(-KEEP_DAYS2);
+    const keep = /* @__PURE__ */ new Set([...days, today]);
+    const next = {
+      counts: Object.fromEntries(Object.entries(v.counts).filter(([d]) => keep.has(d))),
+      extra: Object.fromEntries(Object.entries(v.extra).filter(([d]) => keep.has(d)))
+    };
+    if (!this.file) {
+      this.mem = next;
+      return;
+    }
+    try {
+      writeFileAtomicSync(this.file, JSON.stringify(next));
+    } catch (e) {
+      log.warn(`\u4FDD\u5B58 SKU \u5E8F\u53F7\u5931\u8D25\uFF1A${e.message}`);
+    }
+  }
+  /** 这个 SKU 发过没有（不分批次、不分大小写） */
+  issued(sku) {
+    const v = this.read();
+    const low = sku.toLowerCase();
+    for (const list of Object.values(v.extra)) if (list.some((x2) => x2.toLowerCase() === low)) return true;
+    for (const byPrefix of Object.values(v.counts)) {
+      for (const [prefix, n] of Object.entries(byPrefix)) {
+        if (!low.startsWith(prefix.toLowerCase())) continue;
+        const rest = sku.slice(prefix.length);
+        if (/^\d{2,}$/.test(rest) && Number(rest) <= n) return true;
+      }
+    }
+    return false;
+  }
+  /** 改专属号改出来的 SKU 记下来，之后不再发 */
+  record(skus, now = /* @__PURE__ */ new Date()) {
+    if (!skus.length) return;
+    const day = localDay(now);
+    const v = this.read();
+    this.write({ counts: v.counts, extra: { ...v.extra, [day]: [.../* @__PURE__ */ new Set([...v.extra[day] ?? [], ...skus])] } }, day);
   }
   /** taken：别的任务已经用了、或者输出文件夹里已经有这个名字的文件，就跳过 */
   allocate(p, taken, now = /* @__PURE__ */ new Date()) {
+    return this.issue(p, taken, now).sku;
+  }
+  issue(p, taken, now = /* @__PURE__ */ new Date()) {
     const day = localDay(now);
-    const all = this.read();
+    const v = this.read();
     const key = skuPrefix(p, day);
-    let n = (all[day]?.[key] ?? 0) + 1;
-    while (taken(formatSku(p, day, n))) n++;
-    const next = { [day]: { ...all[day] ?? {}, [key]: n } };
-    if (this.file) {
-      try {
-        writeFileAtomicSync(this.file, JSON.stringify(next));
-      } catch (e) {
-        log.warn(`\u4FDD\u5B58 SKU \u5E8F\u53F7\u5931\u8D25\uFF1A${e.message}`);
-      }
-    } else this.mem = next;
-    return formatSku(p, day, n);
+    let n = (v.counts[day]?.[key] ?? 0) + 1;
+    while (taken(formatSku(p, day, n)) || this.issued(formatSku(p, day, n))) n++;
+    this.write({ counts: { ...v.counts, [day]: { ...v.counts[day] ?? {}, [key]: n } }, extra: v.extra }, day);
+    return { sku: formatSku(p, day, n), head: skuHead(p, day), mark: p.mark, seq: String(n).padStart(2, "0") };
   }
 };
 
@@ -57517,9 +57564,7 @@ var ParentSchema = external_exports.object({
   /** 「识别父体」开关，默认关闭：关着时第 6 步直接跳过，不读飞书、不调 SP-API */
   enabled: external_exports.boolean().default(false),
   threshold: external_exports.number().min(0).max(1).default(0.7),
-  /** 子体 SKU 的专属号（第 3 段改成按批次、默认 0） */
-  creatorMark: external_exports.string().default("5"),
-  /** 飞书应用身份，所有店铺共用 */
+  /** 飞书应用身份，所有店铺共用。原来的 creatorMark（专属号）2026-11-04 去掉：子体按批次、默认 0，父体不加 */
   feishu: FeishuSchema.prefault({})
 });
 var SkuSchema = external_exports.object({
@@ -57562,7 +57607,6 @@ var SettingsPatchSchema = external_exports.object({
   parent: external_exports.object({
     enabled: external_exports.boolean().optional(),
     threshold: external_exports.number().min(0).max(1).optional(),
-    creatorMark: external_exports.string().trim().regex(/^[A-Za-z0-9]{0,10}$/, "\u4E13\u5C5E\u53F7\u53EA\u80FD\u7528\u5B57\u6BCD\u6216\u6570\u5B57").optional(),
     feishu: external_exports.object({
       appId: external_exports.string().max(200),
       appSecret: external_exports.string().max(500)
@@ -57732,7 +57776,7 @@ var SettingsStore = class {
       const pp = patch.parent;
       const parent = {
         ...cur.parent,
-        ...stripUndefined({ enabled: pp?.enabled, threshold: pp?.threshold, creatorMark: pp?.creatorMark?.trim() }),
+        ...stripUndefined({ enabled: pp?.enabled, threshold: pp?.threshold }),
         feishu: { ...cur.parent.feishu, ...stripMasked(pp?.feishu) }
       };
       const next = SettingsSchema.parse({
@@ -57805,6 +57849,15 @@ var SettingsStore = class {
       return { settings: await this.commit(draft), id };
     });
   }
+  /** 换当前店铺（新的一批用它）；队列里有没有图由接口那边拦 */
+  async setCurrentStore(id) {
+    return this.mutex.run(async () => {
+      const draft = structuredClone(this.value);
+      if (!storeById(draft, id)) throw new SettingsError("\u6CA1\u6709\u8FD9\u4E2A\u5E97\u94FA");
+      draft.currentStoreId = id;
+      return this.commit(draft);
+    });
+  }
   /** 当前店铺不能删，至少留一个 */
   async removeStore(id) {
     return this.mutex.run(async () => {
@@ -57857,13 +57910,20 @@ function nextBatchFolder(outputDir, day, after) {
     if (!import_node_fs5.default.existsSync(import_node_path5.default.join(outputDir, cand))) return cand;
   }
 }
+var LEGACY_STORE_ID = "hj";
+var DEFAULT_MARK = "0";
 var BatchFolders = class {
-  constructor(file2, outputDir) {
+  constructor(file2, outputDir, opts = {}) {
     this.file = file2;
     this.outputDir = outputDir;
+    this.opts = opts;
   }
   file;
   outputDir;
+  opts;
+  memMeta = /* @__PURE__ */ new Map();
+  /** 正在往队列里加图的请求数：这时不能换店铺（加图要读文件，期间队列可能还是空的） */
+  adding = 0;
   read() {
     const s = readJsonSync(this.file);
     return s && typeof s.day === "string" && typeof s.folder === "string" ? { day: s.day, folder: s.folder, closed: s.closed === true } : null;
@@ -57874,6 +57934,33 @@ var BatchFolders = class {
     } catch (e) {
       log.warn(`\u4FDD\u5B58\u5F53\u524D\u6279\u6B21\u6587\u4EF6\u5939\u5931\u8D25\uFF1A${e.message}`);
     }
+  }
+  metaFile(folder) {
+    return this.opts.metaDir ? import_node_path5.default.join(this.opts.metaDir, `${folder}.meta.json`) : null;
+  }
+  /** 这一批的店铺和专属号；没有记录的（改版前的批次）按焕捷、0 */
+  meta(folder) {
+    const f2 = this.metaFile(folder);
+    const m = f2 ? readJsonSync(f2) : this.memMeta.get(folder);
+    return { storeId: typeof m?.storeId === "string" && m.storeId ? m.storeId : LEGACY_STORE_ID, mark: typeof m?.mark === "string" ? m.mark : DEFAULT_MARK };
+  }
+  setMeta(folder, meta3) {
+    const f2 = this.metaFile(folder);
+    if (!f2) {
+      this.memMeta.set(folder, meta3);
+      return;
+    }
+    import_node_fs5.default.mkdirSync(import_node_path5.default.dirname(f2), { recursive: true });
+    writeFileAtomicSync(f2, JSON.stringify(meta3));
+  }
+  wantStore() {
+    return this.opts.storeId?.() ?? LEGACY_STORE_ID;
+  }
+  /** 现在开着的那一批（今天、没清空、店铺和当前店铺一样）；没有返回 null，不新开 */
+  open(now = /* @__PURE__ */ new Date()) {
+    const st = this.read();
+    if (!st || st.closed || st.day !== localDay(now)) return null;
+    return this.meta(st.folder).storeId === this.wantStore() ? st.folder : null;
   }
   /** 新加的图放进哪个文件夹；jobs 只在第一次用（没有记录）时参考：队列里有今天的图就接着用它们的文件夹 */
   current(jobs, now = /* @__PURE__ */ new Date()) {
@@ -57886,12 +57973,14 @@ var BatchFolders = class {
         this.save(st);
       }
     }
-    if (st && st.day === day && !st.closed) return st.folder;
+    const store = this.wantStore();
+    if (st && st.day === day && !st.closed && this.meta(st.folder).storeId === store) return st.folder;
     const folder = nextBatchFolder(this.outputDir(), day, st && st.day === day ? st.folder : null);
     this.save({ day, folder, closed: false });
+    this.setMeta(folder, { storeId: store, mark: DEFAULT_MARK });
     return folder;
   }
-  /** 清空队列：之后加的图进下一个文件夹 */
+  /** 清空队列、换店铺：之后加的图进下一个文件夹 */
   close() {
     const st = this.read();
     if (st && !st.closed) this.save({ ...st, closed: true });
@@ -58750,7 +58839,7 @@ function cleanTheme(t) {
 async function proposeParent(opts) {
   const base = derivePrefix(opts.rows);
   if (!base) return { ok: false, reason: "noPrefix" };
-  const prefix = withCreator(base.prefix, opts.creatorMark);
+  const prefix = withCreator(base.prefix, "");
   const themes = [...new Set(opts.themes.map(cleanTheme).filter(Boolean))];
   if (!themes.length) return { ok: false, reason: "noThemes" };
   const inTable = new Set(opts.rows.map((r) => r.sku.trim().toLowerCase()));
@@ -58772,8 +58861,8 @@ async function proposeParent(opts) {
 var ParentPauseError = class extends Error {
 };
 var NEW_PARENT_NOTE = "\u8FD9\u662F\u5EFA\u8BAE\u65B0\u5EFA\u7684\u7236\u4F53\uFF0C\u98DE\u4E66\u8868\u548C\u5E97\u94FA\u91CC\u90FD\u8FD8\u6CA1\u6709\uFF0C\u9700\u8981\u4F60\u624B\u52A8\u521B\u5EFA";
-function storeForJob(s, _job) {
-  return currentStore(s);
+function storeForJob(s, job) {
+  return (job?.storeId ? storeById(s, job.storeId) : null) ?? currentStore(s);
 }
 function storeMissing(s, st) {
   const miss = [];
@@ -58863,7 +58952,6 @@ async function bindNew(opts) {
   const p = await proposeParent({
     rows: opts.rows,
     themes: opts.themes,
-    creatorMark: opts.creatorMark,
     queued,
     existsInStore: (sku) => opts.call(() => guard(async () => await deps.spapi.parent(sku, opts.signal) !== null))
   });
@@ -59151,7 +59239,12 @@ var StyleSchema = external_exports.object({
   activeTemplate: external_exports.string().min(1),
   templates: external_exports.array(TemplateSchema),
   /** 默认模版的贴图方式：auto 按白底图自动判断，local 本地合成，ai AI 贴图 */
-  pasteMode: external_exports.enum(["auto", "local", "ai"]).default("auto")
+  pasteMode: external_exports.enum(["auto", "local", "ai"]).default("auto"),
+  /**
+   * 子体 SKU 里材质编码前的款式标记，如帆布画横版 HB、竖版 SB（2026-11-04 用户确认）：HJ-HBxkfb671104001。
+   * null = 不加（旧库没有这个字段，读入时补 null，不升版本）
+   */
+  skuMark: external_exports.string().nullable().default(null)
 });
 var WhiteShapeSchema = external_exports.object({
   ok: external_exports.boolean(),
@@ -59718,6 +59811,12 @@ function checkSkuCode(code) {
   if (!/^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$/.test(t)) throw new HttpError(400, "SKU \u6750\u8D28\u7F29\u5199\u53EA\u80FD\u7528\u5B57\u6BCD\u3001\u6570\u5B57\u548C -\uFF0C\u6BD4\u5982 mtfl\u3001cn-tyntyd");
   return t;
 }
+function checkSkuMark(mark) {
+  const t = mark?.trim().toUpperCase() ?? "";
+  if (!t) return null;
+  if (!/^[A-Z]{1,4}$/.test(t)) throw new HttpError(400, "SKU \u6B3E\u5F0F\u6807\u8BB0\u53EA\u80FD\u7528 1\uFF5E4 \u4E2A\u5B57\u6BCD\uFF0C\u6BD4\u5982\u6A2A\u7248 HB\u3001\u7AD6\u7248 SB");
+  return t;
+}
 function checkRatio(ratio) {
   try {
     const [w, h] = ratioToWH(ratio);
@@ -59735,7 +59834,7 @@ var ops = {
       extractPrompt: null,
       parentTab: null,
       skuCode: null,
-      styles: [{ id: newStyleId(), name: "", ratio: "1:1", whiteImage: null, activeTemplate: "default", templates: [], pasteMode: "auto" }]
+      styles: [{ id: newStyleId(), name: "", ratio: "1:1", whiteImage: null, activeTemplate: "default", templates: [], pasteMode: "auto", skuMark: null }]
     };
     lib.categories.push(c);
     return c;
@@ -59767,7 +59866,7 @@ var ops = {
     if (n.length > 20) throw new HttpError(400, "\u6B3E\u5F0F\u540D\u79F0\u4E0D\u80FD\u8D85\u8FC7 20 \u4E2A\u5B57");
     if (c.styles.some((s) => s.name === n)) throw new HttpError(400, `\u300C${c.name}\u300D\u5DF2\u7ECF\u6709\u53EB\u300C${n}\u300D\u7684\u6B3E\u5F0F\u4E86`);
     for (const s of c.styles) if (!s.name) s.name = n === "\u9ED8\u8BA4" ? "\u539F\u6B3E\u5F0F" : "\u9ED8\u8BA4";
-    const st = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: "default", templates: [], pasteMode: "auto" };
+    const st = { id: newStyleId(), name: n, ratio: checkRatio(ratio), whiteImage: null, activeTemplate: "default", templates: [], pasteMode: "auto", skuMark: null };
     c.styles.push(st);
     return st;
   },
@@ -59788,6 +59887,7 @@ var ops = {
       s.activeTemplate = p.activeTemplate;
     }
     if (p.pasteMode !== void 0) s.pasteMode = p.pasteMode;
+    if (p.skuMark !== void 0) s.skuMark = checkSkuMark(p.skuMark);
     return s;
   },
   deleteStyle(lib, cid, sid) {
@@ -61368,7 +61468,13 @@ function registerLibrary(r, ctx) {
   });
   r.patch("/library/categories/:cid/styles/:sid", async (req, res) => {
     const b = parseBody(
-      external_exports.object({ name: external_exports.string().optional(), ratio: external_exports.string().optional(), activeTemplate: external_exports.string().optional(), pasteMode: external_exports.enum(["auto", "local", "ai"]).optional() }),
+      external_exports.object({
+        name: external_exports.string().optional(),
+        ratio: external_exports.string().optional(),
+        activeTemplate: external_exports.string().optional(),
+        pasteMode: external_exports.enum(["auto", "local", "ai"]).optional(),
+        skuMark: external_exports.string().max(10).nullable().optional()
+      }),
       req.body
     );
     await store.mutate((d) => ops.patchStyle(d, p(req, "cid"), p(req, "sid"), b));
@@ -61613,12 +61719,27 @@ function registerParent(r, ctx) {
   r.patch("/stores/:id", async (req, res) => {
     const st = storeOf(req);
     const patch = parseBody(StorePatchSchema, req.body);
+    if (patch.abbr !== void 0 && patch.abbr.toLowerCase() !== st.abbr.toLowerCase() && ctx.jobs.list().some((j) => j.storeId === st.id)) {
+      throw new HttpError(409, `\u961F\u5217\u91CC\u8FD8\u6709\u300C${st.name}\u300D\u7684\u56FE\uFF0C\u5148\u6E05\u7A7A\u961F\u5217\u518D\u6539\u5E97\u94FA\u7F29\u5199`);
+    }
     const next = await settle2(() => settings.updateStore(st.id, patch));
     ctx.onSettingsSaved();
     res.json(maskSettings(next));
   });
+  r.post("/stores/:id/use", async (req, res) => {
+    const st = storeOf(req);
+    if (settings.get().currentStoreId === st.id) return void res.json(maskSettings(settings.get()));
+    if (ctx.jobs.list().length || ctx.batch.adding) throw new HttpError(409, "\u961F\u5217\u91CC\u8FD8\u6709\u56FE\uFF08\u6216\u6B63\u5728\u52A0\u56FE\uFF09\uFF0C\u5148\u300C\u6E05\u7A7A\u961F\u5217\u300D\u518D\u6362\u5E97\u94FA\uFF08\u4E00\u6279\u56FE\u53EA\u80FD\u5C5E\u4E8E\u4E00\u4E2A\u5E97\u94FA\uFF09");
+    const next = await settle2(() => settings.setCurrentStore(st.id));
+    ctx.batch.close();
+    ctx.onSettingsSaved();
+    log.info(`\u6362\u5230\u5E97\u94FA\u300C${st.name}\u300D\uFF0C\u4E4B\u540E\u52A0\u7684\u56FE\u8FDB\u65B0\u7684\u6587\u4EF6\u5939`);
+    if (next.parent.enabled && st.spapi.refreshToken) p.index.warm(st.id);
+    res.json(maskSettings(next));
+  });
   r.delete("/stores/:id", async (req, res) => {
     const st = storeOf(req);
+    if (ctx.jobs.list().some((j) => j.storeId === st.id)) throw new HttpError(409, `\u961F\u5217\u91CC\u8FD8\u6709\u300C${st.name}\u300D\u7684\u56FE\uFF0C\u5148\u6E05\u7A7A\u961F\u5217\u518D\u5220\u8FD9\u4E2A\u5E97\u94FA`);
     const next = await settle2(() => settings.removeStore(st.id));
     p.spapis.drop(st.id);
     p.index.clear(st.id);
@@ -61712,6 +61833,39 @@ function registerParent(r, ctx) {
   r.post("/stores/:id/spapi/test", async (req, res) => {
     const st = storeOf(req);
     res.json(await p.spapis.for(st.id).test());
+  });
+}
+
+// server/src/api/batch.ts
+function registerBatch(r, ctx) {
+  const folderNow = () => ctx.batch.open() ?? ctx.jobs.list().at(-1)?.outputFolder ?? null;
+  r.get("/batch", (_req, res) => {
+    const s = ctx.settings.get();
+    const folder = folderNow();
+    const meta3 = folder ? ctx.batch.meta(folder) : null;
+    const store = (meta3 ? storeById(s, meta3.storeId) : null) ?? currentStore(s);
+    res.json({ folder, storeId: store.id, storeName: store.name, abbr: store.abbr, mark: meta3?.mark ?? DEFAULT_MARK, queued: ctx.jobs.list().length });
+  });
+  r.post("/batch/mark", async (req, res) => {
+    const b = parseBody(external_exports.object({ mark: external_exports.string().trim().regex(/^[A-Za-z0-9]{1,10}$/, "\u4E13\u5C5E\u53F7\u53EA\u80FD\u7528 1\uFF5E10 \u4E2A\u5B57\u6BCD\u6216\u6570\u5B57"), apply: external_exports.boolean().default(false) }), req.body);
+    const folder = folderNow();
+    if (!folder) throw new HttpError(400, "\u73B0\u5728\u6CA1\u6709\u6B63\u5728\u8FDB\u884C\u7684\u4E00\u6279\uFF0C\u52A0\u56FE\u4E4B\u540E\u518D\u6539\u4E13\u5C5E\u53F7");
+    const meta3 = ctx.batch.meta(folder);
+    const store = storeById(ctx.settings.get(), meta3.storeId);
+    let storeSkus = /* @__PURE__ */ new Set();
+    let storeCheck = "noCredentials";
+    if (store?.spapi.refreshToken && store.spapi.sellerId) {
+      try {
+        const snap = await ctx.parent.index.get(store.id, { force: true });
+        storeSkus = new Set(snap.items.map((x2) => x2.sku.toLowerCase()));
+        storeCheck = snap.truncated ? "truncated" : "ok";
+      } catch (e) {
+        throw new HttpError(502, `\u67E5\u4E0D\u4E86\u300C${store.name}\u300D\u5E97\u94FA\u91CC\u6709\u6CA1\u6709\u91CD\u540D\u7684 SKU\uFF0C\u5148\u4E0D\u6539\u3002\u68C0\u67E5\u7F51\u7EDC\u6216\u5E97\u94FA\u51ED\u8BC1\u540E\u518D\u8BD5\uFF1A${e.message}`);
+      }
+    }
+    if (b.apply && storeCheck === "truncated") throw new HttpError(409, `\u300C${store?.name}\u300D\u5E97\u94FA\u5546\u54C1\u6CA1\u626B\u5168\uFF0C\u6CA1\u6CD5\u786E\u8BA4\u65B0 SKU \u5728\u5E97\u91CC\u6709\u6CA1\u6709\u91CD\u540D\uFF0C\u5148\u4E0D\u6539`);
+    const plan = await ctx.scheduler.changeBatchMark(folder, b.mark, { apply: b.apply, storeSkus });
+    res.json({ ...plan, storeCheck, storeName: store?.name ?? null });
   });
 }
 
@@ -62005,6 +62159,15 @@ function csvOf(jobs) {
   return render(jobs.filter(hasInfo).map((j) => rowOf(j, includeParent)), includeParent);
 }
 var csvForDay = (jobs, day) => csvOf(jobs.filter((j) => j.outputDay === day));
+var SAVED_SKU_COL = 1;
+var SAVED_CATEGORY_COL = 2;
+var SAVED_MAIN_COL = 7;
+function readSavedRows(rowsFile) {
+  return (readJsonSync(rowsFile) ?? []).map((r) => normalizeRow(r, false));
+}
+async function writeSavedRows(rowsFile, rows) {
+  await writeFileAtomic(rowsFile, JSON.stringify(rows));
+}
 function normalizeRow(saved, includeParent) {
   let row = saved.row;
   if ((saved.v ?? 1) < ROW_VERSION) row = [...row.slice(0, SKU_COL), "", ...row.slice(SKU_COL)];
@@ -62019,7 +62182,7 @@ async function writeBatchCsv(outputDir, jobs, folder, rowsFile, drop = []) {
   for (const id of drop) saved.delete(id);
   const includeParent = inFolder.some(hasParent) || [...saved.values()].some((r) => r.row.length >= HEADER.length);
   for (const j of inFolder) {
-    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent), v: ROW_VERSION });
+    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent), v: ROW_VERSION, skuMeta: j.skuMeta });
     else saved.delete(j.id);
   }
   const rows = [...saved.values()].map((r) => normalizeRow(r, includeParent)).sort((a, b) => a.createdAt === b.createdAt ? a.id < b.id ? -1 : 1 : a.createdAt < b.createdAt ? -1 : 1);
@@ -62212,6 +62375,19 @@ var JobSchema = external_exports.object({
   deformed: external_exports.boolean().default(false),
   /** 子体 SKU（品类填了材质缩写才有）；有的话输出文件名就用它 */
   sku: external_exports.string().nullable().default(null),
+  /**
+   * SKU 的三截：专属号前面（店铺-款式标记+材质+年份组别月日）、专属号、当天序号，「改专属号」只换中间那截。
+   * 改版前发的 SKU 没有这个字段（不能统一改专属号）
+   */
+  skuMeta: external_exports.object({
+    head: external_exports.string(),
+    mark: external_exports.string(),
+    seq: external_exports.string(),
+    /** 改专属号之前用过的 SKU：改回去时不算和「已经发过的号」冲突 */
+    was: external_exports.array(external_exports.string()).default([])
+  }).nullable().default(null),
+  /** 这张图属于哪个店铺（加进队列时从批次取，之后不变）；改版前的任务都是焕捷 */
+  storeId: external_exports.string().default("hj"),
   /** 用户单独暂停了这张图：调度器不再派发它，点「继续」后从停下的那一步接着跑 */
   paused: external_exports.boolean().default(false),
   route: external_exports.object({
@@ -63784,7 +63960,7 @@ var step5Parent = async (ctx) => {
   if (pick2) {
     await bindExisting({ deps, job, row: pick2, base: { ...info, manual: false }, threshold: p.threshold, commit: save, call: call2, signal: ctx.signal });
   } else {
-    await bindNew({ deps, job, rows: read.rows, themes: data.new_themes, creatorMark: p.creatorMark, base: info, commit: save, call: call2, signal: ctx.signal });
+    await bindNew({ deps, job, rows: read.rows, themes: data.new_themes, base: info, commit: save, call: call2, signal: ctx.signal });
   }
   return { kind: "done" };
 };
@@ -63828,6 +64004,8 @@ var Scheduler = class {
   parentPaused = null;
   parentLock = new KeyedMutex();
   holds = /* @__PURE__ */ new Set();
+  /** 正在改专属号的批次文件夹：这一批的图先不派发 */
+  renaming = /* @__PURE__ */ new Set();
   tickQueued = false;
   stopped = false;
   handlers;
@@ -63918,7 +64096,7 @@ var Scheduler = class {
     });
   }
   dispatchableStep(job) {
-    if (job.attention || job.paused || this.holds.has(job.id)) return -1;
+    if (job.attention || job.paused || this.holds.has(job.id) || this.renaming.has(job.outputFolder)) return -1;
     const i2 = currentStep(job);
     if (i2 < 0 || job.steps[i2].state !== "pending") return -1;
     if (i2 === PARENT_STEP && this.parentSkip(job)) return i2;
@@ -64013,21 +64191,33 @@ var Scheduler = class {
       patch(j);
       if (!j.route) return;
       const newCat = j.route.categoryId !== prevCat;
-      if (newCat) j.sku = this.allocSku(j);
+      if (newCat) {
+        const issued = this.allocSku(j);
+        j.sku = issued?.sku ?? null;
+        j.skuMeta = issued ? { head: issued.head, mark: issued.mark, seq: issued.seq, was: [] } : null;
+      }
       if (newCat || j.route.categoryName !== prev) {
         j.outputBase = j.sku ?? assignOutputBase(j, this.d.jobs.list(), this.env.outputDir(), j.route.categoryName);
       }
     });
   }
-  /** 品类没填材质缩写就不发 SKU，文件名照旧用原图名 */
+  /**
+   * 品类没填材质缩写就不发 SKU，文件名照旧用原图名。
+   * SKU = 这张图店铺的缩写 - 款式标记（横版 HB）+ 材质缩写 + 年份末位 + 组别 + 月日 + 这一批的专属号（默认 0）+ 当天序号。
+   * 跳过：队列里别的图已经用的、输出文件夹里已经有的、店铺里已经有的（只看已经扫好的快照，不为发号去等扫描）。
+   */
   allocSku(j) {
-    const code = this.d.library.get().categories.find((c) => c.id === j.route.categoryId)?.skuCode?.trim();
+    const cat = this.d.library.get().categories.find((c) => c.id === j.route.categoryId);
+    const code = cat?.skuCode?.trim();
     if (!code) return null;
+    const style = cat.styles.find((x2) => x2.id === j.route.styleId);
     const s = this.d.settings.get();
     const others = this.d.jobs.list().filter((o) => o.id !== j.id);
     const dir = import_node_path19.default.join(this.env.outputDir(), j.outputFolder, safeName(j.route.categoryName));
-    const taken = (sku) => others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("main", sku))) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("pattern", sku)));
-    return this.sku.allocate({ store: storeForJob(s, j).abbr, code, region: s.sku.group, mark: s.parent.creatorMark }, taken);
+    const inStore = new Set((this.d.parent?.index?.peek(j.storeId)?.items ?? []).map((x2) => x2.sku.toLowerCase()));
+    const taken = (sku) => others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) || inStore.has(sku.toLowerCase()) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("main", sku))) || import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel("pattern", sku)));
+    const mark = this.d.batch?.meta(j.outputFolder).mark ?? DEFAULT_MARK;
+    return this.sku.issue({ store: storeForJob(s, j).abbr, code: withStyleMark(code, style?.skuMark), region: s.sku.group, mark }, taken);
   }
   parentSkip(job) {
     const s = this.d.settings.get();
@@ -64148,6 +64338,7 @@ var Scheduler = class {
     const job = this.d.jobs.get(jobId);
     if (!job) throw new HttpError(404, "\u8FD9\u5F20\u56FE\u5DF2\u7ECF\u4E0D\u5728\u961F\u5217\u91CC\u4E86");
     if (this.holds.has(jobId)) throw new HttpError(409, "\u8FD9\u5F20\u56FE\u6B63\u5728\u5904\u7406\u4E0A\u4E00\u4E2A\u64CD\u4F5C\uFF0C\u8BF7\u7A0D\u7B49");
+    if (this.renaming.has(job.outputFolder)) throw new HttpError(409, "\u6B63\u5728\u6539\u8FD9\u4E00\u6279\u7684\u4E13\u5C5E\u53F7\uFF0C\u8BF7\u7A0D\u7B49");
     this.holds.add(jobId);
     try {
       return await fn(job);
@@ -64305,6 +64496,7 @@ var Scheduler = class {
     const st = job.steps[PARENT_STEP].state;
     if (st === "pending" || st === "running") throw new HttpError(400, "\u300C\u5339\u914D\u7236\u4F53\u300D\u8FD8\u6CA1\u8DD1\u5B8C\uFF0C\u7B49\u5B83\u8DD1\u5B8C\u518D\u6539");
     if (this.settingParent.has(jobId) || this.holds.has(jobId)) throw new HttpError(409, "\u8FD9\u5F20\u56FE\u6B63\u5728\u5904\u7406\u4E0A\u4E00\u4E2A\u64CD\u4F5C\uFF0C\u8BF7\u7A0D\u7B49");
+    if (this.renaming.has(job.outputFolder)) throw new HttpError(409, "\u6B63\u5728\u6539\u8FD9\u4E00\u6279\u7684\u4E13\u5C5E\u53F7\uFF0C\u8BF7\u7A0D\u7B49");
     this.settingParent.add(jobId);
     try {
       const settings = this.d.settings.get();
@@ -64429,7 +64621,148 @@ var Scheduler = class {
   jobDir(jobId) {
     return import_node_path19.default.join(this.d.jobs.dirOf(jobId));
   }
+  /**
+   * 「改专属号」（多店铺方案第五节）：这一批所有 SKU 只换专属号那一截，序号不变；三个输出文件改名、CSV 重写，
+   * 这一批之后再发的 SKU 也用新号。范围是队列里这一批的图，加上已经移出队列、CSV 里还有的行。
+   * apply = false 只出预览。新 SKU 在店铺里（storeSkus，调用方先强制重扫）、队列里别的图、输出文件夹里已经有了，算冲突，有冲突不改。
+   * 有图正在生成时不改；改名时这一批的图都不派发；任何一个文件改名失败，已经改的改回去。
+   */
+  async changeBatchMark(folder, mark, opts) {
+    if (this.renaming.has(folder)) throw new HttpError(409, "\u6B63\u5728\u6539\u8FD9\u4E00\u6279\u7684\u4E13\u5C5E\u53F7\uFF0C\u8BF7\u7A0D\u7B49");
+    const all = this.d.jobs.list();
+    const inFolder = all.filter((j) => j.outputFolder === folder);
+    if (inFolder.some((j) => this.running.has(j.id))) throw new HttpError(409, "\u8FD9\u4E00\u6279\u8FD8\u6709\u56FE\u6B63\u5728\u751F\u6210\uFF0C\u7B49\u8DD1\u5B8C\uFF08\u6216\u5148\u300C\u6682\u505C\u961F\u5217\u300D\u7B49\u5B83\u505C\u4E0B\uFF09\u518D\u6539\u4E13\u5C5E\u53F7");
+    if (inFolder.some((j) => this.holds.has(j.id) || this.settingParent.has(j.id))) throw new HttpError(409, "\u8FD9\u4E00\u6279\u6709\u56FE\u6B63\u5728\u5904\u7406\u522B\u7684\u64CD\u4F5C\uFF0C\u8BF7\u7A0D\u7B49\u518D\u6539\u4E13\u5C5E\u53F7");
+    const outDir = this.env.outputDir();
+    const rowsFile = this.d.csvRowsDir ? import_node_path19.default.join(this.d.csvRowsDir, `${folder}.json`) : null;
+    const saved = rowsFile ? readSavedRows(rowsFile) : [];
+    const inQueue = new Set(inFolder.map((j) => j.id));
+    const targets = [];
+    const skipped = [];
+    const consider = (o) => {
+      if (!o.sku) return;
+      if (!o.meta || o.meta.head + o.meta.mark + o.meta.seq !== o.sku) {
+        skipped.push({ name: o.name, sku: o.sku, reason: o.meta ? "SKU \u6539\u8FC7\uFF0C\u548C\u53D1\u53F7\u65F6\u5BF9\u4E0D\u4E0A" : "\u6539\u7248\u524D\u53D1\u7684 SKU\uFF0C\u6CA1\u8BB0\u4E13\u5C5E\u53F7\u5728\u54EA\u4E00\u4F4D" });
+        return;
+      }
+      const next = o.meta.head + mark + o.meta.seq;
+      targets.push({ name: o.name, old: o.sku, next, conflict: null, inQueue: o.jobId !== null, category: o.category, head: o.meta.head, seq: o.meta.seq, was: o.meta.was ?? [], jobId: o.jobId, rowId: o.id });
+    };
+    for (const j of inFolder) if (j.route) consider({ id: j.id, name: j.source.originalName, sku: j.sku, meta: j.skuMeta, category: j.route.categoryName, jobId: j.id });
+    for (const r of saved) {
+      if (inQueue.has(r.id)) continue;
+      consider({ id: r.id, name: r.row[0] ?? "", sku: r.row[SAVED_SKU_COL] || null, meta: r.skuMeta ?? null, category: r.row[SAVED_CATEGORY_COL] ?? "", jobId: null });
+    }
+    const mine = new Set(targets.map((t) => t.old.toLowerCase()));
+    const others = new Set(all.filter((j) => j.sku && !mine.has(j.sku.toLowerCase())).map((j) => j.sku.toLowerCase()));
+    const seen = /* @__PURE__ */ new Map();
+    for (const t of targets) seen.set(t.next.toLowerCase(), (seen.get(t.next.toLowerCase()) ?? 0) + 1);
+    for (const t of targets) {
+      if (t.next === t.old) continue;
+      const k = t.next.toLowerCase();
+      const dir = import_node_path19.default.join(outDir, folder, safeName(t.category));
+      if (opts.storeSkus.has(k)) t.conflict = "\u5E97\u94FA\u91CC\u5DF2\u7ECF\u6709\u8FD9\u4E2A SKU";
+      else if (others.has(k)) t.conflict = "\u961F\u5217\u91CC\u522B\u7684\u56FE\u5DF2\u7ECF\u7528\u4E86";
+      else if (k !== t.old.toLowerCase() && !t.was.some((x2) => x2.toLowerCase() === k) && this.sku.issued(t.next)) t.conflict = "\u8FD9\u4E2A\u53F7\u5DF2\u7ECF\u53D1\u8FC7\u4E86\uFF08\u522B\u7684\u6279\u6B21\u6216\u4E4B\u524D\u6539\u8FC7\uFF09";
+      else if ((seen.get(k) ?? 0) > 1) t.conflict = "\u8FD9\u4E00\u6279\u91CC\u4F1A\u91CD\u540D";
+      else if (k !== t.old.toLowerCase() && ["main", "pattern", "blank"].some((kind) => import_node_fs14.default.existsSync(import_node_path19.default.join(dir, outputRel(kind, t.next))))) t.conflict = "\u8F93\u51FA\u6587\u4EF6\u5939\u91CC\u5DF2\u7ECF\u6709\u8FD9\u4E2A\u540D\u5B57\u7684\u56FE";
+    }
+    const plan = {
+      folder,
+      from: this.d.batch?.meta(folder).mark ?? DEFAULT_MARK,
+      to: mark,
+      items: targets.map(({ name, old, next, conflict, inQueue: q }) => ({ name, old, next, conflict, inQueue: q })).sort((x2, y) => x2.old < y.old ? -1 : 1),
+      skipped,
+      applied: false
+    };
+    if (!opts.apply || targets.some((t) => t.conflict)) return plan;
+    this.renaming.add(folder);
+    const moved = [];
+    const undoFiles = async () => {
+      for (const m of moved.reverse()) await renameSafe(m.to, m.from).catch((e2) => log.warn(`\u6539\u4E13\u5C5E\u53F7\u56DE\u6EDA\u5931\u8D25\uFF1A${m.to}\uFF1A${e2.message}`));
+    };
+    try {
+      for (const t of targets) {
+        if (t.next === t.old) continue;
+        const dir = import_node_path19.default.join(outDir, folder, safeName(t.category));
+        for (const kind of ["main", "pattern", "blank"]) {
+          const from = import_node_path19.default.join(dir, outputRel(kind, t.old));
+          const to = import_node_path19.default.join(dir, outputRel(kind, t.next));
+          if (!import_node_fs14.default.existsSync(from)) continue;
+          await renameSafe(from, to);
+          moved.push({ from, to });
+        }
+      }
+    } catch (e) {
+      await undoFiles();
+      this.renaming.delete(folder);
+      this.tick();
+      log.warn(`\u6539\u4E13\u5C5E\u53F7\u65F6\u6539\u6587\u4EF6\u540D\u5931\u8D25\uFF1A${e.message}`);
+      throw new HttpError(500, `\u6709\u6587\u4EF6\u6539\u4E0D\u4E86\u540D\uFF08\u53EF\u80FD\u6B63\u88AB\u522B\u7684\u7A0B\u5E8F\u6253\u5F00\uFF09\uFF0C\u5DF2\u7ECF\u5168\u90E8\u6539\u56DE\u539F\u6837\uFF0C\u518D\u8BD5\u4E00\u6B21\uFF1A${e.message}`);
+    }
+    const before = new Map(targets.filter((t) => t.jobId).map((t) => [t.jobId, structuredClone(this.d.jobs.get(t.jobId))]));
+    const metaBefore = this.d.batch?.meta(folder);
+    try {
+      await this.csvLock.run(folder, async () => {
+        const byId = new Map(targets.map((t) => [t.rowId, t]));
+        for (const t of targets) {
+          if (!t.jobId) continue;
+          this.d.jobs.update(t.jobId, (j) => {
+            j.sku = t.next;
+            j.outputBase = t.next;
+            j.skuMeta = { head: t.head, mark, seq: t.seq, was: [.../* @__PURE__ */ new Set([...t.was, t.old])] };
+          });
+        }
+        if (rowsFile) {
+          const fresh = readSavedRows(rowsFile);
+          if (fresh.length) {
+            await writeSavedRows(
+              rowsFile,
+              fresh.map((r) => {
+                const t = byId.get(r.id);
+                if (!t || t.jobId) return r;
+                const row = [...r.row];
+                row[SAVED_SKU_COL] = t.next;
+                row[SAVED_MAIN_COL] = import_node_path19.default.join(safeName(t.category), outputRel("main", t.next));
+                return { ...r, row, skuMeta: { head: t.head, mark, seq: t.seq, was: [.../* @__PURE__ */ new Set([...t.was, t.old])] } };
+              })
+            );
+          }
+        }
+        this.d.batch?.setMeta(folder, { storeId: metaBefore?.storeId ?? LEGACY_STORE_ID, mark });
+        await writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, rowsFile ?? void 0);
+      });
+      this.sku.record(targets.map((t) => t.next));
+    } catch (e) {
+      for (const [id, j] of before) {
+        if (this.d.jobs.get(id)) this.d.jobs.update(id, (cur) => Object.assign(cur, { sku: j.sku, outputBase: j.outputBase, skuMeta: j.skuMeta }));
+      }
+      if (rowsFile) await writeSavedRows(rowsFile, saved).catch(() => {
+      });
+      if (metaBefore) this.d.batch?.setMeta(folder, metaBefore);
+      await undoFiles();
+      await this.rewriteCsv(folder).catch(() => {
+      });
+      log.warn(`\u6539\u4E13\u5C5E\u53F7\u5931\u8D25\uFF0C\u5DF2\u7ECF\u6539\u56DE\u539F\u6837\uFF1A${e.message}`);
+      throw new HttpError(500, `\u6539\u4E13\u5C5E\u53F7\u6CA1\u6210\u529F\uFF0C\u5DF2\u7ECF\u5168\u90E8\u6539\u56DE\u539F\u6837\uFF0C\u518D\u8BD5\u4E00\u6B21\uFF1A${e.message}`);
+    } finally {
+      this.renaming.delete(folder);
+      this.tick();
+    }
+    log.info(`\u300C${folder}\u300D\u4E13\u5C5E\u53F7 ${plan.from} \u2192 ${mark}\uFF0C\u6539\u4E86 ${targets.length} \u4E2A SKU`);
+    return { ...plan, applied: true };
+  }
 };
+async function renameSafe(from, to) {
+  if (from.toLowerCase() === to.toLowerCase()) {
+    const tmp = `${from}.renaming-${process.pid}`;
+    await import_promises11.default.rename(from, tmp);
+    await import_promises11.default.rename(tmp, to);
+    return;
+  }
+  if (import_node_fs14.default.existsSync(to)) throw new Error(`${import_node_path19.default.basename(to)} \u5DF2\u7ECF\u5B58\u5728`);
+  await import_promises11.default.rename(from, to);
+}
 
 // server/src/api/jobs.ts
 var import_node_fs15 = __toESM(require("node:fs"), 1);
@@ -64498,9 +64831,18 @@ function registerJobs(r, ctx) {
     res.json({ supported: true, copied: paths.length, ...added });
   });
   async function addSources(sources) {
+    ctx.batch.adding++;
+    try {
+      return await addInto(sources);
+    } finally {
+      ctx.batch.adding--;
+    }
+  }
+  async function addInto(sources) {
     const created = [];
     const errors = [];
     const folder = ctx.batch.current(jobs.list());
+    const storeId = ctx.batch.meta(folder).storeId;
     for (const { name, read } of sources) {
       try {
         const { buffer, ext } = await normalizeSource(await read());
@@ -64518,6 +64860,8 @@ function registerJobs(r, ctx) {
           outputFolder: folder,
           outputBase: baseNameOf(name),
           sku: null,
+          skuMeta: null,
+          storeId,
           paused: false,
           route: null,
           plan: null,
@@ -64653,7 +64997,12 @@ async function createContext(paths) {
     const st = storeById(settings.get(), id);
     return { abbr: st?.abbr ?? "", sellerId: st?.spapi.sellerId ?? "", marketplaceId: st?.spapi.marketplaceId ?? "" };
   });
+  const batch = new BatchFolders(import_node_path21.default.join(paths.dataDir, "batch.json"), () => resolveOutputDir(settings.get()), {
+    metaDir: import_node_path21.default.join(paths.dataDir, "batches"),
+    storeId: () => settings.get().currentStoreId
+  });
   scheduler = new Scheduler({
+    batch,
     jobs,
     library,
     settings,
@@ -64661,7 +65010,7 @@ async function createContext(paths) {
     bus,
     stateFile: import_node_path21.default.join(paths.dataDir, "queue.json"),
     csvRowsDir: import_node_path21.default.join(paths.dataDir, "batches"),
-    parent: { sheets, spapis, reservations },
+    parent: { sheets, spapis, reservations, index },
     sku: new SkuCounter(import_node_path21.default.join(paths.dataDir, "sku.json"))
   });
   const sched = scheduler;
@@ -64675,7 +65024,7 @@ async function createContext(paths) {
     library,
     jobs,
     scheduler: sched,
-    batch: new BatchFolders(import_node_path21.default.join(paths.dataDir, "batch.json"), () => resolveOutputDir(settings.get())),
+    batch,
     parent: { sheets, spapis, index },
     sse: { clients: 0 },
     onSettingsSaved: () => {
@@ -64723,6 +65072,7 @@ function createApp(ctx) {
   registerLibrary(api, ctx);
   registerJobs(api, ctx);
   registerParent(api, ctx);
+  registerBatch(api, ctx);
   api.use(() => {
     throw new HttpError(404, "\u63A5\u53E3\u4E0D\u5B58\u5728");
   });

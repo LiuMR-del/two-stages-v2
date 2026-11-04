@@ -97,9 +97,7 @@ const ParentSchema = z.object({
   /** 「识别父体」开关，默认关闭：关着时第 6 步直接跳过，不读飞书、不调 SP-API */
   enabled: z.boolean().default(false),
   threshold: z.number().min(0).max(1).default(0.7),
-  /** 子体 SKU 的专属号（第 3 段改成按批次、默认 0） */
-  creatorMark: z.string().default('5'),
-  /** 飞书应用身份，所有店铺共用 */
+  /** 飞书应用身份，所有店铺共用。原来的 creatorMark（专属号）2026-11-04 去掉：子体按批次、默认 0，父体不加 */
   feishu: FeishuSchema.prefault({}),
 })
 export type ParentSettings = z.infer<typeof ParentSchema>
@@ -155,7 +153,6 @@ export const SettingsPatchSchema = z.object({
     .object({
       enabled: z.boolean().optional(),
       threshold: z.number().min(0).max(1).optional(),
-      creatorMark: z.string().trim().regex(/^[A-Za-z0-9]{0,10}$/, '专属号只能用字母或数字').optional(),
       feishu: z
         .object({
           appId: z.string().max(200),
@@ -372,7 +369,7 @@ export class SettingsStore {
       const pp = patch.parent
       const parent = {
         ...cur.parent,
-        ...stripUndefined({ enabled: pp?.enabled, threshold: pp?.threshold, creatorMark: pp?.creatorMark?.trim() }),
+        ...stripUndefined({ enabled: pp?.enabled, threshold: pp?.threshold }),
         feishu: { ...cur.parent.feishu, ...stripMasked(pp?.feishu) },
       }
       const next = SettingsSchema.parse({
@@ -448,6 +445,16 @@ export class SettingsStore {
       const id = newStoreId(draft, c.abbr)
       draft.stores.push(StoreSchema.parse({ id, name: c.name, abbr: c.abbr, parentSource: c.parentSource }))
       return { settings: await this.commit(draft), id }
+    })
+  }
+
+  /** 换当前店铺（新的一批用它）；队列里有没有图由接口那边拦 */
+  async setCurrentStore(id: string): Promise<Settings> {
+    return this.mutex.run(async () => {
+      const draft = structuredClone(this.value)
+      if (!storeById(draft, id)) throw new SettingsError('没有这个店铺')
+      draft.currentStoreId = id
+      return this.commit(draft)
     })
   }
 

@@ -50,13 +50,33 @@ export function nextBatchFolder(outputDir: string, day: string, after: string | 
 type BatchState = { day: string; folder: string; closed: boolean }
 
 /**
+ * 每批的店铺和专属号（多店铺方案 2.2，2026-11-04）：一批只属于一个店铺；专属号默认 0，「改专属号」后整批一起改。
+ * 存在 data/batches/<文件夹>.meta.json。改版前的批次没有这个文件，按焕捷、专属号 0 处理。
+ */
+export type BatchMeta = { storeId: string; mark: string }
+export const LEGACY_STORE_ID = 'hj'
+export const DEFAULT_MARK = '0'
+
+export type BatchFoldersOpts = {
+  /** 每批的店铺和专属号放哪；不给时只记在内存里（测试用） */
+  metaDir?: string
+  /** 新的一批用哪个店铺（设置里的当前店铺） */
+  storeId?: () => string
+}
+
+/**
  * 当前批次用哪个文件夹，存在 data/batch.json，重启后接着用。
- * 只有清空队列（close）或换了日期才开新文件夹；图跑完了但没清空，新加的图还进同一个。
+ * 只有清空队列（close）、换了日期、或者换了店铺才开新文件夹；图跑完了但没清空，新加的图还进同一个。
  */
 export class BatchFolders {
+  private memMeta = new Map<string, BatchMeta>()
+  /** 正在往队列里加图的请求数：这时不能换店铺（加图要读文件，期间队列可能还是空的） */
+  adding = 0
+
   constructor(
     private file: string,
     private outputDir: () => string,
+    private opts: BatchFoldersOpts = {},
   ) {}
 
   private read(): BatchState | null {
@@ -72,6 +92,38 @@ export class BatchFolders {
     }
   }
 
+  private metaFile(folder: string): string | null {
+    return this.opts.metaDir ? path.join(this.opts.metaDir, `${folder}.meta.json`) : null
+  }
+
+  /** 这一批的店铺和专属号；没有记录的（改版前的批次）按焕捷、0 */
+  meta(folder: string): BatchMeta {
+    const f = this.metaFile(folder)
+    const m = f ? readJsonSync<Partial<BatchMeta>>(f) : this.memMeta.get(folder)
+    return { storeId: typeof m?.storeId === 'string' && m.storeId ? m.storeId : LEGACY_STORE_ID, mark: typeof m?.mark === 'string' ? m.mark : DEFAULT_MARK }
+  }
+
+  setMeta(folder: string, meta: BatchMeta): void {
+    const f = this.metaFile(folder)
+    if (!f) {
+      this.memMeta.set(folder, meta)
+      return
+    }
+    fs.mkdirSync(path.dirname(f), { recursive: true })
+    writeFileAtomicSync(f, JSON.stringify(meta))
+  }
+
+  private wantStore(): string {
+    return this.opts.storeId?.() ?? LEGACY_STORE_ID
+  }
+
+  /** 现在开着的那一批（今天、没清空、店铺和当前店铺一样）；没有返回 null，不新开 */
+  open(now = new Date()): string | null {
+    const st = this.read()
+    if (!st || st.closed || st.day !== localDay(now)) return null
+    return this.meta(st.folder).storeId === this.wantStore() ? st.folder : null
+  }
+
   /** 新加的图放进哪个文件夹；jobs 只在第一次用（没有记录）时参考：队列里有今天的图就接着用它们的文件夹 */
   current(jobs: Job[], now = new Date()): string {
     const day = localDay(now)
@@ -83,13 +135,15 @@ export class BatchFolders {
         this.save(st)
       }
     }
-    if (st && st.day === day && !st.closed) return st.folder
+    const store = this.wantStore()
+    if (st && st.day === day && !st.closed && this.meta(st.folder).storeId === store) return st.folder
     const folder = nextBatchFolder(this.outputDir(), day, st && st.day === day ? st.folder : null)
     this.save({ day, folder, closed: false })
+    this.setMeta(folder, { storeId: store, mark: DEFAULT_MARK })
     return folder
   }
 
-  /** 清空队列：之后加的图进下一个文件夹 */
+  /** 清空队列、换店铺：之后加的图进下一个文件夹 */
   close(): void {
     const st = this.read()
     if (st && !st.closed) this.save({ ...st, closed: true })

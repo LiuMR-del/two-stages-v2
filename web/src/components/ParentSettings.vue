@@ -76,8 +76,8 @@ async function addStore() {
           <AutoText :value="p.threshold.toFixed(2)" :save="saver((v) => ({ threshold: num(v, '把握阈值') }))" label="父体把握阈值" />
         </div>
         <div class="fld">
-          <label>建议新建父体时的专属号</label>
-          <div class="muted small">{{ p.creatorMark || '（没填）' }}，在上面「SKU 命名」里改</div>
+          <label>建议新建的父体</label>
+          <div class="muted small">不加专属号，如 HJ-cn-yklgj-Snowman</div>
         </div>
       </div>
     </template>

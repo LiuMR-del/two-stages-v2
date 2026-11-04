@@ -63,7 +63,8 @@ const art = () => ctx.settings.get().stores.find((s) => s.id === 'art')!
 describe('父体匹配设置', () => {
   it('默认关闭；阈值 0.7、创建人标识 5；默认两个店铺（焕捷飞书、爱睿特店铺），美国站', async () => {
     const body = (await api.json('GET', '/settings')).body
-    expect(body.parent).toMatchObject({ enabled: false, threshold: 0.7, creatorMark: '5' })
+    expect(body.parent).toMatchObject({ enabled: false, threshold: 0.7 })
+    expect(body.parent.creatorMark).toBeUndefined()
     expect(Object.keys(body.parent.feishu).sort()).toEqual(['appId', 'appSecret', 'baseUrl'])
     expect(body.stores.map((s: any) => [s.id, s.name, s.abbr, s.parentSource])).toEqual([
       ['hj', '焕捷', 'HJ', 'feishu'],

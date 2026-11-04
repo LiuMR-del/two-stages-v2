@@ -43,7 +43,9 @@ describe('旧设置迁移成店铺档案', () => {
     expect(s.stores[1]).toMatchObject({ id: 'art', name: '爱睿特', abbr: 'ART', parentSource: 'store', spapi: { sellerId: '', refreshToken: '' } })
     expect(s.currentStoreId).toBe('hj')
     expect(s.sku).toEqual({ group: '7' })
-    expect(s.parent).toMatchObject({ enabled: true, threshold: 0.6, creatorMark: '1', feishu: { appId: 'cli_1', appSecret: 'sec-1' } })
+    expect(s.parent).toMatchObject({ enabled: true, threshold: 0.6, feishu: { appId: 'cli_1', appSecret: 'sec-1' } })
+    // 专属号不在设置里了（子体按批次、默认 0；父体不加）
+    expect((s.parent as any).creatorMark).toBeUndefined()
     expect((s.parent as any).spapi).toBeUndefined()
     // 写回的是新结构，再读一次不会再迁移；原文件留了备份
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'))

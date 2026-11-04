@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from '../api'
-import type { Job, QueueState } from '../types'
+import type { BatchInfo, Job, MarkPlan, QueueState } from '../types'
 import type { ViewerItem } from './ui'
 
 export const STEP_NAMES = ['识别品类', '提取素材', '生成主图', '信息识别', '空白图', '匹配父体'] as const
@@ -22,6 +22,11 @@ export const useJobs = defineStore('jobs', () => {
   const byId = ref<Record<string, Job>>({})
   const queue = ref<QueueState | null>(null)
   const uploading = ref<null | { done: number; total: number; ratio: number }>(null)
+  /** 当前这一批（店铺、专属号）；加图、清空、换店铺、改专属号后刷新 */
+  const batch = ref<BatchInfo | null>(null)
+  async function loadBatch() {
+    batch.value = await api.get<BatchInfo>('/batch').catch(() => batch.value)
+  }
 
   const all = computed(() => Object.values(byId.value).sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : 1)))
   const queued = computed(() => all.value.filter((j) => !j.attention))
@@ -34,6 +39,7 @@ export const useJobs = defineStore('jobs', () => {
     const r = await api.get<{ jobs: Job[]; queue: QueueState }>('/jobs')
     byId.value = Object.fromEntries(r.jobs.map((j) => [j.id, j]))
     queue.value = r.queue
+    await loadBatch()
   }
 
   function onEvent(name: string, data: any) {
@@ -79,6 +85,7 @@ export const useJobs = defineStore('jobs', () => {
       }
     } finally {
       uploading.value = null
+      void loadBatch()
     }
     return { added, errors }
   }
@@ -94,6 +101,14 @@ export const useJobs = defineStore('jobs', () => {
     finished,
     withInfo,
     runningCount,
+    batch,
+    loadBatch,
+    /** 改专属号：apply = false 只出预览 */
+    changeMark: async (mark: string, apply: boolean) => {
+      const r = await api.post<MarkPlan>('/batch/mark', { mark, apply })
+      if (r.applied) await loadBatch()
+      return r
+    },
     load,
     onEvent,
     fileUrl,
@@ -117,7 +132,11 @@ export const useJobs = defineStore('jobs', () => {
     /** 素材图没过验收，仍然使用 */
     acceptQc: (id: string) => post(`/jobs/${id}/qc-accept`),
     clearDone: () => post('/jobs/clear-done'),
-    clearAll: () => post('/jobs/clear-all'),
+    clearAll: async () => {
+      const r = await post('/jobs/clear-all')
+      await loadBatch()
+      return r
+    },
     pause: () => post('/queue/pause'),
     resume: () => post('/queue/resume'),
     openFolder: (jobId?: string) => post('/open-output', jobId ? { jobId } : {}),

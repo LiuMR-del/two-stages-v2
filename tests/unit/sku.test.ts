@@ -31,7 +31,35 @@ describe('子体 SKU', () => {
     expect(c.allocate(P, (s) => s === 'HJ-mtfl671029103', day1)).toBe('HJ-mtfl671029104')
     expect(new SkuCounter(file).allocate(P, none, day1)).toBe('HJ-mtfl671029105')
     expect(c.allocate(P, none, new Date(2026, 9, 30, 9))).toBe('HJ-mtfl671030101')
-    // 只留当天的记录
-    expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8')))).toEqual(['2026-10-30'])
+    // 留最近 7 天的记录（跨天没清空的批次也能改专属号）
+    expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8')).counts)).toEqual(['2026-10-29', '2026-10-30'])
+    for (let d = 1; d <= 8; d++) c.allocate(P, none, new Date(2026, 10, d, 9))
+    expect(Object.keys(JSON.parse(fs.readFileSync(file, 'utf8')).counts)).toHaveLength(7)
+  })
+
+  it('发过的号不管在哪一批都不再发：改专属号改出来的号记下来，之后按新专属号发时跳过（两批都改成 5 的情况）', () => {
+    dir = tmpDir()
+    const c = new SkuCounter(path.join(dir, 'sku.json'))
+    const day = new Date(2026, 10, 4, 10)
+    const none = () => false
+    const p0 = { ...P, mark: '0' }
+    const p5 = { ...P, mark: '5' }
+    // 第一批 2 张，改成 5
+    expect([c.allocate(p0, none, day), c.allocate(p0, none, day)]).toEqual(['HJ-mtfl671104001', 'HJ-mtfl671104002'])
+    c.record(['HJ-mtfl671104501', 'HJ-mtfl671104502'], day)
+    // 第二批先 1 张（0 号的第 3 个），改成 5
+    expect(c.allocate(p0, none, day)).toBe('HJ-mtfl671104003')
+    c.record(['HJ-mtfl671104503'], day)
+    // 第二批再加图：5 号的 01～03 已经发过，从 04 起
+    expect(c.allocate(p5, none, day)).toBe('HJ-mtfl671104504')
+    expect(c.issued('hj-mtfl671104502')).toBe(true)
+    expect(c.issued('HJ-mtfl671104004')).toBe(false)
+  })
+
+  it('旧格式的 sku.json（只有计数）也能读', () => {
+    dir = tmpDir()
+    const file = path.join(dir, 'sku.json')
+    fs.writeFileSync(file, JSON.stringify({ '2026-11-04': { 'HJ-mtfl6711041': 3 } }))
+    expect(new SkuCounter(file).allocate(P, () => false, new Date(2026, 10, 4, 10))).toBe('HJ-mtfl671104104')
   })
 })

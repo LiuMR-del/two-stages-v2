@@ -23,12 +23,14 @@ describe('e2e：子体 SKU 和按 SKU 命名的输出文件', () => {
     const { cid } = blanket
     expect((await api.json('PATCH', `/library/categories/${cid}`, { skuCode: 'mtfl' })).status).toBe(200)
     expect((await api.json('PATCH', `/library/categories/${cid}`, { skuCode: 'mt fl' })).status).toBe(400)
-    expect((await api.json('PUT', '/settings', { parent: { creatorMark: '1' } })).status).toBe(200)
 
     const jobs = await uploadJobs(api, ['a.png', 'b.png'])
     const done = await Promise.all(jobs.map((j) => waitJob(api, j.id, isDone)))
     const skus = done.map((d) => d.sku).sort()
-    expect(skus).toEqual([`${prefix()}101`, `${prefix()}102`])
+    // 专属号默认 0（多店铺方案第五节）
+    expect(skus).toEqual([`${prefix()}001`, `${prefix()}002`])
+    expect(done[0]!.skuMeta).toMatchObject({ head: prefix(), mark: '0' })
+    expect(done[0]!.storeId).toBe('hj')
     for (const d of done) {
       expect(d.outputBase).toBe(d.sku)
       const catDir = path.join(w.outDir, d.outputFolder, '毛毯')
@@ -41,12 +43,12 @@ describe('e2e：子体 SKU 和按 SKU 命名的输出文件', () => {
     // 清空队列开新批次，序号不重来
     expect((await api.json('POST', '/jobs/clear-all')).status).toBe(200)
     const [c] = await uploadJobs(api, ['c.png'])
-    expect((await waitJob(api, c.id, isDone)).sku).toBe(`${prefix()}103`)
+    expect((await waitJob(api, c.id, isDone)).sku).toBe(`${prefix()}003`)
 
     // 重启后接着排
     await w.restart()
     const [d] = await uploadJobs(w.api, ['d.png'])
-    expect((await waitJob(w.api, d.id, isDone)).sku).toBe(`${prefix()}104`)
+    expect((await waitJob(w.api, d.id, isDone)).sku).toBe(`${prefix()}004`)
 
     // 清掉材质缩写：不发 SKU，文件名用原图名
     expect((await w.api.json('PATCH', `/library/categories/${cid}`, { skuCode: '' })).status).toBe(200)

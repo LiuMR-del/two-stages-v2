@@ -1,4 +1,4 @@
-import { currentStore, type Settings, type Store } from '../store/settings'
+import { currentStore, storeById, type Settings, type Store } from '../store/settings'
 import type { Job, ParentResult } from '../store/jobs'
 import { AiError } from '../ai/errors'
 import { FeishuAuthError, FeishuError, type FeishuSheets, type ParentRow } from './feishu'
@@ -14,10 +14,10 @@ export class ParentPauseError extends Error {}
 export const NEW_PARENT_NOTE = '这是建议新建的父体，飞书表和店铺里都还没有，需要你手动创建'
 
 /**
- * 这张图按哪个店铺匹配父体。第 1 段先用当前店铺；第 3 段起任务带店铺（job.storeId），改成按任务取。
+ * 这张图属于哪个店铺（加进队列时从批次取，job.storeId）；店铺被删了（不应该发生，删店铺时会拦）才退回当前店铺。
  */
-export function storeForJob(s: Settings, _job?: unknown): Store {
-  return currentStore(s)
+export function storeForJob(s: Settings, job?: { storeId?: string } | null): Store {
+  return (job?.storeId ? storeById(s, job.storeId) : null) ?? currentStore(s)
 }
 
 /** 店铺缺哪些父体设置（飞书来源要父体表链接和飞书应用，两种来源都要 SP-API 凭证） */
@@ -154,7 +154,6 @@ export async function bindNew(opts: {
   job: Job
   rows: ParentRow[]
   themes: string[]
-  creatorMark: string
   base: Base & Pick<ParentResult, 'candidates' | 'confidence' | 'reason'>
   commit: (r: ParentResult) => void
   call: <T>(fn: () => Promise<T>) => Promise<T>
@@ -172,7 +171,6 @@ export async function bindNew(opts: {
   const p = await proposeParent({
     rows: opts.rows,
     themes: opts.themes,
-    creatorMark: opts.creatorMark,
     queued,
     existsInStore: (sku) => opts.call(() => guard(async () => (await deps.spapi.parent(sku, opts.signal)) !== null)),
   })

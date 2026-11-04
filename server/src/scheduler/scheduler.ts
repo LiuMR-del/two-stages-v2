@@ -30,13 +30,14 @@ import { step5Parent } from '../pipeline/step5Parent'
 import { bindExisting, depsFor, guard, ParentPauseError, parentSkipReason, shiftNumber, storeForJob } from '../parent/match'
 import type { FeishuSheets } from '../parent/feishu'
 import type { SpapiPool } from '../parent/spapi'
+import type { StoreIndex } from '../parent/storeIndex'
 import type { Reservations } from '../parent/reservations'
 import { resolvePlan } from '../pipeline/plan'
-import { assignOutputBase, categoryDir, OUTPUT_FOLDER, outputRel, safeName, writeOutput } from '../pipeline/output'
-import { SkuCounter } from '../pipeline/sku'
+import { assignOutputBase, categoryDir, DEFAULT_MARK, LEGACY_STORE_ID, OUTPUT_FOLDER, outputRel, safeName, writeOutput, type BatchFolders } from '../pipeline/output'
+import { SkuCounter, withStyleMark, type IssuedSku } from '../pipeline/sku'
 import { JOB_FILES } from '../pipeline/files'
 import fsp from 'node:fs/promises'
-import { writeBatchCsv } from '../pipeline/csv'
+import { readSavedRows, SAVED_CATEGORY_COL, SAVED_MAIN_COL, SAVED_SKU_COL, writeBatchCsv, writeSavedRows } from '../pipeline/csv'
 import { removeJobImage } from '../pipeline/files'
 import { withRetry, MAX_ATTEMPTS } from '../ai/retry'
 import { AiError, CancelledError, ERROR_LABEL, RETRYABLE } from '../ai/errors'
@@ -77,7 +78,9 @@ export type SchedulerDeps = {
   /** 记住「暂停队列」，重启后仍然暂停；不给就只记在内存里 */
   stateFile?: string
   /** 第 6 步用的飞书读表和 SP-API；单元测试不给时第 6 步一律当作凭证问题 */
-  parent?: { sheets: FeishuSheets; spapis: SpapiPool; reservations?: Reservations }
+  parent?: { sheets: FeishuSheets; spapis: SpapiPool; reservations?: Reservations; index?: StoreIndex }
+  /** 每批的店铺和专属号；不给时按焕捷、专属号 0（单元测试） */
+  batch?: BatchFolders
   /** 每批识别信息 CSV 的行记在这里，移出队列的图的行不丢 */
   csvRowsDir?: string
   /** 子体 SKU 当天序号；不给就只记在内存里 */
@@ -92,6 +95,8 @@ export class Scheduler {
   private parentPaused: string | null = null
   private parentLock = new KeyedMutex()
   private holds = new Set<string>()
+  /** 正在改专属号的批次文件夹：这一批的图先不派发 */
+  private renaming = new Set<string>()
   private tickQueued = false
   private stopped = false
   private handlers: StepHandler[]
@@ -221,7 +226,7 @@ export class Scheduler {
   }
 
   private dispatchableStep(job: Job): number {
-    if (job.attention || job.paused || this.holds.has(job.id)) return -1
+    if (job.attention || job.paused || this.holds.has(job.id) || this.renaming.has(job.outputFolder)) return -1
     const i = currentStep(job)
     if (i < 0 || job.steps[i]!.state !== 'pending') return -1
     // 识别父体关着 / 缺设置：doTick 里直接跳过，不受分析接口暂停影响
@@ -328,25 +333,38 @@ export class Scheduler {
       if (!j.route) return
       // 定下（或换了）品类才发 SKU；同一品类重做、品类改名都不换号
       const newCat = j.route.categoryId !== prevCat
-      if (newCat) j.sku = this.allocSku(j)
+      if (newCat) {
+        const issued = this.allocSku(j)
+        j.sku = issued?.sku ?? null
+        j.skuMeta = issued ? { head: issued.head, mark: issued.mark, seq: issued.seq, was: [] } : null
+      }
       if (newCat || j.route.categoryName !== prev) {
         j.outputBase = j.sku ?? assignOutputBase(j, this.d.jobs.list(), this.env.outputDir(), j.route.categoryName)
       }
     })
   }
 
-  /** 品类没填材质缩写就不发 SKU，文件名照旧用原图名 */
-  private allocSku(j: Job): string | null {
-    const code = this.d.library.get().categories.find((c) => c.id === j.route!.categoryId)?.skuCode?.trim()
+  /**
+   * 品类没填材质缩写就不发 SKU，文件名照旧用原图名。
+   * SKU = 这张图店铺的缩写 - 款式标记（横版 HB）+ 材质缩写 + 年份末位 + 组别 + 月日 + 这一批的专属号（默认 0）+ 当天序号。
+   * 跳过：队列里别的图已经用的、输出文件夹里已经有的、店铺里已经有的（只看已经扫好的快照，不为发号去等扫描）。
+   */
+  private allocSku(j: Job): IssuedSku | null {
+    const cat = this.d.library.get().categories.find((c) => c.id === j.route!.categoryId)
+    const code = cat?.skuCode?.trim()
     if (!code) return null
+    const style = cat!.styles.find((x) => x.id === j.route!.styleId)
     const s = this.d.settings.get()
     const others = this.d.jobs.list().filter((o) => o.id !== j.id)
     const dir = path.join(this.env.outputDir(), j.outputFolder, safeName(j.route!.categoryName))
+    const inStore = new Set((this.d.parent?.index?.peek(j.storeId)?.items ?? []).map((x) => x.sku.toLowerCase()))
     const taken = (sku: string) =>
       others.some((o) => o.sku?.toLowerCase() === sku.toLowerCase()) ||
+      inStore.has(sku.toLowerCase()) ||
       fs.existsSync(path.join(dir, outputRel('main', sku))) ||
       fs.existsSync(path.join(dir, outputRel('pattern', sku)))
-    return this.sku.allocate({ store: storeForJob(s, j).abbr, code, region: s.sku.group, mark: s.parent.creatorMark }, taken)
+    const mark = this.d.batch?.meta(j.outputFolder).mark ?? DEFAULT_MARK
+    return this.sku.issue({ store: storeForJob(s, j).abbr, code: withStyleMark(code, style?.skuMark), region: s.sku.group, mark }, taken)
   }
 
   private parentSkip(job: Job): string | null {
@@ -478,6 +496,7 @@ export class Scheduler {
     const job = this.d.jobs.get(jobId)
     if (!job) throw new HttpError(404, '这张图已经不在队列里了')
     if (this.holds.has(jobId)) throw new HttpError(409, '这张图正在处理上一个操作，请稍等')
+    if (this.renaming.has(job.outputFolder)) throw new HttpError(409, '正在改这一批的专属号，请稍等')
     this.holds.add(jobId)
     try {
       return await fn(job)
@@ -645,6 +664,7 @@ export class Scheduler {
     const st = job.steps[PARENT_STEP]!.state
     if (st === 'pending' || st === 'running') throw new HttpError(400, '「匹配父体」还没跑完，等它跑完再改')
     if (this.settingParent.has(jobId) || this.holds.has(jobId)) throw new HttpError(409, '这张图正在处理上一个操作，请稍等')
+    if (this.renaming.has(job.outputFolder)) throw new HttpError(409, '正在改这一批的专属号，请稍等')
     this.settingParent.add(jobId)
     try {
       const settings = this.d.settings.get()
@@ -776,4 +796,154 @@ export class Scheduler {
   jobDir(jobId: string): string {
     return path.join(this.d.jobs.dirOf(jobId))
   }
+
+  /**
+   * 「改专属号」（多店铺方案第五节）：这一批所有 SKU 只换专属号那一截，序号不变；三个输出文件改名、CSV 重写，
+   * 这一批之后再发的 SKU 也用新号。范围是队列里这一批的图，加上已经移出队列、CSV 里还有的行。
+   * apply = false 只出预览。新 SKU 在店铺里（storeSkus，调用方先强制重扫）、队列里别的图、输出文件夹里已经有了，算冲突，有冲突不改。
+   * 有图正在生成时不改；改名时这一批的图都不派发；任何一个文件改名失败，已经改的改回去。
+   */
+  async changeBatchMark(folder: string, mark: string, opts: { apply: boolean; storeSkus: Set<string> }): Promise<MarkPlan> {
+    if (this.renaming.has(folder)) throw new HttpError(409, '正在改这一批的专属号，请稍等')
+    const all = this.d.jobs.list()
+    const inFolder = all.filter((j) => j.outputFolder === folder)
+    if (inFolder.some((j) => this.running.has(j.id))) throw new HttpError(409, '这一批还有图正在生成，等跑完（或先「暂停队列」等它停下）再改专属号')
+    // 删除、重做、仍然使用、手动换父体这些单张图的操作没做完时也不改（它们会写输出文件或改 SKU）
+    if (inFolder.some((j) => this.holds.has(j.id) || this.settingParent.has(j.id))) throw new HttpError(409, '这一批有图正在处理别的操作，请稍等再改专属号')
+    const outDir = this.env.outputDir()
+    const rowsFile = this.d.csvRowsDir ? path.join(this.d.csvRowsDir, `${folder}.json`) : null
+    const saved = rowsFile ? readSavedRows(rowsFile) : []
+    const inQueue = new Set(inFolder.map((j) => j.id))
+    type Target = MarkPlanItem & { category: string; head: string; seq: string; was: string[]; jobId: string | null; rowId: string }
+    const targets: Target[] = []
+    const skipped: { name: string; sku: string; reason: string }[] = []
+    const consider = (o: { id: string; name: string; sku: string | null; meta: { head: string; mark: string; seq: string; was?: string[] } | null; category: string; jobId: string | null }) => {
+      if (!o.sku) return
+      if (!o.meta || o.meta.head + o.meta.mark + o.meta.seq !== o.sku) {
+        skipped.push({ name: o.name, sku: o.sku, reason: o.meta ? 'SKU 改过，和发号时对不上' : '改版前发的 SKU，没记专属号在哪一位' })
+        return
+      }
+      const next = o.meta.head + mark + o.meta.seq
+      targets.push({ name: o.name, old: o.sku, next, conflict: null, inQueue: o.jobId !== null, category: o.category, head: o.meta.head, seq: o.meta.seq, was: o.meta.was ?? [], jobId: o.jobId, rowId: o.id })
+    }
+    for (const j of inFolder) if (j.route) consider({ id: j.id, name: j.source.originalName, sku: j.sku, meta: j.skuMeta, category: j.route.categoryName, jobId: j.id })
+    for (const r of saved) {
+      if (inQueue.has(r.id)) continue
+      consider({ id: r.id, name: r.row[0] ?? '', sku: r.row[SAVED_SKU_COL] || null, meta: r.skuMeta ?? null, category: r.row[SAVED_CATEGORY_COL] ?? '', jobId: null })
+    }
+    const mine = new Set(targets.map((t) => t.old.toLowerCase()))
+    const others = new Set(all.filter((j) => j.sku && !mine.has(j.sku.toLowerCase())).map((j) => j.sku!.toLowerCase()))
+    const seen = new Map<string, number>()
+    for (const t of targets) seen.set(t.next.toLowerCase(), (seen.get(t.next.toLowerCase()) ?? 0) + 1)
+    for (const t of targets) {
+      if (t.next === t.old) continue
+      const k = t.next.toLowerCase()
+      const dir = path.join(outDir, folder, safeName(t.category))
+      if (opts.storeSkus.has(k)) t.conflict = '店铺里已经有这个 SKU'
+      else if (others.has(k)) t.conflict = '队列里别的图已经用了'
+      else if (k !== t.old.toLowerCase() && !t.was.some((x) => x.toLowerCase() === k) && this.sku.issued(t.next)) t.conflict = '这个号已经发过了（别的批次或之前改过）'
+      else if ((seen.get(k) ?? 0) > 1) t.conflict = '这一批里会重名'
+      else if (k !== t.old.toLowerCase() && (['main', 'pattern', 'blank'] as const).some((kind) => fs.existsSync(path.join(dir, outputRel(kind, t.next))))) t.conflict = '输出文件夹里已经有这个名字的图'
+    }
+    const plan: MarkPlan = {
+      folder,
+      from: this.d.batch?.meta(folder).mark ?? DEFAULT_MARK,
+      to: mark,
+      items: targets.map(({ name, old, next, conflict, inQueue: q }) => ({ name, old, next, conflict, inQueue: q })).sort((x, y) => (x.old < y.old ? -1 : 1)),
+      skipped,
+      applied: false,
+    }
+    if (!opts.apply || targets.some((t) => t.conflict)) return plan
+
+    this.renaming.add(folder)
+    const moved: { from: string; to: string }[] = []
+    const undoFiles = async () => {
+      for (const m of moved.reverse()) await renameSafe(m.to, m.from).catch((e2) => log.warn(`改专属号回滚失败：${m.to}：${(e2 as Error).message}`))
+    }
+    try {
+      for (const t of targets) {
+        if (t.next === t.old) continue
+        const dir = path.join(outDir, folder, safeName(t.category))
+        for (const kind of ['main', 'pattern', 'blank'] as const) {
+          const from = path.join(dir, outputRel(kind, t.old))
+          const to = path.join(dir, outputRel(kind, t.next))
+          if (!fs.existsSync(from)) continue
+          await renameSafe(from, to)
+          moved.push({ from, to })
+        }
+      }
+    } catch (e) {
+      await undoFiles()
+      this.renaming.delete(folder)
+      this.tick()
+      log.warn(`改专属号时改文件名失败：${(e as Error).message}`)
+      throw new HttpError(500, `有文件改不了名（可能正被别的程序打开），已经全部改回原样，再试一次：${(e as Error).message}`)
+    }
+    // 第二步：队列里的任务、CSV 保存行、批次专属号、CSV，在 CSV 锁里做；失败就连文件一起改回去
+    const before = new Map(targets.filter((t) => t.jobId).map((t) => [t.jobId!, structuredClone(this.d.jobs.get(t.jobId!)!)]))
+    const metaBefore = this.d.batch?.meta(folder)
+    try {
+      await this.csvLock.run(folder, async () => {
+        const byId = new Map(targets.map((t) => [t.rowId, t]))
+        for (const t of targets) {
+          if (!t.jobId) continue
+          this.d.jobs.update(t.jobId, (j) => {
+            j.sku = t.next
+            j.outputBase = t.next
+            j.skuMeta = { head: t.head, mark, seq: t.seq, was: [...new Set([...t.was, t.old])] }
+          })
+        }
+        if (rowsFile) {
+          // 现读：预览之后可能又有图写进了 CSV
+          const fresh = readSavedRows(rowsFile)
+          if (fresh.length) {
+            await writeSavedRows(
+              rowsFile,
+              fresh.map((r) => {
+                const t = byId.get(r.id)
+                if (!t || t.jobId) return r
+                const row = [...r.row]
+                row[SAVED_SKU_COL] = t.next
+                row[SAVED_MAIN_COL] = path.join(safeName(t.category), outputRel('main', t.next))
+                return { ...r, row, skuMeta: { head: t.head, mark, seq: t.seq, was: [...new Set([...t.was, t.old])] } }
+              }),
+            )
+          }
+        }
+        this.d.batch?.setMeta(folder, { storeId: metaBefore?.storeId ?? LEGACY_STORE_ID, mark })
+        await writeBatchCsv(this.env.outputDir(), this.d.jobs.list(), folder, rowsFile ?? undefined)
+      })
+      this.sku.record(targets.map((t) => t.next))
+    } catch (e) {
+      for (const [id, j] of before) {
+        if (this.d.jobs.get(id)) this.d.jobs.update(id, (cur) => Object.assign(cur, { sku: j.sku, outputBase: j.outputBase, skuMeta: j.skuMeta }))
+      }
+      if (rowsFile) await writeSavedRows(rowsFile, saved).catch(() => {})
+      if (metaBefore) this.d.batch?.setMeta(folder, metaBefore)
+      await undoFiles()
+      await this.rewriteCsv(folder).catch(() => {})
+      log.warn(`改专属号失败，已经改回原样：${(e as Error).message}`)
+      throw new HttpError(500, `改专属号没成功，已经全部改回原样，再试一次：${(e as Error).message}`)
+    } finally {
+      this.renaming.delete(folder)
+      this.tick()
+    }
+    log.info(`「${folder}」专属号 ${plan.from} → ${mark}，改了 ${targets.length} 个 SKU`)
+    return { ...plan, applied: true }
+  }
 }
+
+/** 改名：目标已经有文件就报错（不覆盖）；只差大小写时（macOS 默认不分大小写）先改成临时名再改过去 */
+async function renameSafe(from: string, to: string): Promise<void> {
+  if (from.toLowerCase() === to.toLowerCase()) {
+    const tmp = `${from}.renaming-${process.pid}`
+    await fsp.rename(from, tmp)
+    await fsp.rename(tmp, to)
+    return
+  }
+  if (fs.existsSync(to)) throw new Error(`${path.basename(to)} 已经存在`)
+  await fsp.rename(from, to)
+}
+
+export type MarkPlanItem = { name: string; old: string; next: string; conflict: string | null; inQueue: boolean }
+export type MarkPlan = { folder: string; from: string; to: string; items: MarkPlanItem[]; skipped: { name: string; sku: string; reason: string }[]; applied: boolean }

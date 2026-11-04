@@ -90,9 +90,19 @@ export function registerJobs(r: Router, ctx: AppContext): void {
   })
 
   async function addSources(sources: { name: string; read: () => Promise<Buffer> }[]) {
+    ctx.batch.adding++
+    try {
+      return await addInto(sources)
+    } finally {
+      ctx.batch.adding--
+    }
+  }
+
+  async function addInto(sources: { name: string; read: () => Promise<Buffer> }[]) {
     const created: ReturnType<typeof withView>[] = []
     const errors: { name: string; error: string }[] = []
     const folder = ctx.batch.current(jobs.list())
+    const storeId = ctx.batch.meta(folder).storeId
     for (const { name, read } of sources) {
       try {
         const { buffer, ext } = await normalizeSource(await read())
@@ -110,6 +120,8 @@ export function registerJobs(r: Router, ctx: AppContext): void {
           outputFolder: folder,
           outputBase: baseNameOf(name),
           sku: null,
+          skuMeta: null,
+          storeId,
           paused: false,
           route: null,
           plan: null,

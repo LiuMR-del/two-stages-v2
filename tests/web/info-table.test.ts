@@ -32,11 +32,12 @@ function job(id: string, p: ParentResult | null): Job {
   }
 }
 
-async function render(parentResult: ParentResult | null, sku: string | null = null): Promise<string> {
+async function render(parentResult: ParentResult | null, sku: string | null = null, batch: Partial<ReturnType<typeof useJobs>['batch']> | null = null): Promise<string> {
   const pinia = createPinia()
   setActivePinia(pinia)
   const jobs = useJobs()
   jobs.byId = { j: { ...job('j', parentResult), sku } }
+  if (batch) jobs.batch = { folder: '主图生成-2026-11-04', storeId: 'art', storeName: '爱睿特', abbr: 'ART', mark: '0', queued: 1, ...batch }
   jobs.queue = { paused: null, parentPaused: null, slots: { image: { busy: 0, limit: 1 }, analysis: { busy: 0, limit: 1 } } }
   useUi()
   const app = createSSRApp(InfoTable)
@@ -75,9 +76,16 @@ describe('识别信息表 · 父体列', () => {
 describe('识别信息表 · SKU 列', () => {
   it('有 SKU 时显示 SKU 列和复制按钮；都没有时不显示', async () => {
     const html = await render(null, 'HJ-mtfl671029101')
-    expect(html).toContain('<th>SKU</th>')
+    expect(html).toMatch(/<th[^>]*>SKU<\/th>/)
     expect(html).toContain('HJ-mtfl671029101')
     expect(html).toContain('复制 SKU')
-    expect(await render(null)).not.toContain('<th>SKU</th>')
+    expect(await render(null)).not.toMatch(/<th[^>]*>SKU<\/th>/)
+  })
+
+  it('显示这一批的店铺和专属号；有 SKU 时才有「改专属号」', async () => {
+    const html = await render(null, 'ART-mtfl671104001', {})
+    expect(html).toContain('店铺：爱睿特 · 专属号：0')
+    expect(html).toContain('改专属号')
+    expect(await render(null, null, {})).not.toContain('改专属号')
   })
 })

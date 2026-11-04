@@ -115,8 +115,8 @@ describe('e2e 17：第 6 步匹配父体', () => {
     const jobs = await uploadJobs(api, ['a.png', 'b.png'])
     const done = await Promise.all(jobs.map((j) => waitJob(api, j.id, isDone)))
     for (const d of done) {
-      expect(d.parent).toMatchObject({ status: 'new', sku: 'HJ-cn-yklgj5-Snowman', asin: null, theme: 'Snowman' })
-      expect(d.parent.proposal).toMatchObject({ prefix: 'HJ-cn-yklgj5', theme: 'Snowman', themeCandidates: ['Snowman', 'Winter'] })
+      expect(d.parent).toMatchObject({ status: 'new', sku: 'HJ-cn-yklgj-Snowman', asin: null, theme: 'Snowman' })
+      expect(d.parent.proposal).toMatchObject({ prefix: 'HJ-cn-yklgj', theme: 'Snowman', themeCandidates: ['Snowman', 'Winter'] })
       expect(d.parent.naming.note).toBe('这是建议新建的父体，飞书表和店铺里都还没有，需要你手动创建')
     }
     expect(done.map((d) => d.parent.naming.next).sort()).toEqual(['Design 01', 'Design 02'])

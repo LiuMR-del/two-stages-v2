@@ -4,6 +4,7 @@ import { Check, Lock, ScanSearch, Trash2 } from '@lucide/vue'
 import { api, imageUrl } from '../api'
 import { activeTemplateName, useLibrary } from '../stores/library'
 import { useSettings } from '../stores/settings'
+import { useJobs } from '../stores/jobs'
 import { useUi } from '../stores/ui'
 import AutoText from './AutoText.vue'
 import RecipeCard, { type RecipeSlot } from './RecipeCard.vue'
@@ -11,6 +12,7 @@ import type { Category, ExtractRecipe, PasteMode, Recipe, Style } from '../types
 
 const lib = useLibrary()
 const settings = useSettings()
+const jobs = useJobs()
 const ui = useUi()
 
 const cat = computed(() => lib.category(ui.libSel) as Category)
@@ -84,8 +86,11 @@ const skuSample = computed(() => {
   if (!s || !code) return ''
   const d = new Date()
   const md = String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0')
-  return `${settings.currentStore?.abbr ?? ''}-${code}${String(d.getFullYear()).slice(-1)}${s.sku.group}${md}${s.parent.creatorMark}01`
+  const mark = style.value.skuMark?.trim()
+  const full = !mark ? code : code.startsWith('cn-') ? `cn-${mark}${code.slice(3)}` : `${mark}${code}`
+  return `${jobs.batch?.abbr ?? settings.currentStore?.abbr ?? ''}-${full}${String(d.getFullYear()).slice(-1)}${s.sku.group}${md}${jobs.batch?.mark ?? '0'}01`
 })
+const saveSkuMark = saver((v) => api.patch(sbase.value, { skuMark: v.trim() || null }))
 async function saveParentTab(value: string) {
   await ui.act(() => lib.mutate(() => api.patch(base.value, { parentTab: value || null })))
 }
@@ -345,6 +350,12 @@ function coverageOf(s: Style): { dot: string; text: string } {
         <div class="v">
           <AutoText :key="cat.id + 'sku'" :value="cat.skuCode ?? ''" :save="saveSkuCode" label="SKU 材质缩写" />
           <div class="muted tiny">{{ skuSample ? `今天第一张是 ${skuSample}，输出的图也用它命名；每个品类每天从 01 起` : '不填就不生成 SKU，输出的图用原文件名。父体表里的前缀去掉专属号就是它，比如 HJ-mtfl5 → mtfl' }}</div>
+        </div>
+
+        <span class="k">{{ singleUnnamed ? 'SKU 款式标记' : styleLabel(style) + ' 的 SKU 款式标记' }}</span>
+        <div class="v">
+          <AutoText :key="cat.id + style.id + 'mark'" :value="style.skuMark ?? ''" :save="saveSkuMark" label="SKU 款式标记" placeholder="不加" />
+          <div class="muted tiny">加在材质缩写前面，比如帆布画横版填 HB、竖版填 SB → HJ-HBxkfb…；不分横竖的留空</div>
         </div>
 
         <span class="k">{{ singleUnnamed ? '主图模版' : styleLabel(style) + ' 的主图模版' }}</span>

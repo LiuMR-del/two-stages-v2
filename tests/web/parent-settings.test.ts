@@ -30,7 +30,6 @@ function settings(parent: Partial<Settings['parent']> = {}, stores?: Store[], cu
     parent: {
       enabled: false,
       threshold: 0.7,
-      creatorMark: '5',
       feishu: { appId: '', appSecret: '' },
       ...parent,
     },

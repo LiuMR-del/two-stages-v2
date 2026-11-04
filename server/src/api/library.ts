@@ -96,7 +96,13 @@ export function registerLibrary(r: Router, ctx: AppContext): void {
 
   r.patch('/library/categories/:cid/styles/:sid', async (req, res) => {
     const b = parseBody(
-      z.object({ name: z.string().optional(), ratio: z.string().optional(), activeTemplate: z.string().optional(), pasteMode: z.enum(['auto', 'local', 'ai']).optional() }),
+      z.object({
+        name: z.string().optional(),
+        ratio: z.string().optional(),
+        activeTemplate: z.string().optional(),
+        pasteMode: z.enum(['auto', 'local', 'ai']).optional(),
+        skuMark: z.string().max(10).nullable().optional(),
+      }),
       req.body,
     )
     await store.mutate((d) => ops.patchStyle(d, p(req, 'cid'), p(req, 'sid'), b))

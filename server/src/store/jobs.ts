@@ -154,6 +154,22 @@ export const JobSchema = z.object({
   deformed: z.boolean().default(false),
   /** 子体 SKU（品类填了材质缩写才有）；有的话输出文件名就用它 */
   sku: z.string().nullable().default(null),
+  /**
+   * SKU 的三截：专属号前面（店铺-款式标记+材质+年份组别月日）、专属号、当天序号，「改专属号」只换中间那截。
+   * 改版前发的 SKU 没有这个字段（不能统一改专属号）
+   */
+  skuMeta: z
+    .object({
+      head: z.string(),
+      mark: z.string(),
+      seq: z.string(),
+      /** 改专属号之前用过的 SKU：改回去时不算和「已经发过的号」冲突 */
+      was: z.array(z.string()).default([]),
+    })
+    .nullable()
+    .default(null),
+  /** 这张图属于哪个店铺（加进队列时从批次取，之后不变）；改版前的任务都是焕捷 */
+  storeId: z.string().default('hj'),
   /** 用户单独暂停了这张图：调度器不再派发它，点「继续」后从停下的那一步接着跑 */
   paused: z.boolean().default(false),
   route: z

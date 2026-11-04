@@ -27,6 +27,11 @@ export const StyleSchema = z.object({
   templates: z.array(TemplateSchema),
   /** 默认模版的贴图方式：auto 按白底图自动判断，local 本地合成，ai AI 贴图 */
   pasteMode: z.enum(['auto', 'local', 'ai']).default('auto'),
+  /**
+   * 子体 SKU 里材质编码前的款式标记，如帆布画横版 HB、竖版 SB（2026-11-04 用户确认）：HJ-HBxkfb671104001。
+   * null = 不加（旧库没有这个字段，读入时补 null，不升版本）
+   */
+  skuMark: z.string().nullable().default(null),
 })
 
 /** 白底图的本地图形检测结果，按图片指纹存；旧库没有这个字段，用到时再算 */

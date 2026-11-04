@@ -12,11 +12,11 @@ const row = (sku: string, theme = '', i = 0): ParentRow => ({ sku, theme, asin: 
 const REAL = [row('HJ-cn-yklgj-Christmas Baby', '圣诞节婴儿', 0), row('HJ-cn-yklgj-Christmas', '圣诞节挂件', 1), row('HJ-cn-yklgj5-Christmas Dumpling', '圣诞节小笼包挂件', 2)]
 
 describe('建议新建父体：前缀', () => {
-  it('HJ-cn-yklgj / HJ-cn-yklgj5 / HJ-cn-yklgj3 都得到 HJ-cn-yklgj5；HJ-mtfl 得到 HJ-mtfl5', () => {
-    expect(withCreator('HJ-cn-yklgj', '5')).toBe('HJ-cn-yklgj5')
-    expect(withCreator('HJ-cn-yklgj5', '5')).toBe('HJ-cn-yklgj5')
-    expect(withCreator('HJ-cn-yklgj3', '5')).toBe('HJ-cn-yklgj5')
-    expect(withCreator('HJ-mtfl', '5')).toBe('HJ-mtfl5')
+  it('父体不加专属号（2026-11-04）：HJ-cn-yklgj / HJ-cn-yklgj5 / HJ-cn-yklgj3 都得到 HJ-cn-yklgj；HJ-mtfl5 得到 HJ-mtfl', () => {
+    expect(withCreator('HJ-cn-yklgj', '')).toBe('HJ-cn-yklgj')
+    expect(withCreator('HJ-cn-yklgj5', '')).toBe('HJ-cn-yklgj')
+    expect(withCreator('HJ-cn-yklgj3', '')).toBe('HJ-cn-yklgj')
+    expect(withCreator('HJ-mtfl5', '')).toBe('HJ-mtfl')
   })
 
   it('主题带空格（Christmas Baby）能正确拆前缀；主题列是 SKU 里的写法时按它拆，是中文时按最后一个「-」拆', () => {
@@ -42,26 +42,25 @@ describe('建议新建父体：查重', () => {
   it('第一个主题和表里 SKU 重名、第二个在店铺里已存在 → 用第三个', async () => {
     const checked: string[] = []
     const r = await proposeParent({
-      rows: [...REAL, row('HJ-cn-yklgj5-Snowman', '', 3)],
+      rows: [...REAL, row('HJ-cn-yklgj-Snowman', '', 3)],
       themes: ['Snowman', 'Gingerbread', 'Santa Claus'],
-      creatorMark: '5',
       queued: [],
       existsInStore: async (sku) => (checked.push(sku), sku.endsWith('Gingerbread')),
     })
-    expect(r).toMatchObject({ ok: true, proposal: { sku: 'HJ-cn-yklgj5-Santa Claus', prefix: 'HJ-cn-yklgj5', theme: 'Santa Claus' } })
-    expect(checked).toEqual(['HJ-cn-yklgj5-Gingerbread', 'HJ-cn-yklgj5-Santa Claus'])
+    expect(r).toMatchObject({ ok: true, proposal: { sku: 'HJ-cn-yklgj-Santa Claus', prefix: 'HJ-cn-yklgj', theme: 'Santa Claus' } })
+    expect(checked).toEqual(['HJ-cn-yklgj-Gingerbread', 'HJ-cn-yklgj-Santa Claus'])
   })
 
   it('都重名 → 返回试过的 SKU；拆不出前缀 → noPrefix', async () => {
-    const r = await proposeParent({ rows: REAL, themes: ['Snowman'], creatorMark: '5', queued: [], existsInStore: async () => true })
-    expect(r).toEqual({ ok: false, reason: 'taken', tried: ['HJ-cn-yklgj5-Snowman'] })
-    expect(await proposeParent({ rows: [row('X')], themes: ['A'], creatorMark: '5', queued: [], existsInStore: async () => false })).toEqual({ ok: false, reason: 'noPrefix' })
+    const r = await proposeParent({ rows: REAL, themes: ['Snowman'], queued: [], existsInStore: async () => true })
+    expect(r).toEqual({ ok: false, reason: 'taken', tried: ['HJ-cn-yklgj-Snowman'] })
+    expect(await proposeParent({ rows: [row('X')], themes: ['A'], queued: [], existsInStore: async () => false })).toEqual({ ok: false, reason: 'noPrefix' })
   })
 
   it('同一批里别的图已经建议了同一个新 SKU：直接共用，不再查店铺', async () => {
     let calls = 0
-    const r = await proposeParent({ rows: REAL, themes: ['Snowman'], creatorMark: '5', queued: ['hj-cn-yklgj5-snowman'], existsInStore: async () => (calls++, false) })
-    expect(r).toMatchObject({ ok: true, proposal: { sku: 'hj-cn-yklgj5-snowman' } })
+    const r = await proposeParent({ rows: REAL, themes: ['Snowman'], queued: ['hj-cn-yklgj-snowman'], existsInStore: async () => (calls++, false) })
+    expect(r).toMatchObject({ ok: true, proposal: { sku: 'hj-cn-yklgj-snowman' } })
     expect(calls).toBe(0)
   })
 })

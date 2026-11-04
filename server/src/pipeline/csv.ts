@@ -58,7 +58,19 @@ function csvOf(jobs: Job[]): string {
 /** 界面上按天导出 */
 export const csvForDay = (jobs: Job[], day: string) => csvOf(jobs.filter((j) => j.outputDay === day))
 
-type SavedRow = { id: string; createdAt: string; row: string[]; v?: number }
+/** skuMeta：「改专属号」改移出队列的图时用（2026-11-04 起记） */
+export type SavedRow = { id: string; createdAt: string; row: string[]; v?: number; skuMeta?: { head: string; mark: string; seq: string; was?: string[] } | null }
+export const SAVED_SKU_COL = 1
+export const SAVED_CATEGORY_COL = 2
+export const SAVED_MAIN_COL = 7
+
+export function readSavedRows(rowsFile: string): SavedRow[] {
+  return (readJsonSync<SavedRow[]>(rowsFile) ?? []).map((r) => normalizeRow(r, false))
+}
+
+export async function writeSavedRows(rowsFile: string, rows: SavedRow[]): Promise<void> {
+  await writeFileAtomic(rowsFile, JSON.stringify(rows))
+}
 
 function normalizeRow(saved: SavedRow, includeParent: boolean): SavedRow {
   let row = saved.row
@@ -81,7 +93,7 @@ export async function writeBatchCsv(outputDir: string, jobs: Job[], folder: stri
   for (const id of drop) saved.delete(id)
   const includeParent = inFolder.some(hasParent) || [...saved.values()].some((r) => r.row.length >= HEADER.length)
   for (const j of inFolder) {
-    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent), v: ROW_VERSION })
+    if (hasInfo(j)) saved.set(j.id, { id: j.id, createdAt: j.createdAt, row: rowOf(j, includeParent), v: ROW_VERSION, skuMeta: j.skuMeta })
     else saved.delete(j.id)
   }
   const rows = [...saved.values()]
