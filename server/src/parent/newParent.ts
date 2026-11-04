@@ -45,12 +45,11 @@ export function derivePrefix(rows: ParentRow[]): { prefix: string; basedOn: stri
   return { prefix: best[0], basedOn: [...best[1].skus].reverse().slice(0, MAX_BASED_ON) }
 }
 
-/** 前缀最后一段末尾的数字换成创建人标识，没有数字就补上：HJ-cn-yklgj / HJ-cn-yklgj3 → HJ-cn-yklgj5 */
-export function withCreator(prefix: string, mark: string): string {
+/** 去掉前缀最后一段末尾的专属号（父体不加专属号，2026-11-04）：HJ-cn-yklgj5 → HJ-cn-yklgj，HJ-mtfl3 → HJ-mtfl */
+export function stripCreatorMark(prefix: string): string {
   const i = prefix.lastIndexOf('-')
   const head = i >= 0 ? prefix.slice(0, i + 1) : ''
-  const last = (i >= 0 ? prefix.slice(i + 1) : prefix).replace(/\d+$/, '')
-  return head + last + mark.trim()
+  return head + (i >= 0 ? prefix.slice(i + 1) : prefix).replace(/\d+$/, '')
 }
 
 /** 给模型参考的主题样例：表里 SKU 末尾的英文主题 */
@@ -91,7 +90,7 @@ export async function proposeParent(opts: {
 }): Promise<{ ok: true; proposal: Proposal } | { ok: false; reason: 'noPrefix' | 'noThemes' } | { ok: false; reason: 'taken'; tried: string[] }> {
   const base = derivePrefix(opts.rows)
   if (!base) return { ok: false, reason: 'noPrefix' }
-  const prefix = withCreator(base.prefix, '')
+  const prefix = stripCreatorMark(base.prefix)
   const themes = [...new Set(opts.themes.map(cleanTheme).filter(Boolean))]
   if (!themes.length) return { ok: false, reason: 'noThemes' }
   const inTable = new Set(opts.rows.map((r) => r.sku.trim().toLowerCase()))

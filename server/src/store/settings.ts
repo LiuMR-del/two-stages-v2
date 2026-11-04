@@ -91,7 +91,6 @@ export const StoreSchema = z.object({
   feishu: StoreFeishuSchema.prefault({}),
 })
 export type Store = z.infer<typeof StoreSchema>
-export type ParentSource = Store['parentSource']
 
 const ParentSchema = z.object({
   /** 「识别父体」开关，默认关闭：关着时第 6 步直接跳过，不读飞书、不调 SP-API */

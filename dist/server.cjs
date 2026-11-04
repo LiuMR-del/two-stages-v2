@@ -58848,11 +58848,10 @@ function derivePrefix(rows) {
   if (!best) return null;
   return { prefix: best[0], basedOn: [...best[1].skus].reverse().slice(0, MAX_BASED_ON) };
 }
-function withCreator(prefix, mark) {
+function stripCreatorMark(prefix) {
   const i2 = prefix.lastIndexOf("-");
   const head = i2 >= 0 ? prefix.slice(0, i2 + 1) : "";
-  const last = (i2 >= 0 ? prefix.slice(i2 + 1) : prefix).replace(/\d+$/, "");
-  return head + last + mark.trim();
+  return head + (i2 >= 0 ? prefix.slice(i2 + 1) : prefix).replace(/\d+$/, "");
 }
 function themeSamples(rows) {
   const out = [];
@@ -58869,7 +58868,7 @@ function cleanTheme(t) {
 async function proposeParent(opts) {
   const base = derivePrefix(opts.rows);
   if (!base) return { ok: false, reason: "noPrefix" };
-  const prefix = withCreator(base.prefix, "");
+  const prefix = stripCreatorMark(base.prefix);
   const themes = [...new Set(opts.themes.map(cleanTheme).filter(Boolean))];
   if (!themes.length) return { ok: false, reason: "noThemes" };
   const inTable = new Set(opts.rows.map((r) => r.sku.trim().toLowerCase()));

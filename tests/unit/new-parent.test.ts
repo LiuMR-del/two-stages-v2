@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanTheme, derivePrefix, proposeParent, splitSku, themeSamples, withCreator } from '../../server/src/parent/newParent'
+import { cleanTheme, derivePrefix, proposeParent, splitSku, themeSamples, stripCreatorMark } from '../../server/src/parent/newParent'
 import type { ParentRow } from '../../server/src/parent/feishu'
 import { JobStore } from '../../server/src/store/jobs'
 import { fakeJob } from '../jobfixture'
@@ -13,10 +13,10 @@ const REAL = [row('HJ-cn-yklgj-Christmas Baby', '圣诞节婴儿', 0), row('HJ-c
 
 describe('建议新建父体：前缀', () => {
   it('父体不加专属号（2026-11-04）：HJ-cn-yklgj / HJ-cn-yklgj5 / HJ-cn-yklgj3 都得到 HJ-cn-yklgj；HJ-mtfl5 得到 HJ-mtfl', () => {
-    expect(withCreator('HJ-cn-yklgj', '')).toBe('HJ-cn-yklgj')
-    expect(withCreator('HJ-cn-yklgj5', '')).toBe('HJ-cn-yklgj')
-    expect(withCreator('HJ-cn-yklgj3', '')).toBe('HJ-cn-yklgj')
-    expect(withCreator('HJ-mtfl5', '')).toBe('HJ-mtfl')
+    expect(stripCreatorMark('HJ-cn-yklgj')).toBe('HJ-cn-yklgj')
+    expect(stripCreatorMark('HJ-cn-yklgj5')).toBe('HJ-cn-yklgj')
+    expect(stripCreatorMark('HJ-cn-yklgj3')).toBe('HJ-cn-yklgj')
+    expect(stripCreatorMark('HJ-mtfl5')).toBe('HJ-mtfl')
   })
 
   it('主题带空格（Christmas Baby）能正确拆前缀；主题列是 SKU 里的写法时按它拆，是中文时按最后一个「-」拆', () => {
