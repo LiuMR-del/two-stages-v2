@@ -24,6 +24,11 @@ const showSku = computed(() => jobs.withInfo.some((j) => !!j.sku))
 const cols = computed(() => 4 + (showSku.value ? 1 : 0) + (showParent.value ? 2 : 0))
 const parentLabel: Record<string, string> = { matched: '已匹配', unsure: '待确认', none: '没有合适的父体', new: '建议新建' }
 
+function openMark() {
+  mk.open = !mk.open
+  if (mk.open) void jobs.loadBatch()
+}
+
 /** 改专属号：先预览（列出旧 → 新、冲突），确认后才改 */
 const mk = reactive<{ open: boolean; value: string; busy: boolean; plan: MarkPlan | null }>({ open: false, value: '', busy: false, plan: null })
 const hasConflict = computed(() => !!mk.plan?.items.some((x) => x.conflict))
@@ -72,7 +77,7 @@ async function copy(text: string) {
   <div class="box">
     <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 10px 14px 0; flex-wrap: wrap">
       <span v-if="jobs.batch" class="small">店铺：{{ jobs.batch.storeName }} · 专属号：{{ jobs.batch.mark }}</span>
-      <button v-if="jobs.batch?.folder && (showSku || !jobs.all.length)" type="button" class="btn sm" @click="mk.open = !mk.open">改专属号</button>
+      <button v-if="showSku || (jobs.batch?.folder && !jobs.all.length)" type="button" class="btn sm" @click="openMark">改专属号</button>
       <span style="flex: 1"></span>
       <span class="muted small">按天导出</span>
       <input v-model="day" type="date" aria-label="导出日期" />
@@ -80,7 +85,7 @@ async function copy(text: string) {
     </div>
     <div v-if="mk.open" class="mark">
       <div class="row">
-        <span class="small">把这一批所有 SKU 的专属号从 {{ jobs.batch?.mark }} 改成</span>
+        <span class="small">把这一批所有 SKU 的专属号从 {{ jobs.batch?.mark ?? '0' }} 改成</span>
         <input v-model="mk.value" aria-label="新专属号" style="width: 72px" placeholder="如 1" @input="mk.plan = null" />
         <button type="button" class="btn sm" :disabled="mk.busy || !mk.value.trim()" @click="previewMark">{{ mk.busy && !mk.plan ? '检查中…' : '预览' }}</button>
         <button v-if="mk.plan && !hasConflict && mk.plan.items.length && mk.plan.storeCheck !== 'truncated'" type="button" class="btn sm pri" :disabled="mk.busy" @click="applyMark">{{ mk.busy ? '改名中…' : `确认修改 ${mk.plan.items.length} 个` }}</button>

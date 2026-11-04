@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed } from 'vue'
 import AutoText from './AutoText.vue'
-import StoreCard from './StoreCard.vue'
-import { api } from '../api'
+import Help from './Help.vue'
 import { useSettings } from '../stores/settings'
 import { useUi } from '../stores/ui'
-import type { Settings } from '../types'
 
 const st = useSettings()
 const ui = useUi()
@@ -47,81 +45,53 @@ async function toggle(enabled: boolean) {
   await ui.act(() => st.save({ parent: { enabled } }))
 }
 
-const adding = reactive({ open: false, name: '', abbr: '' })
-async function addStore() {
-  const r = await ui.act(() => api.post<{ id: string; settings: Settings }>('/stores', { name: adding.name.trim(), abbr: adding.abbr.trim() }))
-  if (!r) return
-  st.settings = r.settings
-  adding.open = false
-  adding.name = ''
-  adding.abbr = ''
-}
 </script>
 
 <template>
   <div class="grp">
-    <h4>父体匹配</h4>
+    <h4>识别父体</h4>
     <label class="sw">
       <input type="checkbox" :checked="p.enabled" @change="toggle(($event.target as HTMLInputElement).checked)" />
-      识别父体（每张图跑完后挑一个父体，推算下一个变体名）
+      每张图跑完后挑一个父体，推算下一个变体名
     </label>
     <div v-if="!p.enabled" class="muted tiny">关着时不读飞书、不调店铺接口，识别信息表和 CSV 里也不出现父体。</div>
     <template v-else>
-      <div v-if="missing.length" class="warn" style="margin: 0">「{{ cur?.name }}」还缺：{{ missing.join('、') }}，补齐前第 6 步会跳过</div>
-      <div v-else-if="cur?.parentSource === 'store'" class="warn" style="margin: 0">「{{ cur.name }}」从店铺扫描父体还没做好，做好前第 6 步会先跳过</div>
-      <div class="muted tiny">打开后只对之后跑到第 6 步的图生效；已经完成的图要在详情里对第 6 步点「重新匹配」。</div>
-      <div class="two">
-        <div class="fld">
-          <label>父体把握低于多少标「待确认」（0～1）</label>
-          <AutoText :value="p.threshold.toFixed(2)" :save="saver((v) => ({ threshold: num(v, '把握阈值') }))" label="父体把握阈值" />
-        </div>
-        <div class="fld">
-          <label>建议新建的父体</label>
-          <div class="muted small">不加专属号，如 HJ-cn-yklgj-Snowman</div>
-        </div>
+      <div v-if="missing.length" class="warn" style="margin: 0">「{{ cur?.name }}」还缺：{{ missing.join('、') }}，补齐前第 6 步会跳过（去「店铺」页签填）</div>
+      <div class="fld">
+        <label class="lbl">把握低于多少标「待确认」（0～1）<Help label="把握阈值">待确认的不进「需处理」、不挡队列，子体 SKU 也先不按这个父体改；在详情第 6 步点候选或「搜索别的父体」确认。</Help></label>
+        <AutoText :value="p.threshold.toFixed(2)" :save="saver((v) => ({ threshold: num(v, '把握阈值') }))" label="父体把握阈值" />
+      </div>
+      <div class="muted tiny row">
+        当前店铺「{{ cur?.name }}」：{{ cur?.parentSource === 'feishu' ? '从飞书父体表里挑' : '从店铺里扫描的父体里挑' }}
+        <Help label="父体怎么挑">
+          焕捷这类有飞书父体表的店铺，按模版库品类的「父体表标签页」读表；爱睿特这类没有父体表的，按品类的「店铺商品类型」从店铺扫描结果里挑。
+          都不合适时建议新建父体（不加专属号，如 HJ-cn-yklgj-Snowman），第一个变体名照同品类最近父体的写法。
+          打开开关只对之后跑到第 6 步的图生效；已经完成的图要在详情里对第 6 步点「重新匹配」。
+        </Help>
       </div>
     </template>
+  </div>
 
-    <template v-if="needFeishu">
-      <h4>飞书应用（所有店铺共用）</h4>
-      <div class="two">
-        <div class="fld">
-          <label>App ID</label>
-          <AutoText :value="p.feishu.appId" :save="saver((v) => ({ feishu: { appId: v.trim() } }))" label="飞书 App ID" placeholder="cli_..." />
-        </div>
-        <div class="fld">
-          <label>App Secret</label>
-          <AutoText :value="p.feishu.appSecret" :save="saver((v) => ({ feishu: { appSecret: v.trim() } }))" label="飞书 App Secret" secret />
-        </div>
-      </div>
-      <div class="muted tiny">
-        工具用这个飞书应用的身份读表，不用登录。父体表要给这个应用阅读权限：在飞书里打开那张表，点右上角「…」→「更多」→「添加文档应用」，选这个应用。换新表时也要加一次。
-      </div>
-    </template>
-
-    <h4>店铺</h4>
-    <div class="muted tiny">每个店铺的凭证、父体表各存各的，导入凭证只写进那个店铺。只读取店铺商品信息，不会修改任何商品；凭证只存在本机的 data 文件夹里。</div>
-    <StoreCard v-for="s in st.settings!.stores" :key="s.id" :store="s" />
-    <div v-if="adding.open" class="two">
+  <div v-if="needFeishu" class="grp">
+    <h4>飞书应用<span class="muted small" style="font-weight: 400">所有店铺共用</span></h4>
+    <div class="two">
       <div class="fld">
-        <label>店铺名称</label>
-        <input v-model="adding.name" aria-label="新店铺名称" placeholder="如 熵玖铄" />
+        <label>App ID</label>
+        <AutoText :value="p.feishu.appId" :save="saver((v) => ({ feishu: { appId: v.trim() } }))" label="飞书 App ID" placeholder="cli_..." />
       </div>
       <div class="fld">
-        <label>店铺缩写</label>
-        <input v-model="adding.abbr" aria-label="新店铺缩写" placeholder="如 SJS" />
+        <label>App Secret</label>
+        <AutoText :value="p.feishu.appSecret" :save="saver((v) => ({ feishu: { appSecret: v.trim() } }))" label="飞书 App Secret" secret />
       </div>
     </div>
-    <div class="row">
-      <button v-if="!adding.open" type="button" class="btn sm" @click="adding.open = true">新增店铺</button>
-      <template v-else>
-        <button type="button" class="btn sm pri" :disabled="!adding.name.trim() || !adding.abbr.trim()" @click="addStore">添加</button>
-        <button type="button" class="btn sm" @click="adding.open = false">取消</button>
-      </template>
+    <div class="muted tiny row">
+      用这个应用的身份读父体表，不用登录
+      <Help label="飞书应用">父体表要给这个应用阅读权限：在飞书里打开那张表，点右上角「…」→「更多」→「添加文档应用」，选这个应用。换新表时也要加一次。</Help>
     </div>
   </div>
 </template>
 
 <style scoped>
-.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.lbl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 </style>

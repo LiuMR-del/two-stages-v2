@@ -27,6 +27,12 @@ export const useJobs = defineStore('jobs', () => {
   async function loadBatch() {
     batch.value = await api.get<BatchInfo>('/batch').catch(() => batch.value)
   }
+  // 图从别处加进来（粘贴、别的窗口、接口）时页面不知道开了新的一批：收到属于别的批次的图就刷新一次（2026-11-04 用户反馈看不到「改专属号」）
+  let batchTimer: ReturnType<typeof setTimeout> | undefined
+  function refreshBatchSoon() {
+    clearTimeout(batchTimer)
+    batchTimer = setTimeout(() => void loadBatch(), 300)
+  }
 
   const all = computed(() => Object.values(byId.value).sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : 1)))
   const queued = computed(() => all.value.filter((j) => !j.attention))
@@ -43,7 +49,10 @@ export const useJobs = defineStore('jobs', () => {
   }
 
   function onEvent(name: string, data: any) {
-    if (name === 'job') byId.value = { ...byId.value, [data.job.id]: data.job }
+    if (name === 'job') {
+      byId.value = { ...byId.value, [data.job.id]: data.job }
+      if (data.job.outputFolder && data.job.outputFolder !== batch.value?.folder) refreshBatchSoon()
+    }
     else if (name === 'job-removed') {
       const next = { ...byId.value }
       delete next[data.id]

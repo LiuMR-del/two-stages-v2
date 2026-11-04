@@ -87,5 +87,7 @@ describe('识别信息表 · SKU 列', () => {
     expect(html).toContain('店铺：爱睿特 · 专属号：0')
     expect(html).toContain('改专属号')
     expect(await render(null, null, {})).not.toContain('改专属号')
+    // 页面还没拿到这一批的信息（图是从别处加的）：有 SKU 照样显示按钮
+    expect(await render(null, 'ART-mtfl671104001', null)).toContain('改专属号')
   })
 })
