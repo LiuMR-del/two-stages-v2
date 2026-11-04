@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import AutoText from './AutoText.vue'
 import { api } from '../api'
 import { useSettings } from '../stores/settings'
@@ -82,6 +82,36 @@ async function testSpapi() {
   spTest.value = 'running'
   spTest.value = (await ui.act(() => api.post<{ ok: boolean; message: string }>(`${path.value}/spapi/test`))) ?? null
 }
+
+type ScanSummary = { scannedAt: string; items: number; parents: number; themed: number; truncated: boolean; productTypes: { type: string; count: number }[] }
+const scan = reactive<{ busy: boolean; snapshot: ScanSummary | null; error: string | null }>({ busy: false, snapshot: null, error: null })
+let poll: ReturnType<typeof setTimeout> | undefined
+async function loadScan() {
+  clearTimeout(poll)
+  const r = await api.get<{ scanning: boolean; snapshot: ScanSummary | null }>(`${path.value}/scan`).catch(() => null)
+  if (!r) return
+  scan.snapshot = r.snapshot
+  scan.busy = r.scanning
+  // 后台正在扫（启动时预先扫）：隔几秒再看一次，扫完按钮才能点
+  if (r.scanning) poll = setTimeout(loadScan, 3000)
+}
+onMounted(loadScan)
+onUnmounted(() => clearTimeout(poll))
+async function rescan() {
+  scan.busy = true
+  scan.error = null
+  const r = await ui.act(() => api.post<{ ok: boolean; message?: string; snapshot?: ScanSummary }>(`${path.value}/scan`))
+  scan.busy = false
+  if (!r) return
+  if (r.ok) scan.snapshot = r.snapshot ?? null
+  else scan.error = r.message ?? '扫描失败'
+}
+const scannedAt = computed(() => {
+  const t = scan.snapshot?.scannedAt
+  if (!t) return ''
+  const d = new Date(t)
+  return `${d.getMonth() + 1}-${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+})
 
 const { armed: confirmDel, click: remove } = useConfirmTwice(async () => {
   const r = await ui.act(() => api.del<Settings>(path.value))
@@ -173,6 +203,19 @@ const { armed: confirmDel, click: remove } = useConfirmTwice(async () => {
       <div><button type="button" class="btn sm pri" :disabled="!paste.text.trim()" @click="importText">导入到「{{ s.name }}」</button></div>
     </div>
     <input ref="picker" type="file" accept=".rtf,.txt,text/plain,application/rtf" hidden @change="importFile" />
+
+    <div class="fld">
+      <label>店铺商品</label>
+      <div class="row">
+        <span v-if="scan.snapshot" class="small">
+          {{ scannedAt }} 扫描，共 {{ scan.snapshot.items }} 个商品，父体 {{ scan.snapshot.parents }} 个（SKU 里带主题的 {{ scan.snapshot.themed }} 个）{{ scan.snapshot.truncated ? '；有一段超过 1000 条没扫全' : '' }}
+        </span>
+        <span v-else class="muted small">{{ scan.busy ? '正在扫描…' : '还没扫描过' }}</span>
+        <button type="button" class="btn sm" :disabled="scan.busy" @click="rescan">{{ scan.busy ? '扫描中…（几十秒）' : '重新扫描' }}</button>
+      </div>
+      <div v-if="scan.error" class="warn rd" style="margin: 0">{{ scan.error }}</div>
+      <div class="muted tiny">第 6 步挑父体、查重要用。平时自动扫，10 分钟内的结果直接用；刚在店铺里建了父体想马上用，就点「重新扫描」。</div>
+    </div>
   </div>
 </template>
 

@@ -7,7 +7,18 @@ import type express from 'express'
 
 /** values 为 null：读这一页时报错 */
 export type MockSheetTab = { sheet_id: string; title: string; values: unknown[][] | null }
-export type MockListing = { sku: string; asin?: string; parentSku?: string; status?: string; attributes?: Record<string, unknown>; variationTheme?: string[] }
+export type MockListing = {
+  sku: string
+  asin?: string
+  parentSku?: string
+  status?: string
+  attributes?: Record<string, unknown>
+  variationTheme?: string[]
+  /** 店铺扫描用（多店铺方案第四节）：创建时间（ISO）、商品类型、标题 */
+  createdAt?: string
+  productType?: string
+  title?: string
+}
 
 export type ParentMockState = {
   feishu: {
@@ -30,6 +41,8 @@ export type ParentMockState = {
     listings: MockListing[]
     /** 接下来这么多次商品请求返回 429（Retry-After 0.01 秒） */
     throttle: number
+    /** 搜索最多能翻到多少条（真实接口是 1000），numberOfResults 照常给总数 */
+    cap: number
   }
   calls: { at: number; service: 'feishu' | 'spapi'; method: string; path: string }[]
 }
@@ -52,6 +65,7 @@ export function newParentMockState(): ParentMockState {
       access: new Set(),
       listings: [],
       throttle: 0,
+      cap: 1000,
     },
     calls: [],
   }
@@ -149,20 +163,45 @@ export function mountParentMock(app: express.Express, state: () => ParentMockSta
     }
     return true
   }
-  const item = (l: MockListing) => ({
-    sku: l.sku,
-    summaries: [{ marketplaceId: 'ATVPDKIKX0DER', asin: l.asin ?? null, status: [l.status ?? 'BUYABLE'] }],
-    attributes: l.attributes ?? {},
-    relationships: l.variationTheme ? [{ marketplaceId: 'ATVPDKIKX0DER', relationships: [{ type: 'VARIATION', variationTheme: { attributes: l.variationTheme, theme: l.variationTheme.join('/').toUpperCase() } }] }] : [],
-  })
+  const item = (l: MockListing) => {
+    const kids = state()
+      .spapi.listings.filter((x) => x.parentSku === l.sku)
+      .map((x) => x.sku)
+    const rels: unknown[] = []
+    if (l.variationTheme || kids.length) {
+      rels.push({ type: 'VARIATION', childSkus: kids, ...(l.variationTheme ? { variationTheme: { attributes: l.variationTheme, theme: l.variationTheme.join('/').toUpperCase() } } : {}) })
+    }
+    if (l.parentSku) rels.push({ type: 'VARIATION', parentSkus: [l.parentSku] })
+    return {
+      sku: l.sku,
+      summaries: [
+        {
+          marketplaceId: 'ATVPDKIKX0DER',
+          asin: l.asin ?? null,
+          status: [l.status ?? 'BUYABLE'],
+          ...(l.productType ? { productType: l.productType } : {}),
+          ...(l.title ? { itemName: l.title } : {}),
+          ...(l.createdAt ? { createdDate: l.createdAt } : {}),
+        },
+      ],
+      attributes: l.attributes ?? {},
+      relationships: rels.length ? [{ marketplaceId: 'ATVPDKIKX0DER', relationships: rels }] : [],
+    }
+  }
   app.get('/listings/2021-08-01/items/:sellerId', (req, res) => {
     if (!spAuthed(req, res)) return
+    const sp = state().spapi
     const parent = req.query.variationParentSku ? String(req.query.variationParentSku) : null
-    const all = state().spapi.listings.filter((l) => (parent ? l.parentSku === parent : true))
+    // createdAfter 含、createdBefore 不含；没写创建时间的商品当成 2026-01-01
+    const after = req.query.createdAfter ? Date.parse(String(req.query.createdAfter)) : -Infinity
+    const before = req.query.createdBefore ? Date.parse(String(req.query.createdBefore)) : Infinity
+    const created = (l: MockListing) => Date.parse(l.createdAt ?? '2026-01-01T00:00:00Z')
+    const all = sp.listings.filter((l) => (parent ? l.parentSku === parent : true) && created(l) >= after && created(l) < before)
     const size = Number(req.query.pageSize ?? 10)
     const start = Number(req.query.pageToken ?? 0)
-    const page = all.slice(start, start + size)
-    res.json({ numberOfResults: all.length, items: page.map(item), pagination: start + size < all.length ? { nextToken: String(start + size) } : undefined })
+    const end = Math.min(start + size, all.length, sp.cap)
+    const page = all.slice(start, end)
+    res.json({ numberOfResults: all.length, items: page.map(item), pagination: end < Math.min(all.length, sp.cap) ? { nextToken: String(end) } : undefined })
   })
   app.get('/listings/2021-08-01/items/:sellerId/:sku', (req, res) => {
     if (!spAuthed(req, res)) return

@@ -60,6 +60,24 @@ describe('SP-API 读父体和子体', () => {
     await expect(client.parent('P')).rejects.toBeInstanceOf(SpapiAuthError)
   })
 
+  it('缓存的 access token 被提前作废：换一次新的再试，不当成凭证错误；真没权限时换过一次仍报错', async () => {
+    mock.parent.spapi.listings = [{ sku: 'P', variationTheme: ['color'] }]
+    await client.parent('P')
+    mock.parent.spapi.access.clear()
+    const tokens = () => mock.parent.calls.filter((c) => c.path === '/token').length
+    const before = tokens()
+    expect(await client.parent('P')).toMatchObject({ sku: 'P' })
+    expect(tokens()).toBe(before + 1)
+    // 几个请求同时拿着已经作废的 token：每个都换新的再试，不误报成凭证错误
+    mock.parent.spapi.access.clear()
+    const all = await Promise.all([client.parent('P'), client.parent('P'), client.parent('P')])
+    expect(all.every((x) => x?.sku === 'P')).toBe(true)
+    const afterBurst = tokens()
+    mock.parent.spapi.sellerId = 'ASOMEONEELSE1'
+    await expect(client.parent('P')).rejects.toBeInstanceOf(SpapiAuthError)
+    expect(tokens()).toBe(afterBurst + 1)
+  })
+
   it('属性值：取第一个 value，没有时取 standardized_values', () => {
     expect(attributeValue(color('Design 05'), 'color')).toBe('Design 05')
     expect(attributeValue({ size: [{ standardized_values: ['12x18'] }] }, 'size')).toBe('12x18')

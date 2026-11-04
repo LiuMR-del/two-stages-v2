@@ -7,6 +7,23 @@ import { currentStore, maskSettings, MAX_RECENT_URLS, SettingsError, storeById, 
 import { FeishuAuthError, FeishuError } from '../parent/feishu'
 import { parseSpapiCredentials } from '../parent/credentials'
 import { log } from '../util/log'
+import type { StoreSnapshot } from '../parent/storeIndex'
+
+/** 快照给界面看的概况 */
+function summary(snap: StoreSnapshot | null) {
+  if (!snap) return null
+  const parents = snap.items.filter((x) => x.kind === 'parent')
+  const types = new Map<string, number>()
+  for (const x of parents) if (x.productType) types.set(x.productType, (types.get(x.productType) ?? 0) + 1)
+  return {
+    scannedAt: snap.scannedAt,
+    items: snap.items.length,
+    parents: parents.length,
+    themed: parents.filter((x) => x.theme).length,
+    truncated: snap.truncated,
+    productTypes: [...types].sort((a, b) => b[1] - a[1]).map(([type, count]) => ({ type, count })),
+  }
+}
 
 /** 店铺设置的内容错误（缩写重了、删当前店铺）转成 400 */
 async function settle<T>(fn: () => Promise<T>): Promise<T> {
@@ -51,6 +68,7 @@ export function registerParent(r: Router, ctx: AppContext): void {
     const st = storeOf(req)
     const next = await settle(() => settings.removeStore(st.id))
     p.spapis.drop(st.id)
+    p.index.clear(st.id)
     ctx.onSettingsSaved()
     log.info(`删除店铺「${st.name}」`)
     res.json(maskSettings(next))
@@ -130,6 +148,23 @@ export function registerParent(r: Router, ctx: AppContext): void {
     } catch (e) {
       if (e instanceof FeishuError || e instanceof FeishuAuthError) throw new HttpError(502, e.message)
       throw e
+    }
+  })
+
+  /** 店铺商品快照的情况（只看缓存，不发请求） */
+  r.get('/stores/:id/scan', (req, res) => {
+    const st = storeOf(req)
+    res.json({ scanning: p.index.scanning(st.id), snapshot: summary(p.index.peek(st.id)) })
+  })
+
+  /** 重新扫描店铺商品（不管缓存）：只读，按创建日期分段翻完 */
+  r.post('/stores/:id/scan', async (req, res) => {
+    const st = storeOf(req)
+    try {
+      const snap = await p.index.get(st.id, { force: true })
+      res.json({ ok: true, snapshot: summary(snap) })
+    } catch (e) {
+      res.json({ ok: false, message: `扫描失败：${(e as Error).message}` })
     }
   })
 

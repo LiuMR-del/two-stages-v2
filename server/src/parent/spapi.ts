@@ -127,7 +127,7 @@ export class SpapiClient {
   }
 
   /** 只允许 GET */
-  async get(path: string, query: Record<string, string> = {}): Promise<{ status: number; body: any }> {
+  async get(path: string, query: Record<string, string> = {}, retried = false): Promise<{ status: number; body: any }> {
     const token = await this.accessToken()
     const s = this.creds()
     const q = new URLSearchParams(query).toString()
@@ -136,6 +136,12 @@ export class SpapiClient {
       headers: { 'x-amz-access-token': token, Accept: 'application/json' },
     })
     if (r.status === 401 || r.status === 403) {
+      // 缓存的 access token 可能被提前作废了：换一次新的再试一次，还不行才算凭证或权限问题
+      // 并发时别的请求可能已经把缓存清掉或换成新的了，所以只要没重试过就再试一次，只在缓存还是这个旧 token 时清掉
+      if (!retried) {
+        if (this.cached?.token === token) this.cached = null
+        return this.get(path, query, true)
+      }
       this.cached = null
       throw new SpapiAuthError(`SP-API 没有权限或凭证不对（HTTP ${r.status}${r.body?.errors?.[0]?.message ? `：${r.body.errors[0].message}` : ''}）`)
     }
@@ -199,6 +205,15 @@ export class SpapiClient {
       if (!token) break
     }
     return out
+  }
+
+  /**
+   * 按卖家搜商品的一页（店铺扫描用）：站点自动带上，429 按 Retry-After 等。query 里放 pageSize、pageToken、createdAfter 这些。
+   */
+  async search(query: Record<string, string>, signal?: AbortSignal): Promise<any> {
+    const r = await this.getPatiently(`/listings/2021-08-01/items/${this.seller()}`, { marketplaceIds: this.creds().marketplaceId, ...query }, signal)
+    if (r.status >= 400) throw new SpapiError(`搜索店铺商品失败：HTTP ${r.status}${r.body?.errors?.[0]?.message ? `，${r.body.errors[0].message}` : ''}`, r.status)
+    return r.body
   }
 
   /** 换 token 并查一次店铺（按卖家搜一条商品） */

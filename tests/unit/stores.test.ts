@@ -156,4 +156,30 @@ describe('店铺接口', () => {
     expect(store('hj')!.spapi.clientSecret).toBe(sp.clientSecret)
     expect((await api.json('POST', '/stores/nope/spapi/test')).status).toBe(404)
   })
+
+  it('扫描店铺商品：没扫过时只看缓存不发请求；重新扫描给出概况；凭证错给原因', async () => {
+    const sp = mock.parent.spapi
+    await ctx.settings.updateStoreRaw('art', (st) =>
+      Object.assign(st.spapi, { sellerId: sp.sellerId, clientId: sp.clientId, clientSecret: sp.clientSecret, refreshToken: sp.refreshToken, endpoint: mock.origin, tokenUrl: mock.origin + '/auth/o2/token' }),
+    )
+    ctx.parent.index.clear()
+    mock.parent.spapi.listings = [
+      { sku: 'ART-cn-yklgj-cookie', variationTheme: ['color'], productType: 'HANGING_ORNAMENT' },
+      { sku: 'ART-cn-yklgj67102701', parentSku: 'ART-cn-yklgj-cookie', productType: 'HANGING_ORNAMENT' },
+      { sku: 'mtfl760820700-P', variationTheme: ['color'], productType: 'BLANKET' },
+      { sku: 'ART-mtfl67102970001', productType: 'BLANKET' },
+    ]
+    const before = mock.parent.calls.length
+    expect((await api.json('GET', '/stores/art/scan')).body).toEqual({ scanning: false, snapshot: null })
+    expect(mock.parent.calls.length).toBe(before)
+    const r = await api.json('POST', '/stores/art/scan')
+    expect(r.body).toMatchObject({ ok: true, snapshot: { items: 4, parents: 2, themed: 1, truncated: false, productTypes: [{ type: 'HANGING_ORNAMENT', count: 1 }, { type: 'BLANKET', count: 1 }] } })
+    expect((await api.json('GET', '/stores/art/scan')).body.snapshot.items).toBe(4)
+    // 焕捷没扫过，各是各的
+    expect((await api.json('GET', '/stores/hj/scan')).body.snapshot).toBeNull()
+    await api.json('PATCH', '/stores/art', { spapi: { clientSecret: 'amzn1.oa2-cs.v1.wrong' } })
+    const bad = await api.json('POST', '/stores/art/scan')
+    expect(bad.body.ok).toBe(false)
+    expect(bad.body.message).toContain('SP-API 凭证不对')
+  })
 })

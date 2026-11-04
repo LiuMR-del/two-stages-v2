@@ -6,10 +6,12 @@ import express from 'express'
 import type { AppContext } from './context'
 import { ensureDirs, type Paths } from './paths'
 import { Bus } from './events/bus'
-import { resolveOutputDir, SettingsStore } from './store/settings'
+import { currentStore, resolveOutputDir, SettingsStore, storeById } from './store/settings'
 import { BatchFolders } from './pipeline/output'
 import { FeishuSheets } from './parent/feishu'
 import { SpapiPool } from './parent/spapi'
+import { StoreIndex } from './parent/storeIndex'
+import { storeMissing } from './parent/match'
 import { registerParent } from './api/parent'
 import { Reservations } from './parent/reservations'
 import { Limiter } from './ai/limiter'
@@ -54,6 +56,11 @@ export async function createContext(paths: Paths): Promise<AppContext> {
   const limiter = new Limiter(() => scheduler?.tick())
   const sheets = new FeishuSheets(settings)
   const spapis = new SpapiPool(settings)
+  // 店铺商品快照：按店铺缓存，店铺删了取不到时缩写给空（扫描本身会因为店铺不在了报错）
+  const index = new StoreIndex(spapis, (id) => {
+    const st = storeById(settings.get(), id)
+    return { abbr: st?.abbr ?? '', sellerId: st?.spapi.sellerId ?? '', marketplaceId: st?.spapi.marketplaceId ?? '' }
+  })
   scheduler = new Scheduler({
     jobs,
     library,
@@ -77,7 +84,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     jobs,
     scheduler: sched,
     batch: new BatchFolders(path.join(paths.dataDir, 'batch.json'), () => resolveOutputDir(settings.get())),
-    parent: { sheets, spapis },
+    parent: { sheets, spapis, index },
     sse: { clients: 0 },
     onSettingsSaved: () => {},
     start: async () => {
@@ -87,6 +94,10 @@ export async function createContext(paths: Paths): Promise<AppContext> {
       if (n) log.info(`读取到 ${n} 个任务，从断点继续`)
       sched.onLibraryChanged()
       sched.tick()
+      // 开着识别父体时，后台先扫一遍当前店铺，第 6 步不用等
+      const s = settings.get()
+      const cur = currentStore(s)
+      if (s.parent.enabled && !storeMissing(s, cur).includes('SP-API 凭证')) index.warm(cur.id)
     },
     stop: async () => {
       sched.stop()

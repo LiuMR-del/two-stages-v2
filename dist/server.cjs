@@ -58201,7 +58201,7 @@ var SpapiClient = class {
     return this.pending;
   }
   /** 只允许 GET */
-  async get(path22, query = {}) {
+  async get(path22, query = {}, retried = false) {
     const token = await this.accessToken();
     const s = this.creds();
     const q = new URLSearchParams(query).toString();
@@ -58210,6 +58210,10 @@ var SpapiClient = class {
       headers: { "x-amz-access-token": token, Accept: "application/json" }
     });
     if (r.status === 401 || r.status === 403) {
+      if (!retried) {
+        if (this.cached?.token === token) this.cached = null;
+        return this.get(path22, query, true);
+      }
       this.cached = null;
       throw new SpapiAuthError(`SP-API \u6CA1\u6709\u6743\u9650\u6216\u51ED\u8BC1\u4E0D\u5BF9\uFF08HTTP ${r.status}${r.body?.errors?.[0]?.message ? `\uFF1A${r.body.errors[0].message}` : ""}\uFF09`);
     }
@@ -58270,6 +58274,14 @@ var SpapiClient = class {
     }
     return out;
   }
+  /**
+   * 按卖家搜商品的一页（店铺扫描用）：站点自动带上，429 按 Retry-After 等。query 里放 pageSize、pageToken、createdAfter 这些。
+   */
+  async search(query, signal) {
+    const r = await this.getPatiently(`/listings/2021-08-01/items/${this.seller()}`, { marketplaceIds: this.creds().marketplaceId, ...query }, signal);
+    if (r.status >= 400) throw new SpapiError(`\u641C\u7D22\u5E97\u94FA\u5546\u54C1\u5931\u8D25\uFF1AHTTP ${r.status}${r.body?.errors?.[0]?.message ? `\uFF0C${r.body.errors[0].message}` : ""}`, r.status);
+    return r.body;
+  }
   /** 换 token 并查一次店铺（按卖家搜一条商品） */
   async test() {
     const s = this.creds();
@@ -58304,6 +58316,600 @@ var SpapiPool = class {
     this.clients.delete(storeId);
   }
 };
+
+// server/src/parent/skuParse.ts
+function stripStore(sku, abbr) {
+  const s = sku.trim();
+  const head = `${abbr}-`.toLowerCase();
+  return s.toLowerCase().startsWith(head) && abbr ? { rest: s.slice(head.length).trimStart(), hadStore: true } : { rest: s, hadStore: false };
+}
+function themeParent(sku, abbr) {
+  const { rest, hadStore } = stripStore(sku, abbr);
+  if (!hadStore) return null;
+  const m = /^((?:cn-)?(?:[HS]B-?)?[a-z]+)\d*(?:-\d+)?-(.+)$/.exec(rest);
+  if (!m || m[1] === "cn") return null;
+  const theme = m[2].trim();
+  if (!/[A-Za-z]/.test(theme) || /^\d/.test(theme) || /^[A-Z]{1,2}\d?$/i.test(theme)) return null;
+  return { prefix: `${sku.trim().slice(0, abbr.length)}-${m[1]}`, code: m[1], theme };
+}
+
+// server/src/parent/storeIndex.ts
+var SNAPSHOT_TTL_MS = 10 * 6e4;
+var SNAPSHOT_STALE_MS = 2 * 36e5;
+var SEARCH_CAP = 1e3;
+var PAGE_SIZE2 = "20";
+var MIN_WINDOW_MS = 6e4;
+var EARLIEST = Date.UTC(2015, 0, 1);
+var VALUE_ATTRS = ["color", "size", "style", "size_name", "style_name", "pattern_name", "backing_material", "frame"];
+function toListing(it, abbr) {
+  const s = it?.summaries?.[0] ?? {};
+  const rels = (it?.relationships ?? []).flatMap((g) => g?.relationships ?? []);
+  const childSkus = [...new Set(rels.flatMap((r) => r?.childSkus ?? []).map(String))];
+  const parentSkus = [...new Set(rels.flatMap((r) => r?.parentSkus ?? []).map(String))];
+  const theme = rels.find((r) => r?.type === "VARIATION" && Array.isArray(r?.variationTheme?.attributes))?.variationTheme?.attributes ?? [];
+  const level = attributeValue(it?.attributes, "parentage_level");
+  const kind = level === "parent" ? "parent" : level === "child" ? "child" : childSkus.length || theme.length && !parentSkus.length ? "parent" : parentSkus.length ? "child" : "single";
+  const values = {};
+  for (const a of VALUE_ATTRS) {
+    const v = attributeValue(it?.attributes, a);
+    if (v) values[a] = v;
+  }
+  const sku = String(it?.sku ?? "");
+  return {
+    sku,
+    asin: s.asin ?? null,
+    title: String(s.itemName ?? ""),
+    productType: s.productType ?? null,
+    createdAt: String(s.createdDate ?? ""),
+    status: Array.isArray(s.status) ? s.status.map(String) : [],
+    kind,
+    themeAttributes: theme.map(String),
+    childSkus,
+    parentSkus,
+    values,
+    theme: kind === "parent" ? themeParent(sku, abbr)?.theme ?? "" : ""
+  };
+}
+var LEAF_TARGET = 300;
+var SCAN_CONCURRENCY = 3;
+async function scanStore(client, abbr, signal, now = Date.now(), opts = {}) {
+  const leafTarget = Math.min(opts.leafTarget ?? LEAF_TARGET, SEARCH_CAP - 1);
+  const concurrency = opts.concurrency ?? SCAN_CONCURRENCY;
+  const bySku = /* @__PURE__ */ new Map();
+  let requests = 0;
+  let truncated = false;
+  let failed = false;
+  const q = (w) => w ? { createdAfter: new Date(w.after).toISOString(), createdBefore: new Date(w.before).toISOString() } : {};
+  let active = 0;
+  const waiting = [];
+  const send = async (query) => {
+    if (failed) throw new Error("\u626B\u63CF\u5DF2\u7ECF\u5931\u8D25");
+    while (active >= concurrency) await new Promise((r) => waiting.push(r));
+    active++;
+    requests++;
+    try {
+      return await client.search(query, signal);
+    } catch (e) {
+      failed = true;
+      throw e;
+    } finally {
+      active--;
+      waiting.shift()?.();
+    }
+  };
+  const count = async (w) => Number((await send({ ...q(w), pageSize: "1" }))?.numberOfResults ?? 0);
+  const pageAll = async (w) => {
+    let token;
+    const maxPages = Math.ceil(SEARCH_CAP / Number(PAGE_SIZE2)) + 1;
+    for (let page = 0; page < maxPages; page++) {
+      const query = { ...q(w), includedData: "summaries,relationships,attributes", pageSize: PAGE_SIZE2, sortBy: "createdDate", sortOrder: "ASC" };
+      if (token) query.pageToken = token;
+      const body = await send(query);
+      for (const it of body?.items ?? []) {
+        const l = toListing(it, abbr);
+        if (l.sku) bySku.set(l.sku, l);
+      }
+      token = body?.pagination?.nextToken;
+      if (!token) return;
+    }
+    truncated = true;
+  };
+  const leaves = [];
+  let covered = 0;
+  const split = async (w, n) => {
+    if (n === 0) return;
+    if (n <= leafTarget || w.before - w.after <= MIN_WINDOW_MS) {
+      if (n >= SEARCH_CAP) truncated = true;
+      covered += n;
+      leaves.push(w);
+      return;
+    }
+    const mid = Math.floor((w.after + w.before) / 2);
+    const a = { after: w.after, before: mid };
+    const b = { after: mid, before: w.before };
+    const [na, nb] = await Promise.all([count(a), count(b)]);
+    await Promise.all([split(a, na), split(b, nb)]);
+  };
+  const total = await count(null);
+  if (total <= leafTarget) {
+    leaves.push(null);
+    covered = total;
+  } else await split({ after: EARLIEST, before: now + 864e5 }, total);
+  if (covered < total) {
+    truncated = true;
+    log.warn(`\u626B\u63CF\u5E97\u94FA\u5546\u54C1\uFF1A\u6309\u521B\u5EFA\u65F6\u95F4\u5206\u6BB5\u53EA\u8986\u76D6\u5230 ${covered} / ${total} \u4E2A\uFF08\u6709\u5546\u54C1\u6CA1\u6709\u521B\u5EFA\u65F6\u95F4\u6216\u65E9\u4E8E 2015 \u5E74\uFF09\uFF0C\u5FEB\u7167\u4E0D\u5168`);
+  }
+  let next = 0;
+  const worker = async () => {
+    while (next < leaves.length && !failed) await pageAll(leaves[next++]);
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, leaves.length) }, worker));
+  const items = [...bySku.values()].sort((x2, y) => x2.createdAt.localeCompare(y.createdAt));
+  return { items, truncated, requests };
+}
+var keyOf = (k) => [k.abbr, k.sellerId, k.marketplaceId].join("|");
+var BACKGROUND_RETRY_MS = 6e4;
+var StoreIndex = class {
+  constructor(spapis, keyFor, ttlMs = SNAPSHOT_TTL_MS, now = () => Date.now(), staleMs = SNAPSHOT_STALE_MS) {
+    this.spapis = spapis;
+    this.keyFor = keyFor;
+    this.ttlMs = ttlMs;
+    this.now = now;
+    this.staleMs = staleMs;
+  }
+  spapis;
+  keyFor;
+  ttlMs;
+  now;
+  staleMs;
+  cache = /* @__PURE__ */ new Map();
+  pending = /* @__PURE__ */ new Map();
+  /** 排在正在扫的那次后面的下一次（多个强制重扫共用一次） */
+  queued = /* @__PURE__ */ new Map();
+  /** 店铺删掉、清缓存时加一，扫描结束时代数变了就不写回缓存 */
+  gen = /* @__PURE__ */ new Map();
+  lastFail = /* @__PURE__ */ new Map();
+  /**
+   * 10 分钟内的快照直接用；超过 10 分钟但不到 2 小时的也先用着，同时在后台重扫（第 6 步不用等）；
+   * 没有快照、超过 2 小时、或者 force（「重新扫描」、改专属号查重）时等扫完。
+   * 凭证换了店铺、换了站点、改了缩写，旧快照作废。
+   */
+  async get(storeId, opts = {}) {
+    const key = keyOf(this.keyFor(storeId));
+    const hit = this.cache.get(storeId);
+    const usable = !opts.force && hit && hit.key === key ? hit : null;
+    const age = usable ? this.now() - usable.at : Infinity;
+    if (usable && age < this.ttlMs) return usable.snap;
+    if (usable && age < this.staleMs) {
+      const failedAt = this.lastFail.get(storeId);
+      if (failedAt === void 0 || this.now() - failedAt >= BACKGROUND_RETRY_MS) {
+        void this.refresh(storeId, false).catch((e) => log.warn(`\u540E\u53F0\u91CD\u626B\u5E97\u94FA\u5546\u54C1\u5931\u8D25\uFF1A${e.message}`));
+      }
+      return usable.snap;
+    }
+    return this.refresh(storeId, !!opts.force);
+  }
+  /** 后台先扫一遍（启动时、换店铺时），失败只记日志 */
+  warm(storeId) {
+    void this.get(storeId).catch((e) => log.warn(`\u9884\u5148\u626B\u63CF\u5E97\u94FA\u5546\u54C1\u5931\u8D25\uFF1A${e.message}`));
+  }
+  scanning(storeId) {
+    return this.pending.has(storeId) || this.queued.has(storeId);
+  }
+  refresh(storeId, fresh) {
+    const key = keyOf(this.keyFor(storeId));
+    const cur = this.pending.get(storeId);
+    if (!cur) return this.start(storeId);
+    if (cur.key === key && !fresh) return cur.promise;
+    let q = this.queued.get(storeId);
+    if (!q) {
+      q = cur.promise.catch(() => null).then(() => {
+        this.queued.delete(storeId);
+        return this.pending.get(storeId)?.promise ?? this.start(storeId);
+      });
+      this.queued.set(storeId, q);
+    }
+    return q;
+  }
+  start(storeId) {
+    const k = this.keyFor(storeId);
+    const key = keyOf(k);
+    const gen = this.gen.get(storeId) ?? 0;
+    const promise2 = (async () => {
+      const started = this.now();
+      try {
+        const r = await scanStore(this.spapis.for(storeId), k.abbr);
+        const snap = { storeId, scannedAt: new Date(started).toISOString(), ...r };
+        if ((this.gen.get(storeId) ?? 0) === gen) this.cache.set(storeId, { snap, at: started, key });
+        this.lastFail.delete(storeId);
+        log.info(`\u626B\u63CF\u5E97\u94FA\u5546\u54C1\uFF1A${r.items.length} \u4E2A\uFF0C${r.requests} \u6B21\u8BF7\u6C42${r.truncated ? "\uFF08\u5FEB\u7167\u4E0D\u5168\uFF09" : ""}`);
+        return snap;
+      } catch (e) {
+        this.lastFail.set(storeId, this.now());
+        throw e;
+      } finally {
+        this.pending.delete(storeId);
+      }
+    })();
+    this.pending.set(storeId, { promise: promise2, key });
+    return promise2;
+  }
+  /** 只看缓存，不发请求（发 SKU 查重用，不为它等扫描）；过期的也返回，调用方自己看 scannedAt */
+  peek(storeId) {
+    const hit = this.cache.get(storeId);
+    return hit && hit.key === keyOf(this.keyFor(storeId)) ? hit.snap : null;
+  }
+  /** 店铺删了、测试里清缓存：丢掉缓存；正在扫的那次结束后也不写回 */
+  clear(storeId) {
+    const ids = storeId ? [storeId] : [.../* @__PURE__ */ new Set([...this.cache.keys(), ...this.pending.keys()])];
+    for (const id of ids) {
+      this.cache.delete(id);
+      this.gen.set(id, (this.gen.get(id) ?? 0) + 1);
+    }
+  }
+};
+
+// server/src/ai/errors.ts
+var AiError = class extends Error {
+  constructor(type, message, status, retryAfterSec) {
+    super(cleanMessage(message));
+    this.type = type;
+    this.status = status;
+    this.retryAfterSec = retryAfterSec;
+    this.name = "AiError";
+  }
+  type;
+  status;
+  retryAfterSec;
+};
+var CancelledError = class extends Error {
+  constructor() {
+    super("\u5DF2\u53D6\u6D88");
+    this.name = "CancelledError";
+  }
+};
+var RETRYABLE = /* @__PURE__ */ new Set(["network", "server", "badImage"]);
+function isRetryable(e) {
+  return e instanceof AiError && RETRYABLE.has(e.type);
+}
+function cleanMessage(msg) {
+  const s = redact(String(msg ?? "")).replace(/\s+/g, " ").trim();
+  return s.length > 300 ? s.slice(0, 300) + "\u2026" : s;
+}
+var UNKNOWN_PARAM_WORDS = /unknown|unrecognized|unsupported|not support|invalid|extra/i;
+var PARAM_NAMES = /input_fidelity|quality/;
+var REFUSED_WORDS = /content[_ ]?policy|safety|moderation|rejected|violat|违规|敏感/i;
+function extractErrorText(body) {
+  try {
+    const j = JSON.parse(body);
+    const m = j?.error?.message ?? j?.message ?? j?.error ?? j?.detail;
+    if (typeof m === "string" && m) return m;
+    if (m) return JSON.stringify(m);
+  } catch {
+  }
+  if (/^\s*<(!doctype|html)/i.test(body)) {
+    return "\u54CD\u5E94\u662F\u7F51\u9875\u800C\u4E0D\u662F\u63A5\u53E3\u6570\u636E\uFF08\u53EF\u80FD\u662F\u8BF7\u6C42\u4F53\u8FC7\u5927\u6216\u5730\u5740\u586B\u9519\uFF0C\u88AB\u7F51\u5173\u62E6\u622A\uFF09";
+  }
+  return body;
+}
+function parseRetryAfter(v) {
+  if (!v) return void 0;
+  const n = Number(v);
+  if (Number.isFinite(n) && n >= 0) return n;
+  const t = Date.parse(v);
+  if (!Number.isNaN(t)) return Math.max(0, (t - Date.now()) / 1e3);
+  return void 0;
+}
+function classifyHttp(status, body, retryAfter) {
+  const text = extractErrorText(body);
+  const msg = `HTTP ${status}\uFF1A${text || "(\u65E0\u5185\u5BB9)"}`;
+  if (status === 401 || status === 403) return new AiError("auth", msg, status);
+  if (status === 429) return new AiError("rateLimit", msg, status, parseRetryAfter(retryAfter));
+  if (status >= 500 || status === 408 || status === 425) return new AiError("server", msg, status);
+  if (status === 400 && UNKNOWN_PARAM_WORDS.test(body) && PARAM_NAMES.test(body)) {
+    return new AiError("unknownParam", msg, status);
+  }
+  if ((status === 400 || status === 422) && REFUSED_WORDS.test(body)) return new AiError("refused", msg, status);
+  return new AiError("client", msg, status);
+}
+function classifyThrown(e, timedOut) {
+  if (e instanceof AiError) return e;
+  if (timedOut) return new AiError("network", "\u8BF7\u6C42\u8D85\u65F6");
+  const err2 = e;
+  const detail = err2?.cause?.code || err2?.cause?.message || err2?.message || String(e);
+  return new AiError("network", `\u7F51\u7EDC\u9519\u8BEF\uFF1A${detail}`);
+}
+var ERROR_LABEL = {
+  network: "\u7F51\u7EDC\u9519\u8BEF",
+  server: "\u4E2D\u8F6C\u7AD9\u670D\u52A1\u51FA\u9519",
+  badImage: "\u8FD4\u56DE\u7684\u56FE\u7247\u65E0\u6CD5\u4F7F\u7528",
+  rateLimit: "\u8BF7\u6C42\u592A\u9891\u7E41\u88AB\u9650\u6D41",
+  auth: "Key \u65E0\u6548\u6216\u65E0\u6743\u9650",
+  unknownParam: "\u4E2D\u8F6C\u7AD9\u4E0D\u652F\u6301\u4FDD\u771F\u53C2\u6570",
+  refused: "\u5185\u5BB9\u88AB\u62D2",
+  badOutput: "\u5206\u6790\u7ED3\u679C\u683C\u5F0F\u4E0D\u5BF9",
+  client: "\u8BF7\u6C42\u88AB\u62D2\u7EDD"
+};
+
+// server/src/parent/naming.ts
+var SPLIT = /^(.*?)(\d+)\s*$/;
+function splitValue(v) {
+  const m = SPLIT.exec(v.trim());
+  if (!m) return null;
+  return { prefix: m[1], num: Number(m[2]), width: m[2].length };
+}
+function patternOf(v) {
+  const s = splitValue(v);
+  return s ? s.prefix + "#".repeat(s.width) : v.trim();
+}
+var share = (vals) => vals.length ? vals.filter((v) => splitValue(v)).length / vals.length : 0;
+function chooseAttribute(themeAttrs, valuesByAttr) {
+  const attrs = themeAttrs.length ? themeAttrs : Object.keys(valuesByAttr);
+  let best = attrs[0] ?? "";
+  for (const a of attrs) if (share(valuesByAttr[a] ?? []) > share(valuesByAttr[best] ?? [])) best = a;
+  return best;
+}
+function analyzeNaming(themeAttrs, children) {
+  const valuesByAttr = {};
+  for (const c of children) for (const [k, v] of Object.entries(c)) if (v?.trim()) (valuesByAttr[k] ??= []).push(v.trim());
+  const attribute = chooseAttribute(themeAttrs, valuesByAttr);
+  const existing = valuesByAttr[attribute] ?? [];
+  const map2 = /* @__PURE__ */ new Map();
+  existing.forEach((v, i2) => {
+    const s = splitValue(v);
+    const key = patternOf(v);
+    const g = map2.get(key) ?? { count: 0, max: -1, prefix: s?.prefix ?? v, width: s?.width ?? 0, numbered: !!s, first: i2 };
+    g.count++;
+    if (s) g.max = Math.max(g.max, s.num);
+    map2.set(key, g);
+  });
+  const entries = [...map2.entries()];
+  entries.sort((a, b) => b[1].count - a[1].count || b[1].max - a[1].max || a[1].first - b[1].first);
+  const groups = entries.map(([pattern, g]) => ({ pattern, count: g.count }));
+  const t = entries[0];
+  return {
+    attribute,
+    existing,
+    groups,
+    top: t ? { key: t[0], prefix: t[1].prefix, width: t[1].width, numbered: t[1].numbered, max: t[1].max } : null
+  };
+}
+function nextName(a, taken = []) {
+  const base = { attribute: a.attribute, existing: a.existing, groups: a.groups };
+  if (!a.top) {
+    const n2 = Math.max(1, ...taken.map((x2) => x2 + 1));
+    return { ...base, next: `Design ${String(n2).padStart(2, "0")}`, note: "\u8FD9\u4E2A\u7236\u4F53\u8FD8\u6CA1\u6709\u5B50\u4F53\uFF0C\u6309 Design 01 \u8D77", key: "Design ##", number: n2 };
+  }
+  if (!a.top.numbered) {
+    return { ...base, next: null, note: `\u8FD9\u4E2A\u7236\u4F53\u7684\u547D\u540D\u6CA1\u6709\u7F16\u53F7\uFF0C\u8BF7\u624B\u52A8\u8D77\u540D\uFF08\u73B0\u6709\uFF1A${a.existing.join("\u3001")}\uFF09`, key: null, number: null };
+  }
+  const { prefix, width } = a.top;
+  const lower2 = (s) => s.trim().toLowerCase();
+  const used = new Set(a.existing.map(lower2));
+  let max2 = Math.max(a.top.max, ...taken);
+  for (const v of a.existing) {
+    const s = splitValue(v);
+    if (s && lower2(s.prefix) === lower2(prefix)) max2 = Math.max(max2, s.num);
+  }
+  let n = max2 + 1;
+  const name = (k) => prefix + String(k).padStart(width, "0");
+  while (used.has(lower2(name(n)))) n++;
+  return { ...base, next: name(n), note: null, key: a.top.key, number: n };
+}
+
+// server/src/parent/newParent.ts
+var MAX_BASED_ON = 5;
+var MAX_SAMPLES = 15;
+function splitSku(row) {
+  const sku = row.sku.trim();
+  const theme = row.theme.trim();
+  if (theme && sku.toLowerCase().endsWith(`-${theme.toLowerCase()}`)) {
+    const prefix = sku.slice(0, sku.length - theme.length - 1);
+    if (prefix) return { prefix, theme: sku.slice(prefix.length + 1) };
+  }
+  const i2 = sku.lastIndexOf("-");
+  if (i2 <= 0 || i2 === sku.length - 1) return null;
+  return { prefix: sku.slice(0, i2), theme: sku.slice(i2 + 1) };
+}
+function derivePrefix(rows) {
+  const stat = /* @__PURE__ */ new Map();
+  rows.forEach((r, i2) => {
+    const s = splitSku(r);
+    if (!s) return;
+    const g = stat.get(s.prefix) ?? { count: 0, last: -1, skus: [] };
+    g.count++;
+    g.last = i2;
+    g.skus.push(r.sku);
+    stat.set(s.prefix, g);
+  });
+  let best = null;
+  for (const e of stat) {
+    if (!best || e[1].count > best[1].count || e[1].count === best[1].count && e[1].last > best[1].last) best = e;
+  }
+  if (!best) return null;
+  return { prefix: best[0], basedOn: [...best[1].skus].reverse().slice(0, MAX_BASED_ON) };
+}
+function withCreator(prefix, mark) {
+  const i2 = prefix.lastIndexOf("-");
+  const head = i2 >= 0 ? prefix.slice(0, i2 + 1) : "";
+  const last = (i2 >= 0 ? prefix.slice(i2 + 1) : prefix).replace(/\d+$/, "");
+  return head + last + mark.trim();
+}
+function themeSamples(rows) {
+  const out = [];
+  for (const r of [...rows].reverse()) {
+    const t = splitSku(r)?.theme;
+    if (t && !out.includes(t)) out.push(t);
+    if (out.length >= MAX_SAMPLES) break;
+  }
+  return out;
+}
+function cleanTheme(t) {
+  return t.replace(/[^A-Za-z0-9 ]+/g, " ").trim().split(/\s+/).filter(Boolean).slice(0, 3).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+}
+async function proposeParent(opts) {
+  const base = derivePrefix(opts.rows);
+  if (!base) return { ok: false, reason: "noPrefix" };
+  const prefix = withCreator(base.prefix, opts.creatorMark);
+  const themes = [...new Set(opts.themes.map(cleanTheme).filter(Boolean))];
+  if (!themes.length) return { ok: false, reason: "noThemes" };
+  const inTable = new Set(opts.rows.map((r) => r.sku.trim().toLowerCase()));
+  const queued = new Map(opts.queued.map((s) => [s.toLowerCase(), s]));
+  const tried = [];
+  for (const theme of themes) {
+    const sku = `${prefix}-${theme}`;
+    tried.push(sku);
+    if (inTable.has(sku.toLowerCase())) continue;
+    const shared = queued.get(sku.toLowerCase());
+    if (shared) return { ok: true, proposal: { sku: shared, prefix, theme, basedOn: base.basedOn, themeCandidates: themes } };
+    if (await opts.existsInStore(sku)) continue;
+    return { ok: true, proposal: { sku, prefix, theme, basedOn: base.basedOn, themeCandidates: themes } };
+  }
+  return { ok: false, reason: "taken", tried };
+}
+
+// server/src/parent/match.ts
+var ParentPauseError = class extends Error {
+};
+var NEW_PARENT_NOTE = "\u8FD9\u662F\u5EFA\u8BAE\u65B0\u5EFA\u7684\u7236\u4F53\uFF0C\u98DE\u4E66\u8868\u548C\u5E97\u94FA\u91CC\u90FD\u8FD8\u6CA1\u6709\uFF0C\u9700\u8981\u4F60\u624B\u52A8\u521B\u5EFA";
+function storeForJob(s, _job) {
+  return currentStore(s);
+}
+function storeMissing(s, st) {
+  const miss = [];
+  if (st.parentSource === "feishu") {
+    if (!st.feishu.sheetUrl) miss.push("\u7236\u4F53\u8868\u94FE\u63A5");
+    if (!s.parent.feishu.appId || !s.parent.feishu.appSecret) miss.push("\u98DE\u4E66 App ID / App Secret");
+  }
+  const sp = st.spapi;
+  if (!sp.sellerId || !sp.clientId || !sp.clientSecret || !sp.refreshToken) miss.push("SP-API \u51ED\u8BC1");
+  return miss;
+}
+function parentSkipReason(s, st = currentStore(s)) {
+  if (!s.parent.enabled) return "\u8BC6\u522B\u7236\u4F53\u6CA1\u6709\u6253\u5F00\uFF0C\u53EF\u4EE5\u5728\u8BBE\u7F6E\u91CC\u6253\u5F00";
+  const miss = storeMissing(s, st);
+  if (miss.length) return `\u300C${st.name}\u300D\u8BC6\u522B\u7236\u4F53\u7F3A\uFF1A${miss.join("\u3001")}\u3002\u8865\u9F50\u540E\u5728\u8BE6\u60C5\u91CC\u5BF9\u7B2C 6 \u6B65\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D`;
+  if (st.parentSource === "store") return `\u300C${st.name}\u300D\u4ECE\u5E97\u94FA\u68C0\u7D22\u7236\u4F53\u8FD8\u6CA1\u505A\u597D\uFF0C\u8FD9\u4E00\u6B65\u5148\u8DF3\u8FC7`;
+  return null;
+}
+async function guard(fn) {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof FeishuAuthError || e instanceof SpapiAuthError) throw new ParentPauseError(e.message);
+    if (e instanceof FeishuError) {
+      if (/^(应用没有这张表的权限|飞书应用还没开通|这个链接读不了)/.test(e.message)) {
+        const msg = e.message.startsWith("\u8FD9\u4E2A\u94FE\u63A5") ? e.message : `\u8FD9\u4E2A\u94FE\u63A5\u8BFB\u4E0D\u4E86\uFF1A${e.message}`;
+        throw new ParentPauseError(`${msg}\u3002\u5728\u98DE\u4E66\u91CC\u5904\u7406\u597D\u540E\uFF0C\u5230\u8BBE\u7F6E\u91CC\u70B9\u300C\u8BFB\u4E00\u4E0B\u8BD5\u8BD5\u300D\u5C31\u4F1A\u7EE7\u7EED`);
+      }
+      throw new AiError("network", `\u98DE\u4E66\uFF1A${e.message}`);
+    }
+    if (e instanceof SpapiError) throw new AiError(e.status >= 500 ? "server" : e.status >= 400 ? "client" : "network", `SP-API\uFF1A${e.message}`, e.status || void 0);
+    throw e;
+  }
+}
+function depsFor(env, storeId) {
+  const { spapis, ...rest } = env;
+  return { ...rest, spapi: spapis.for(storeId) };
+}
+function emptyResult(base, status, message) {
+  return { ...base, status, message, sku: null, asin: null, theme: null, confidence: null, reason: null, manual: false, candidates: [], naming: null, proposal: null };
+}
+var lower = (s) => s.trim().toLowerCase();
+function takenNumbers(deps, self, sku, key) {
+  if (!key) return [];
+  const jobs = deps.jobs();
+  const inQueue = new Set(jobs.map((j) => j.id));
+  const fromQueue = jobs.filter((j) => j.id !== self.id && j.parent?.sku && lower(j.parent.sku) === lower(sku) && j.parent.naming?.key === key && j.parent.naming.number !== null).map((j) => j.parent.naming.number);
+  const kept = (deps.reservations?.list(self.outputFolder) ?? []).filter((r) => r.jobId !== self.id && !inQueue.has(r.jobId) && lower(r.sku) === lower(sku) && r.key === key).map((r) => r.number);
+  return [...fromQueue, ...kept];
+}
+var namingOf = (n) => ({
+  attribute: n.attribute,
+  existing: n.existing,
+  groups: n.groups,
+  next: n.next,
+  note: n.note,
+  key: n.key,
+  number: n.number
+});
+async function bindExisting(opts) {
+  const { deps, row } = opts;
+  const listing = await opts.call(() => guard(() => deps.spapi.parent(row.sku, opts.signal)));
+  const common = { ...opts.base, sku: row.sku, asin: row.asin || null, theme: row.theme || null, proposal: null };
+  if (!listing) {
+    const r = { ...common, status: "unsure", message: "\u5E97\u94FA\u91CC\u67E5\u4E0D\u5230\u8FD9\u4E2A\u7236\u4F53 SKU\uFF0C\u68C0\u67E5\u98DE\u4E66\u8868\u91CC\u7684 SKU \u662F\u5426\u5199\u5BF9", naming: null };
+    opts.commit(r);
+    return r;
+  }
+  const kids = await opts.call(() => guard(() => deps.spapi.children(row.sku, listing.themeAttributes, opts.signal)));
+  const analysis = analyzeNaming(listing.themeAttributes, kids.map((k) => k.values));
+  return deps.mutex.run(lower(row.sku), () => {
+    const naming = nextName(analysis, takenNumbers(deps, opts.job, row.sku, analysis.top?.key ?? "Design ##"));
+    const sure = opts.base.manual || (opts.base.confidence ?? 0) >= opts.threshold;
+    const message = !naming.next ? naming.note : sure ? null : `\u628A\u63E1\u53EA\u6709 ${(opts.base.confidence ?? 0).toFixed(2)}\uFF0C\u4F4E\u4E8E ${opts.threshold.toFixed(2)}\uFF0C\u8BF7\u786E\u8BA4`;
+    const r = { ...common, asin: listing.asin ?? common.asin, status: sure && naming.next ? "matched" : "unsure", message, naming: namingOf(naming) };
+    opts.commit(r);
+    return r;
+  });
+}
+async function bindNew(opts) {
+  const { deps } = opts;
+  const queued = [
+    ...deps.jobs().filter((j) => j.id !== opts.job.id && j.parent?.status === "new" && j.parent.proposal).map((j) => j.parent.proposal.sku),
+    // 同一批里已经移出队列、建议过的新父体也共用
+    ...(deps.reservations?.list(opts.job.outputFolder) ?? []).filter((r) => r.jobId !== opts.job.id).map((r) => r.sku)
+  ];
+  const p = await proposeParent({
+    rows: opts.rows,
+    themes: opts.themes,
+    creatorMark: opts.creatorMark,
+    queued,
+    existsInStore: (sku) => opts.call(() => guard(async () => await deps.spapi.parent(sku, opts.signal) !== null))
+  });
+  const common = { ...opts.base, manual: false };
+  if (!p.ok) {
+    const r = p.reason === "noPrefix" ? { ...emptyResult(opts.base, "none", "\u8868\u91CC\u7684\u7236\u4F53 SKU \u770B\u4E0D\u51FA\u547D\u540D\u89C4\u5219\uFF0C\u6CA1\u6CD5\u5EFA\u8BAE\u65B0\u7236\u4F53"), ...common } : p.reason === "noThemes" ? { ...emptyResult(opts.base, "none", "AI \u8BA4\u4E3A\u8868\u91CC\u6CA1\u6709\u5408\u9002\u7684\u7236\u4F53\uFF0C\u4F46\u6CA1\u7ED9\u51FA\u65B0\u4E3B\u9898\uFF1B\u53EF\u4EE5\u624B\u52A8\u9009\u7236\u4F53\uFF0C\u6216\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D"), ...common } : { ...emptyResult(opts.base, "unsure", `\u5EFA\u8BAE\u7684\u7236\u4F53 SKU \u90FD\u5DF2\u5B58\u5728\uFF1A${"tried" in p ? p.tried.join("\u3001") : ""}\uFF0C\u8BF7\u624B\u52A8\u8D77\u540D`), ...common };
+    opts.commit(r);
+    return r;
+  }
+  const prop = p.proposal;
+  return deps.mutex.run(lower(prop.sku), () => {
+    const n = nextName(analyzeNaming([], []), takenNumbers(deps, opts.job, prop.sku, "Design ##"));
+    const r = {
+      ...common,
+      status: "new",
+      message: null,
+      sku: prop.sku,
+      asin: null,
+      theme: prop.theme,
+      proposal: prop,
+      naming: { ...namingOf(n), attribute: "color", note: NEW_PARENT_NOTE }
+    };
+    opts.commit(r);
+    return r;
+  });
+}
+async function shiftNumber(deps, job, delta, commit) {
+  const p = job.parent;
+  const n = p?.naming;
+  if (!p?.sku || !n?.next || !n.key || n.number === null) throw new Error("\u8FD9\u5F20\u56FE\u7684\u53D8\u4F53\u540D\u6CA1\u6709\u7F16\u53F7\uFF0C\u6CA1\u6CD5\u4E0A\u4E0B\u8C03\u6574");
+  const sp = splitValue(n.next);
+  if (!sp) throw new Error("\u8FD9\u5F20\u56FE\u7684\u53D8\u4F53\u540D\u6CA1\u6709\u7F16\u53F7\uFF0C\u6CA1\u6CD5\u4E0A\u4E0B\u8C03\u6574");
+  return deps.mutex.run(lower(p.sku), () => {
+    const used = new Set(takenNumbers(deps, job, p.sku, n.key));
+    for (const v of n.existing) {
+      const s = splitValue(v);
+      if (s && lower(s.prefix) === lower(sp.prefix)) used.add(s.num);
+    }
+    let k = n.number + delta;
+    while (k > 0 && used.has(k)) k += delta;
+    if (k <= 0) throw new Error("\u518D\u5F80\u4E0B\u90FD\u88AB\u5360\u4E86\uFF0C\u6CA1\u6709\u66F4\u5C0F\u7684\u53EF\u7528\u7F16\u53F7");
+    const r = { ...p, naming: { ...n, number: k, next: sp.prefix + String(k).padStart(sp.width, "0") } };
+    commit(r);
+    return r;
+  });
+}
 
 // server/src/util/errors.ts
 var HttpError = class extends Error {
@@ -60538,88 +61144,6 @@ function snapRatio(r) {
   return `${pick2.a}:${pick2.b}`;
 }
 
-// server/src/ai/errors.ts
-var AiError = class extends Error {
-  constructor(type, message, status, retryAfterSec) {
-    super(cleanMessage(message));
-    this.type = type;
-    this.status = status;
-    this.retryAfterSec = retryAfterSec;
-    this.name = "AiError";
-  }
-  type;
-  status;
-  retryAfterSec;
-};
-var CancelledError = class extends Error {
-  constructor() {
-    super("\u5DF2\u53D6\u6D88");
-    this.name = "CancelledError";
-  }
-};
-var RETRYABLE = /* @__PURE__ */ new Set(["network", "server", "badImage"]);
-function isRetryable(e) {
-  return e instanceof AiError && RETRYABLE.has(e.type);
-}
-function cleanMessage(msg) {
-  const s = redact(String(msg ?? "")).replace(/\s+/g, " ").trim();
-  return s.length > 300 ? s.slice(0, 300) + "\u2026" : s;
-}
-var UNKNOWN_PARAM_WORDS = /unknown|unrecognized|unsupported|not support|invalid|extra/i;
-var PARAM_NAMES = /input_fidelity|quality/;
-var REFUSED_WORDS = /content[_ ]?policy|safety|moderation|rejected|violat|违规|敏感/i;
-function extractErrorText(body) {
-  try {
-    const j = JSON.parse(body);
-    const m = j?.error?.message ?? j?.message ?? j?.error ?? j?.detail;
-    if (typeof m === "string" && m) return m;
-    if (m) return JSON.stringify(m);
-  } catch {
-  }
-  if (/^\s*<(!doctype|html)/i.test(body)) {
-    return "\u54CD\u5E94\u662F\u7F51\u9875\u800C\u4E0D\u662F\u63A5\u53E3\u6570\u636E\uFF08\u53EF\u80FD\u662F\u8BF7\u6C42\u4F53\u8FC7\u5927\u6216\u5730\u5740\u586B\u9519\uFF0C\u88AB\u7F51\u5173\u62E6\u622A\uFF09";
-  }
-  return body;
-}
-function parseRetryAfter(v) {
-  if (!v) return void 0;
-  const n = Number(v);
-  if (Number.isFinite(n) && n >= 0) return n;
-  const t = Date.parse(v);
-  if (!Number.isNaN(t)) return Math.max(0, (t - Date.now()) / 1e3);
-  return void 0;
-}
-function classifyHttp(status, body, retryAfter) {
-  const text = extractErrorText(body);
-  const msg = `HTTP ${status}\uFF1A${text || "(\u65E0\u5185\u5BB9)"}`;
-  if (status === 401 || status === 403) return new AiError("auth", msg, status);
-  if (status === 429) return new AiError("rateLimit", msg, status, parseRetryAfter(retryAfter));
-  if (status >= 500 || status === 408 || status === 425) return new AiError("server", msg, status);
-  if (status === 400 && UNKNOWN_PARAM_WORDS.test(body) && PARAM_NAMES.test(body)) {
-    return new AiError("unknownParam", msg, status);
-  }
-  if ((status === 400 || status === 422) && REFUSED_WORDS.test(body)) return new AiError("refused", msg, status);
-  return new AiError("client", msg, status);
-}
-function classifyThrown(e, timedOut) {
-  if (e instanceof AiError) return e;
-  if (timedOut) return new AiError("network", "\u8BF7\u6C42\u8D85\u65F6");
-  const err2 = e;
-  const detail = err2?.cause?.code || err2?.cause?.message || err2?.message || String(e);
-  return new AiError("network", `\u7F51\u7EDC\u9519\u8BEF\uFF1A${detail}`);
-}
-var ERROR_LABEL = {
-  network: "\u7F51\u7EDC\u9519\u8BEF",
-  server: "\u4E2D\u8F6C\u7AD9\u670D\u52A1\u51FA\u9519",
-  badImage: "\u8FD4\u56DE\u7684\u56FE\u7247\u65E0\u6CD5\u4F7F\u7528",
-  rateLimit: "\u8BF7\u6C42\u592A\u9891\u7E41\u88AB\u9650\u6D41",
-  auth: "Key \u65E0\u6548\u6216\u65E0\u6743\u9650",
-  unknownParam: "\u4E2D\u8F6C\u7AD9\u4E0D\u652F\u6301\u4FDD\u771F\u53C2\u6570",
-  refused: "\u5185\u5BB9\u88AB\u62D2",
-  badOutput: "\u5206\u6790\u7ED3\u679C\u683C\u5F0F\u4E0D\u5BF9",
-  client: "\u8BF7\u6C42\u88AB\u62D2\u7EDD"
-};
-
 // server/src/ai/http.ts
 async function request(url2, init, timeoutMs, signal) {
   if (signal?.aborted) throw new CancelledError();
@@ -61049,6 +61573,20 @@ function parseSpapiCredentials(input2) {
 }
 
 // server/src/api/parent.ts
+function summary(snap) {
+  if (!snap) return null;
+  const parents = snap.items.filter((x2) => x2.kind === "parent");
+  const types = /* @__PURE__ */ new Map();
+  for (const x2 of parents) if (x2.productType) types.set(x2.productType, (types.get(x2.productType) ?? 0) + 1);
+  return {
+    scannedAt: snap.scannedAt,
+    items: snap.items.length,
+    parents: parents.length,
+    themed: parents.filter((x2) => x2.theme).length,
+    truncated: snap.truncated,
+    productTypes: [...types].sort((a, b) => b[1] - a[1]).map(([type, count]) => ({ type, count }))
+  };
+}
 async function settle2(fn) {
   try {
     return await fn();
@@ -61083,6 +61621,7 @@ function registerParent(r, ctx) {
     const st = storeOf(req);
     const next = await settle2(() => settings.removeStore(st.id));
     p.spapis.drop(st.id);
+    p.index.clear(st.id);
     ctx.onSettingsSaved();
     log.info(`\u5220\u9664\u5E97\u94FA\u300C${st.name}\u300D`);
     res.json(maskSettings(next));
@@ -61155,6 +61694,19 @@ function registerParent(r, ctx) {
     } catch (e) {
       if (e instanceof FeishuError || e instanceof FeishuAuthError) throw new HttpError(502, e.message);
       throw e;
+    }
+  });
+  r.get("/stores/:id/scan", (req, res) => {
+    const st = storeOf(req);
+    res.json({ scanning: p.index.scanning(st.id), snapshot: summary(p.index.peek(st.id)) });
+  });
+  r.post("/stores/:id/scan", async (req, res) => {
+    const st = storeOf(req);
+    try {
+      const snap = await p.index.get(st.id, { force: true });
+      res.json({ ok: true, snapshot: summary(snap) });
+    } catch (e) {
+      res.json({ ok: false, message: `\u626B\u63CF\u5931\u8D25\uFF1A${e.message}` });
     }
   });
   r.post("/stores/:id/spapi/test", async (req, res) => {
@@ -63190,286 +63742,6 @@ var ParentAnswerSchema = external_exports.object({
   new_themes: external_exports.array(external_exports.unknown()).nullish().transform((a) => (a ?? []).map((x2) => String(x2 ?? "").trim()).filter(Boolean))
 });
 
-// server/src/parent/newParent.ts
-var MAX_BASED_ON = 5;
-var MAX_SAMPLES = 15;
-function splitSku(row) {
-  const sku = row.sku.trim();
-  const theme = row.theme.trim();
-  if (theme && sku.toLowerCase().endsWith(`-${theme.toLowerCase()}`)) {
-    const prefix = sku.slice(0, sku.length - theme.length - 1);
-    if (prefix) return { prefix, theme: sku.slice(prefix.length + 1) };
-  }
-  const i2 = sku.lastIndexOf("-");
-  if (i2 <= 0 || i2 === sku.length - 1) return null;
-  return { prefix: sku.slice(0, i2), theme: sku.slice(i2 + 1) };
-}
-function derivePrefix(rows) {
-  const stat = /* @__PURE__ */ new Map();
-  rows.forEach((r, i2) => {
-    const s = splitSku(r);
-    if (!s) return;
-    const g = stat.get(s.prefix) ?? { count: 0, last: -1, skus: [] };
-    g.count++;
-    g.last = i2;
-    g.skus.push(r.sku);
-    stat.set(s.prefix, g);
-  });
-  let best = null;
-  for (const e of stat) {
-    if (!best || e[1].count > best[1].count || e[1].count === best[1].count && e[1].last > best[1].last) best = e;
-  }
-  if (!best) return null;
-  return { prefix: best[0], basedOn: [...best[1].skus].reverse().slice(0, MAX_BASED_ON) };
-}
-function withCreator(prefix, mark) {
-  const i2 = prefix.lastIndexOf("-");
-  const head = i2 >= 0 ? prefix.slice(0, i2 + 1) : "";
-  const last = (i2 >= 0 ? prefix.slice(i2 + 1) : prefix).replace(/\d+$/, "");
-  return head + last + mark.trim();
-}
-function themeSamples(rows) {
-  const out = [];
-  for (const r of [...rows].reverse()) {
-    const t = splitSku(r)?.theme;
-    if (t && !out.includes(t)) out.push(t);
-    if (out.length >= MAX_SAMPLES) break;
-  }
-  return out;
-}
-function cleanTheme(t) {
-  return t.replace(/[^A-Za-z0-9 ]+/g, " ").trim().split(/\s+/).filter(Boolean).slice(0, 3).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
-}
-async function proposeParent(opts) {
-  const base = derivePrefix(opts.rows);
-  if (!base) return { ok: false, reason: "noPrefix" };
-  const prefix = withCreator(base.prefix, opts.creatorMark);
-  const themes = [...new Set(opts.themes.map(cleanTheme).filter(Boolean))];
-  if (!themes.length) return { ok: false, reason: "noThemes" };
-  const inTable = new Set(opts.rows.map((r) => r.sku.trim().toLowerCase()));
-  const queued = new Map(opts.queued.map((s) => [s.toLowerCase(), s]));
-  const tried = [];
-  for (const theme of themes) {
-    const sku = `${prefix}-${theme}`;
-    tried.push(sku);
-    if (inTable.has(sku.toLowerCase())) continue;
-    const shared = queued.get(sku.toLowerCase());
-    if (shared) return { ok: true, proposal: { sku: shared, prefix, theme, basedOn: base.basedOn, themeCandidates: themes } };
-    if (await opts.existsInStore(sku)) continue;
-    return { ok: true, proposal: { sku, prefix, theme, basedOn: base.basedOn, themeCandidates: themes } };
-  }
-  return { ok: false, reason: "taken", tried };
-}
-
-// server/src/parent/naming.ts
-var SPLIT = /^(.*?)(\d+)\s*$/;
-function splitValue(v) {
-  const m = SPLIT.exec(v.trim());
-  if (!m) return null;
-  return { prefix: m[1], num: Number(m[2]), width: m[2].length };
-}
-function patternOf(v) {
-  const s = splitValue(v);
-  return s ? s.prefix + "#".repeat(s.width) : v.trim();
-}
-var share = (vals) => vals.length ? vals.filter((v) => splitValue(v)).length / vals.length : 0;
-function chooseAttribute(themeAttrs, valuesByAttr) {
-  const attrs = themeAttrs.length ? themeAttrs : Object.keys(valuesByAttr);
-  let best = attrs[0] ?? "";
-  for (const a of attrs) if (share(valuesByAttr[a] ?? []) > share(valuesByAttr[best] ?? [])) best = a;
-  return best;
-}
-function analyzeNaming(themeAttrs, children) {
-  const valuesByAttr = {};
-  for (const c of children) for (const [k, v] of Object.entries(c)) if (v?.trim()) (valuesByAttr[k] ??= []).push(v.trim());
-  const attribute = chooseAttribute(themeAttrs, valuesByAttr);
-  const existing = valuesByAttr[attribute] ?? [];
-  const map2 = /* @__PURE__ */ new Map();
-  existing.forEach((v, i2) => {
-    const s = splitValue(v);
-    const key = patternOf(v);
-    const g = map2.get(key) ?? { count: 0, max: -1, prefix: s?.prefix ?? v, width: s?.width ?? 0, numbered: !!s, first: i2 };
-    g.count++;
-    if (s) g.max = Math.max(g.max, s.num);
-    map2.set(key, g);
-  });
-  const entries = [...map2.entries()];
-  entries.sort((a, b) => b[1].count - a[1].count || b[1].max - a[1].max || a[1].first - b[1].first);
-  const groups = entries.map(([pattern, g]) => ({ pattern, count: g.count }));
-  const t = entries[0];
-  return {
-    attribute,
-    existing,
-    groups,
-    top: t ? { key: t[0], prefix: t[1].prefix, width: t[1].width, numbered: t[1].numbered, max: t[1].max } : null
-  };
-}
-function nextName(a, taken = []) {
-  const base = { attribute: a.attribute, existing: a.existing, groups: a.groups };
-  if (!a.top) {
-    const n2 = Math.max(1, ...taken.map((x2) => x2 + 1));
-    return { ...base, next: `Design ${String(n2).padStart(2, "0")}`, note: "\u8FD9\u4E2A\u7236\u4F53\u8FD8\u6CA1\u6709\u5B50\u4F53\uFF0C\u6309 Design 01 \u8D77", key: "Design ##", number: n2 };
-  }
-  if (!a.top.numbered) {
-    return { ...base, next: null, note: `\u8FD9\u4E2A\u7236\u4F53\u7684\u547D\u540D\u6CA1\u6709\u7F16\u53F7\uFF0C\u8BF7\u624B\u52A8\u8D77\u540D\uFF08\u73B0\u6709\uFF1A${a.existing.join("\u3001")}\uFF09`, key: null, number: null };
-  }
-  const { prefix, width } = a.top;
-  const lower2 = (s) => s.trim().toLowerCase();
-  const used = new Set(a.existing.map(lower2));
-  let max2 = Math.max(a.top.max, ...taken);
-  for (const v of a.existing) {
-    const s = splitValue(v);
-    if (s && lower2(s.prefix) === lower2(prefix)) max2 = Math.max(max2, s.num);
-  }
-  let n = max2 + 1;
-  const name = (k) => prefix + String(k).padStart(width, "0");
-  while (used.has(lower2(name(n)))) n++;
-  return { ...base, next: name(n), note: null, key: a.top.key, number: n };
-}
-
-// server/src/parent/match.ts
-var ParentPauseError = class extends Error {
-};
-var NEW_PARENT_NOTE = "\u8FD9\u662F\u5EFA\u8BAE\u65B0\u5EFA\u7684\u7236\u4F53\uFF0C\u98DE\u4E66\u8868\u548C\u5E97\u94FA\u91CC\u90FD\u8FD8\u6CA1\u6709\uFF0C\u9700\u8981\u4F60\u624B\u52A8\u521B\u5EFA";
-function storeForJob(s, _job) {
-  return currentStore(s);
-}
-function storeMissing(s, st) {
-  const miss = [];
-  if (st.parentSource === "feishu") {
-    if (!st.feishu.sheetUrl) miss.push("\u7236\u4F53\u8868\u94FE\u63A5");
-    if (!s.parent.feishu.appId || !s.parent.feishu.appSecret) miss.push("\u98DE\u4E66 App ID / App Secret");
-  }
-  const sp = st.spapi;
-  if (!sp.sellerId || !sp.clientId || !sp.clientSecret || !sp.refreshToken) miss.push("SP-API \u51ED\u8BC1");
-  return miss;
-}
-function parentSkipReason(s, st = currentStore(s)) {
-  if (!s.parent.enabled) return "\u8BC6\u522B\u7236\u4F53\u6CA1\u6709\u6253\u5F00\uFF0C\u53EF\u4EE5\u5728\u8BBE\u7F6E\u91CC\u6253\u5F00";
-  const miss = storeMissing(s, st);
-  if (miss.length) return `\u300C${st.name}\u300D\u8BC6\u522B\u7236\u4F53\u7F3A\uFF1A${miss.join("\u3001")}\u3002\u8865\u9F50\u540E\u5728\u8BE6\u60C5\u91CC\u5BF9\u7B2C 6 \u6B65\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D`;
-  if (st.parentSource === "store") return `\u300C${st.name}\u300D\u4ECE\u5E97\u94FA\u68C0\u7D22\u7236\u4F53\u8FD8\u6CA1\u505A\u597D\uFF0C\u8FD9\u4E00\u6B65\u5148\u8DF3\u8FC7`;
-  return null;
-}
-async function guard(fn) {
-  try {
-    return await fn();
-  } catch (e) {
-    if (e instanceof FeishuAuthError || e instanceof SpapiAuthError) throw new ParentPauseError(e.message);
-    if (e instanceof FeishuError) {
-      if (/^(应用没有这张表的权限|飞书应用还没开通|这个链接读不了)/.test(e.message)) {
-        const msg = e.message.startsWith("\u8FD9\u4E2A\u94FE\u63A5") ? e.message : `\u8FD9\u4E2A\u94FE\u63A5\u8BFB\u4E0D\u4E86\uFF1A${e.message}`;
-        throw new ParentPauseError(`${msg}\u3002\u5728\u98DE\u4E66\u91CC\u5904\u7406\u597D\u540E\uFF0C\u5230\u8BBE\u7F6E\u91CC\u70B9\u300C\u8BFB\u4E00\u4E0B\u8BD5\u8BD5\u300D\u5C31\u4F1A\u7EE7\u7EED`);
-      }
-      throw new AiError("network", `\u98DE\u4E66\uFF1A${e.message}`);
-    }
-    if (e instanceof SpapiError) throw new AiError(e.status >= 500 ? "server" : e.status >= 400 ? "client" : "network", `SP-API\uFF1A${e.message}`, e.status || void 0);
-    throw e;
-  }
-}
-function depsFor(env, storeId) {
-  const { spapis, ...rest } = env;
-  return { ...rest, spapi: spapis.for(storeId) };
-}
-function emptyResult(base, status, message) {
-  return { ...base, status, message, sku: null, asin: null, theme: null, confidence: null, reason: null, manual: false, candidates: [], naming: null, proposal: null };
-}
-var lower = (s) => s.trim().toLowerCase();
-function takenNumbers(deps, self, sku, key) {
-  if (!key) return [];
-  const jobs = deps.jobs();
-  const inQueue = new Set(jobs.map((j) => j.id));
-  const fromQueue = jobs.filter((j) => j.id !== self.id && j.parent?.sku && lower(j.parent.sku) === lower(sku) && j.parent.naming?.key === key && j.parent.naming.number !== null).map((j) => j.parent.naming.number);
-  const kept = (deps.reservations?.list(self.outputFolder) ?? []).filter((r) => r.jobId !== self.id && !inQueue.has(r.jobId) && lower(r.sku) === lower(sku) && r.key === key).map((r) => r.number);
-  return [...fromQueue, ...kept];
-}
-var namingOf = (n) => ({
-  attribute: n.attribute,
-  existing: n.existing,
-  groups: n.groups,
-  next: n.next,
-  note: n.note,
-  key: n.key,
-  number: n.number
-});
-async function bindExisting(opts) {
-  const { deps, row } = opts;
-  const listing = await opts.call(() => guard(() => deps.spapi.parent(row.sku, opts.signal)));
-  const common = { ...opts.base, sku: row.sku, asin: row.asin || null, theme: row.theme || null, proposal: null };
-  if (!listing) {
-    const r = { ...common, status: "unsure", message: "\u5E97\u94FA\u91CC\u67E5\u4E0D\u5230\u8FD9\u4E2A\u7236\u4F53 SKU\uFF0C\u68C0\u67E5\u98DE\u4E66\u8868\u91CC\u7684 SKU \u662F\u5426\u5199\u5BF9", naming: null };
-    opts.commit(r);
-    return r;
-  }
-  const kids = await opts.call(() => guard(() => deps.spapi.children(row.sku, listing.themeAttributes, opts.signal)));
-  const analysis = analyzeNaming(listing.themeAttributes, kids.map((k) => k.values));
-  return deps.mutex.run(lower(row.sku), () => {
-    const naming = nextName(analysis, takenNumbers(deps, opts.job, row.sku, analysis.top?.key ?? "Design ##"));
-    const sure = opts.base.manual || (opts.base.confidence ?? 0) >= opts.threshold;
-    const message = !naming.next ? naming.note : sure ? null : `\u628A\u63E1\u53EA\u6709 ${(opts.base.confidence ?? 0).toFixed(2)}\uFF0C\u4F4E\u4E8E ${opts.threshold.toFixed(2)}\uFF0C\u8BF7\u786E\u8BA4`;
-    const r = { ...common, asin: listing.asin ?? common.asin, status: sure && naming.next ? "matched" : "unsure", message, naming: namingOf(naming) };
-    opts.commit(r);
-    return r;
-  });
-}
-async function bindNew(opts) {
-  const { deps } = opts;
-  const queued = [
-    ...deps.jobs().filter((j) => j.id !== opts.job.id && j.parent?.status === "new" && j.parent.proposal).map((j) => j.parent.proposal.sku),
-    // 同一批里已经移出队列、建议过的新父体也共用
-    ...(deps.reservations?.list(opts.job.outputFolder) ?? []).filter((r) => r.jobId !== opts.job.id).map((r) => r.sku)
-  ];
-  const p = await proposeParent({
-    rows: opts.rows,
-    themes: opts.themes,
-    creatorMark: opts.creatorMark,
-    queued,
-    existsInStore: (sku) => opts.call(() => guard(async () => await deps.spapi.parent(sku, opts.signal) !== null))
-  });
-  const common = { ...opts.base, manual: false };
-  if (!p.ok) {
-    const r = p.reason === "noPrefix" ? { ...emptyResult(opts.base, "none", "\u8868\u91CC\u7684\u7236\u4F53 SKU \u770B\u4E0D\u51FA\u547D\u540D\u89C4\u5219\uFF0C\u6CA1\u6CD5\u5EFA\u8BAE\u65B0\u7236\u4F53"), ...common } : p.reason === "noThemes" ? { ...emptyResult(opts.base, "none", "AI \u8BA4\u4E3A\u8868\u91CC\u6CA1\u6709\u5408\u9002\u7684\u7236\u4F53\uFF0C\u4F46\u6CA1\u7ED9\u51FA\u65B0\u4E3B\u9898\uFF1B\u53EF\u4EE5\u624B\u52A8\u9009\u7236\u4F53\uFF0C\u6216\u70B9\u300C\u91CD\u65B0\u5339\u914D\u300D"), ...common } : { ...emptyResult(opts.base, "unsure", `\u5EFA\u8BAE\u7684\u7236\u4F53 SKU \u90FD\u5DF2\u5B58\u5728\uFF1A${"tried" in p ? p.tried.join("\u3001") : ""}\uFF0C\u8BF7\u624B\u52A8\u8D77\u540D`), ...common };
-    opts.commit(r);
-    return r;
-  }
-  const prop = p.proposal;
-  return deps.mutex.run(lower(prop.sku), () => {
-    const n = nextName(analyzeNaming([], []), takenNumbers(deps, opts.job, prop.sku, "Design ##"));
-    const r = {
-      ...common,
-      status: "new",
-      message: null,
-      sku: prop.sku,
-      asin: null,
-      theme: prop.theme,
-      proposal: prop,
-      naming: { ...namingOf(n), attribute: "color", note: NEW_PARENT_NOTE }
-    };
-    opts.commit(r);
-    return r;
-  });
-}
-async function shiftNumber(deps, job, delta, commit) {
-  const p = job.parent;
-  const n = p?.naming;
-  if (!p?.sku || !n?.next || !n.key || n.number === null) throw new Error("\u8FD9\u5F20\u56FE\u7684\u53D8\u4F53\u540D\u6CA1\u6709\u7F16\u53F7\uFF0C\u6CA1\u6CD5\u4E0A\u4E0B\u8C03\u6574");
-  const sp = splitValue(n.next);
-  if (!sp) throw new Error("\u8FD9\u5F20\u56FE\u7684\u53D8\u4F53\u540D\u6CA1\u6709\u7F16\u53F7\uFF0C\u6CA1\u6CD5\u4E0A\u4E0B\u8C03\u6574");
-  return deps.mutex.run(lower(p.sku), () => {
-    const used = new Set(takenNumbers(deps, job, p.sku, n.key));
-    for (const v of n.existing) {
-      const s = splitValue(v);
-      if (s && lower(s.prefix) === lower(sp.prefix)) used.add(s.num);
-    }
-    let k = n.number + delta;
-    while (k > 0 && used.has(k)) k += delta;
-    if (k <= 0) throw new Error("\u518D\u5F80\u4E0B\u90FD\u88AB\u5360\u4E86\uFF0C\u6CA1\u6709\u66F4\u5C0F\u7684\u53EF\u7528\u7F16\u53F7");
-    const r = { ...p, naming: { ...n, number: k, next: sp.prefix + String(k).padStart(sp.width, "0") } };
-    commit(r);
-    return r;
-  });
-}
-
 // server/src/pipeline/step5Parent.ts
 var step5Parent = async (ctx) => {
   const settings = ctx.env.settings();
@@ -64377,6 +64649,10 @@ async function createContext(paths) {
   const limiter = new Limiter(() => scheduler?.tick());
   const sheets = new FeishuSheets(settings);
   const spapis = new SpapiPool(settings);
+  const index = new StoreIndex(spapis, (id) => {
+    const st = storeById(settings.get(), id);
+    return { abbr: st?.abbr ?? "", sellerId: st?.spapi.sellerId ?? "", marketplaceId: st?.spapi.marketplaceId ?? "" };
+  });
   scheduler = new Scheduler({
     jobs,
     library,
@@ -64400,7 +64676,7 @@ async function createContext(paths) {
     jobs,
     scheduler: sched,
     batch: new BatchFolders(import_node_path21.default.join(paths.dataDir, "batch.json"), () => resolveOutputDir(settings.get())),
-    parent: { sheets, spapis },
+    parent: { sheets, spapis, index },
     sse: { clients: 0 },
     onSettingsSaved: () => {
     },
@@ -64411,6 +64687,9 @@ async function createContext(paths) {
       if (n) log.info(`\u8BFB\u53D6\u5230 ${n} \u4E2A\u4EFB\u52A1\uFF0C\u4ECE\u65AD\u70B9\u7EE7\u7EED`);
       sched.onLibraryChanged();
       sched.tick();
+      const s = settings.get();
+      const cur = currentStore(s);
+      if (s.parent.enabled && !storeMissing(s, cur).includes("SP-API \u51ED\u8BC1")) index.warm(cur.id);
     },
     stop: async () => {
       sched.stop();

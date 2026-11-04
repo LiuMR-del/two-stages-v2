@@ -8,6 +8,7 @@ import type { Scheduler } from './scheduler/scheduler'
 import type { BatchFolders } from './pipeline/output'
 import type { FeishuSheets } from './parent/feishu'
 import type { SpapiPool } from './parent/spapi'
+import type { StoreIndex } from './parent/storeIndex'
 
 export type AppContext = {
   version: string
@@ -21,7 +22,7 @@ export type AppContext = {
   /** 当前批次的输出文件夹 */
   batch: BatchFolders
   /** 父体匹配：飞书读表（应用身份）、SP-API（每个店铺一个客户端） */
-  parent: { sheets: FeishuSheets; spapis: SpapiPool }
+  parent: { sheets: FeishuSheets; spapis: SpapiPool; index: StoreIndex }
   sse: { clients: number }
   onSettingsSaved: () => void
   /** 监听成功后调用：加载模版库、复位任务、开始调度 */
