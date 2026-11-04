@@ -207,6 +207,14 @@ export class SpapiClient {
     return out
   }
 
+  /** 店铺里有没有这个 SKU（只取概要，404 = 没有）；改专属号逐个查重用，比扫整个店铺快得多 */
+  async exists(sku: string, signal?: AbortSignal): Promise<boolean> {
+    const r = await this.getPatiently(`/listings/2021-08-01/items/${this.seller()}/${encodeURIComponent(sku)}`, { marketplaceIds: this.creds().marketplaceId, includedData: 'summaries' }, signal)
+    if (r.status === 404) return false
+    if (r.status >= 400) throw new SpapiError(`查 SKU 失败：HTTP ${r.status}${r.body?.errors?.[0]?.message ? `，${r.body.errors[0].message}` : ''}`, r.status)
+    return true
+  }
+
   /**
    * 按卖家搜商品的一页（店铺扫描用）：站点自动带上，429 按 Retry-After 等。query 里放 pageSize、pageToken、createdAfter 这些。
    */
