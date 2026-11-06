@@ -21,7 +21,26 @@ function today() {
 const day = ref(today())
 const showParent = computed(() => jobs.withInfo.some((j) => j.parent !== null))
 const showSku = computed(() => jobs.withInfo.some((j) => !!j.sku))
-const cols = computed(() => 4 + (showSku.value ? 1 : 0) + (showParent.value ? 2 : 0))
+const cols = computed(() => 5 + (showSku.value ? 1 : 0) + (showParent.value ? 2 : 0))
+/** 同品类排在一起（品类按第一次出现的先后），品类内按 SKU 从小到大，没 SKU 的保持原顺序排在后面 */
+const rows = computed(() => {
+  const first = new Map<string, number>()
+  jobs.withInfo.forEach((j, i) => {
+    const k = j.route?.categoryId ?? ''
+    if (!first.has(k)) first.set(k, i)
+  })
+  return jobs.withInfo
+    .map((j, i) => ({ j, i }))
+    .sort((a, b) => {
+      const ga = first.get(a.j.route?.categoryId ?? '')!
+      const gb = first.get(b.j.route?.categoryId ?? '')!
+      if (ga !== gb) return ga - gb
+      if (a.j.sku && b.j.sku) return a.j.sku.localeCompare(b.j.sku, undefined, { numeric: true }) || a.i - b.i
+      if (a.j.sku || b.j.sku) return a.j.sku ? -1 : 1
+      return a.i - b.i
+    })
+    .map((x) => x.j)
+})
 const parentLabel: Record<string, string> = { matched: '已匹配', unsure: '待确认', none: '没有合适的父体', new: '建议新建' }
 
 function openMark() {
@@ -97,11 +116,12 @@ async function copy(text: string) {
     <div style="overflow-x: auto">
       <table class="tbl">
         <thead>
-          <tr><th>主图</th><th v-if="showSku">SKU</th><th>场景</th><th>搜索关键词</th><th>可定制项</th><th v-if="showParent">父体</th><th v-if="showParent">下一个变体名</th></tr>
+          <tr><th class="no">序号</th><th>主图</th><th v-if="showSku">SKU</th><th>场景</th><th>搜索关键词</th><th>可定制项</th><th v-if="showParent">父体</th><th v-if="showParent">下一个变体名</th></tr>
         </thead>
         <tbody>
           <tr v-if="!jobs.withInfo.length"><td :colspan="cols" class="none">主图生成后，这里汇总每张图的场景、关键词和可定制项</td></tr>
-          <tr v-for="j in jobs.withInfo" :key="j.id">
+          <tr v-for="(j, n) in rows" :key="j.id">
+            <td class="no">{{ n + 1 }}</td>
             <td>
               <button type="button" class="tile" :aria-label="'查看 ' + j.source.originalName + ' 的主图大图'" title="点击看大图" @click="viewMain(j)">
                 <ImageSlot state="image" :img="jobs.fileUrl(j, 'main')" :size="44" white />
@@ -152,5 +172,6 @@ async function copy(text: string) {
 .mark .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .plan { margin: 0; padding-left: 18px; max-height: 220px; overflow-y: auto; display: grid; gap: 2px; font-size: 12px; }
 .plan .bad .mono { color: var(--rd); }
+.no { width: 1%; white-space: nowrap; text-align: center; font-variant-numeric: tabular-nums; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 </style>
