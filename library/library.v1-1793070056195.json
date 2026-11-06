@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "defaults": {
+    "extractPrompt": "这是一张{品类}商品图。识别商品表面印刷的图案，把它完整提取出来还原成平面设计稿：去掉商品外形、透视、褶皱、光影和背景；图案的构图、文字、颜色保持不变，不重绘、不增删；高清输出，比例 {比例}。",
+    "pastePrompt": "请自动识别商品底图中用于承载图案的表面及其边界，将素材图直接贴满该区域，贴合原有透视，不额外留白边，不超出边界。直接使用原素材，不重绘，不修改文字、图案和排版。底图的商品外形、比例、角度、材质、光影、背景、构图及图片尺寸保持不变，只完成贴图，不做其他改动。"
+  },
+  "categories": [
+    {
+      "id": "c_195kdsgv",
+      "name": "铝板画",
+      "hint": "图案直接印在有金属光泽的薄铝板/铁皮标牌上，无木框、侧边很薄，常被人拿在手里或挂墙展示",
+      "extractPrompt": null,
+      "activeTemplate": "t_57y9vol8",
+      "styles": [
+        {
+          "id": "s_b8s4ibim",
+          "name": "默认",
+          "ratio": "3:2",
+          "whiteImage": "7ffe03d9bd1de9117a5bb9fcde04cab9f31ed75229ff76dbf7c82b298fda8b1d"
+        },
+        {
+          "id": "s_o99svq1h",
+          "name": "圆形",
+          "ratio": "1:1",
+          "whiteImage": "4a28b8bb9e8502134e8944a2b5079988892c66d4f252d86a2c4e109604bced92"
+        }
+      ],
+      "templates": [
+        {
+          "id": "t_57y9vol8",
+          "name": "花园木桩",
+          "prompt": "将上传的设计图分别、依次制作成一张长方形铁皮画展示图，图片比例1:1。完整保留原图的文字、图案、排版和颜色，不要改字、不要重绘内容。画面是一块金属铁皮标牌（标牌比例为3:2），完整展示在一个温馨自然的美式家庭花园场景中，铝板画保持原有外形、尺寸比例、图案、文字、颜色和排版完全不变，不要改字、不要重绘、不要增加或删除任何内容；产品正面朝向镜头，轻微自然透视，使用麻绳悬挂在一根做旧浅棕色木桩上，悬挂方式真实合理，铝板边缘、圆角、安装孔和轻微金属质感清晰可见；背景为阳光明亮的美国郊区庭院花园（根据设计图生成不同的背景），包含柔和虚化的绿色草坪、花园、少量灌木与树木，整体植物自然丰富但不过度拥挤，营造温暖、宁静、治愈、略带乡村复古感的 garden retreat 氛围；采用柔和晨光或午后自然光，背景浅景深和自然散景，产品主体清晰锐利、背景虚化，真实商业摄影质感，不要人物、不要手、不要多余道具、不要墓地感、不要夸张装饰，整体符合美国消费者偏好的 farmhouse garden / cottage garden 美学，高清写实电商场景图，1:1构图，产品占画面主体。",
+          "images": {},
+          "stylePrompts": {},
+          "canvasRatio": "1:1"
+        }
+      ]
+    },
+    {
+      "id": "c_dtdamh2o",
+      "name": "相框",
+      "hint": "帆布画/装框画：图案印在帆布上绷在有厚度的木框上，或装在相框里挂墙",
+      "extractPrompt": null,
+      "activeTemplate": "default",
+      "styles": [
+        {
+          "id": "s_jr34ftjn",
+          "name": "横版",
+          "ratio": "3:2",
+          "whiteImage": "a5a7ee8f3fa7cd95971e84a20b0491034af061b763baf948994c3f3db2445c80"
+        },
+        {
+          "id": "s_bddatq98",
+          "name": "竖版",
+          "ratio": "2:3",
+          "whiteImage": "dea214d023cf3aa2c7a0c586a3e0889159b4f6f5d7e77f53d568097454c32796"
+        }
+      ],
+      "templates": []
+    },
+    {
+      "id": "c_miriehco",
+      "name": "毛毯",
+      "hint": "盖毯/法兰绒毯/挂毯，图案印满整块柔软毯面，常被人举着展示或铺在沙发、床上",
+      "extractPrompt": null,
+      "activeTemplate": "default",
+      "styles": [
+        {
+          "id": "s_hibvpxm1",
+          "name": "",
+          "ratio": "4:5",
+          "whiteImage": "dc25a08ac37050843fb881f5824bf021bf5d0fb0d979c1f2ce989c4f5544c4eb"
+        }
+      ],
+      "templates": []
+    },
+    {
+      "id": "c_3fnyy066",
+      "name": "花园灯",
+      "hint": "",
+      "extractPrompt": null,
+      "activeTemplate": "default",
+      "styles": [
+        {
+          "id": "s_ndskrlbe",
+          "name": "",
+          "ratio": "3:7",
+          "whiteImage": "f34b9e095e2246969eb609065b26b3e05fe3da511261dee3faa423e97a67c65c"
+        }
+      ],
+      "templates": []
+    }
+  ]
+}
