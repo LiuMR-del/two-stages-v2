@@ -157,6 +157,11 @@ describe('提取请求', () => {
     // 2026-10-29：不许把图案往外延伸（毛毯多出半圈格子）；印刷面版本也要有
     for (const c of [EXTRACT_CONSTRAINT, FACE_CONSTRAINT]) expect(c.endsWith(NO_EXTEND)).toBe(true)
     expect(NO_EXTEND).toContain('extra row or column of tiles')
+    // 2026-11-09：缝上去的包边不算图案（毛毯），印出来的边框、锈迹仍保留（铝板画）；品类提示词可以另说
+    for (const c of [EXTRACT_CONSTRAINT, FACE_CONSTRAINT, SCENE_CONSTRAINT]) expect(c).toContain('sewn hem, binding')
+    expect(SCENE_CONSTRAINT).not.toContain('(its hem, binding or cut edge) is the canvas edge')
+    expect(SCENE_CONSTRAINT).toContain('rust are printed and must be kept')
+    expect(SCENE_CONSTRAINT).toContain('If the category instructions below say otherwise, follow them.')
   })
 })
 

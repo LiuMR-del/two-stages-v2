@@ -37451,6 +37451,7 @@ function resolvePaths(overrides = {}) {
     libraryThumbsDir: import_node_path.default.join(libraryDir, "images", "thumbs"),
     libraryBackupsDir: import_node_path.default.join(libraryDir, "backups"),
     libraryFile: import_node_path.default.join(libraryDir, "library.json"),
+    librarySeedFile: import_node_path.default.join(libraryDir, "seed.json"),
     dataDir,
     jobsDir: import_node_path.default.join(dataDir, "jobs"),
     logsDir: import_node_path.default.join(dataDir, "logs"),
@@ -59724,6 +59725,25 @@ async function compositeLocal(white2, pattern) {
 
 // server/src/library/store.ts
 var MAX_BACKUPS = 10;
+function loadSeed(file2) {
+  if (!file2) return null;
+  let raw2;
+  try {
+    raw2 = readJsonSync(file2);
+  } catch {
+    log.error(`\u51FA\u5382\u6A21\u7248 ${file2} \u4E0D\u662F\u5408\u6CD5\u7684 JSON\uFF0C\u8FD9\u6B21\u7528\u7A7A\u6A21\u7248\u5E93\u542F\u52A8`);
+    return null;
+  }
+  if (raw2 === null) return null;
+  const r = LibrarySchema.safeParse(migrateLibrary(raw2));
+  if (!r.success || validateIntegrity(r.data)) {
+    log.error(`\u51FA\u5382\u6A21\u7248 ${file2} \u683C\u5F0F\u4E0D\u5BF9\uFF0C\u8FD9\u6B21\u7528\u7A7A\u6A21\u7248\u5E93\u542F\u52A8`);
+    return null;
+  }
+  upgradeDefaults(r.data);
+  log.info("\u672C\u5730\u8FD8\u6CA1\u6709\u6A21\u7248\u5E93\uFF0C\u5DF2\u6309\u51FA\u5382\u6A21\u7248\u751F\u6210\u4E00\u4EFD");
+  return r.data;
+}
 var LibraryStore = class {
   constructor(p) {
     this.p = p;
@@ -59732,7 +59752,7 @@ var LibraryStore = class {
     this.images = new ImageStore(p.imagesDir, p.thumbsDir);
     const raw2 = readJsonSync(p.file);
     if (raw2 === null) {
-      this.value = initialLibrary();
+      this.value = loadSeed(p.seedFile) ?? initialLibrary();
       import_node_fs7.default.writeFileSync(p.file, JSON.stringify(this.value, null, 2));
     } else {
       const migrated = migrateLibrary(raw2);
@@ -61253,9 +61273,9 @@ function extractPromptFor(lib, cat, style) {
   return fillPlaceholders(raw2, { category: cat.name, style: style.name, ratio: style.ratio });
 }
 var NO_EXTEND = "Never extend, repeat or continue the artwork beyond its original outer edge: do not add an extra row or column of tiles or blocks, an extra ring of border, or partial elements cut off by the canvas edge. Each side must show exactly the same number of border tiles or repeated elements as the original.";
-var EXTRACT_CONSTRAINT = "Extract the whole printed face of the product exactly as it is printed and output it as a flat, front-facing print file. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. The printed face fills the whole canvas edge to edge: its outer edges are the canvas edges. Leave out only the physical product: its thickness and side edges, the cut-away rounded corners, mounting holes and screws, perspective, reflections, shadows and the background; where a hole or screw covers the artwork, continue the surrounding artwork. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. If the printed face's proportions differ slightly from the canvas, fit the whole printed face to the canvas; never crop, squeeze or drop any text, element or border. " + NO_EXTEND;
-var FACE_CONSTRAINT = "The first image is the product's printed face, already cropped out of the competitor photo and flattened. Reproduce it as a clean, flat, front-facing print file that fills the whole canvas edge to edge. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. Remove only what is not printed: thin slivers of background, hands or fingers along the edges, the background showing outside rounded corners, the product's thickness or side edges, mounting holes and screws (continue the surrounding artwork there), reflections, glare and shadows. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge, crop or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. " + NO_EXTEND;
-var SCENE_CONSTRAINT = "The first image is a photo of the product in use: it may be draped over furniture, folded, wrinkled, curved, hanging, held in hands, partly hidden or seen at an angle. Identify the product and reconstruct its complete printed design as a flat, front-facing print file, as if the product were laid perfectly flat and photographed straight on, filling the whole canvas edge to edge; the product's outer edge (its hem, binding or cut edge) is the canvas edge. Undo every distortion: straighten folds, wrinkles, curves and perspective so that straight lines in the design are straight, rows and columns of the layout are aligned and evenly spaced, and every element keeps its natural proportions. Remove everything that is not the printed design: the background, furniture, hands, shadows, lighting, glare and fabric highlights. Rebuild parts that are folded out of view or hidden only by continuing the visible design's own logic (repeat the same border tiles in the same order, continue the same background); never invent new motifs. A border made of tiles or blocks stays exactly one ring: tiles that wrap around an armrest or hang down belong to that same ring, so every side has the same number of tiles as the product really has, all complete, none cut off by the canvas edge, and nothing outside the ring. Keep every text element, letter and number exactly as written and fully legible, keep the main subject in its original position and size within the design, and keep the exact original colors. Do not restyle, simplify, enlarge or add anything.";
+var EXTRACT_CONSTRAINT = "Extract the whole printed face of the product exactly as it is printed and output it as a flat, front-facing print file. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. The printed face fills the whole canvas edge to edge: its outer edges are the canvas edges. Leave out only the physical product: its thickness and side edges, a sewn hem, binding or stitching, the cut-away rounded corners, mounting holes and screws, perspective, reflections, shadows and the background; where a hole or screw covers the artwork, continue the surrounding artwork. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. If the printed face's proportions differ slightly from the canvas, fit the whole printed face to the canvas; never crop, squeeze or drop any text, element or border. " + NO_EXTEND;
+var FACE_CONSTRAINT = "The first image is the product's printed face, already cropped out of the competitor photo and flattened. Reproduce it as a clean, flat, front-facing print file that fills the whole canvas edge to edge. Everything printed on the face is part of the artwork and must be kept, including printed borders and frame lines, distressed or weathered edges, rust, scratches and worn effects near the edges. Remove only what is not printed: thin slivers of background, hands or fingers along the edges, the background showing outside rounded corners, the product's thickness or side edges, a sewn hem, binding or stitching, mounting holes and screws (continue the surrounding artwork there), reflections, glare and shadows. Keep the original layout and composition, and keep every text element, letter and number fully legible in its original position. Do not rearrange, redraw, simplify, enlarge, crop or omit any part of the artwork, and keep every small detail as it is. Preserve the exact original colors, hues and saturation. Do not recolor or restyle. Only improve sharpness, detail and resolution. " + NO_EXTEND;
+var SCENE_CONSTRAINT = "The first image is a photo of the product in use: it may be draped over furniture, folded, wrinkled, curved, hanging, held in hands, partly hidden or seen at an angle. Identify the product and reconstruct its complete printed design as a flat, front-facing print file, as if the product were laid perfectly flat and photographed straight on, filling the whole canvas edge to edge; the outer edge of the printed design is the canvas edge. A sewn hem, binding, overlocked edge or stitching is not printed and is not part of the design, so leave it out; printed borders, frame lines, distressed or weathered edges and rust are printed and must be kept. If the category instructions below say otherwise, follow them. Undo every distortion: straighten folds, wrinkles, curves and perspective so that straight lines in the design are straight, rows and columns of the layout are aligned and evenly spaced, and every element keeps its natural proportions. Remove everything that is not the printed design: the background, furniture, hands, shadows, lighting, glare and fabric highlights. Rebuild parts that are folded out of view or hidden only by continuing the visible design's own logic (repeat the same border tiles in the same order, continue the same background); never invent new motifs. A border made of tiles or blocks stays exactly one ring: tiles that wrap around an armrest or hang down belong to that same ring, so every side has the same number of tiles as the product really has, all complete, none cut off by the canvas edge, and nothing outside the ring. Keep every text element, letter and number exactly as written and fully legible, keep the main subject in its original position and size within the design, and keep the exact original colors. Do not restyle, simplify, enlarge or add anything.";
 function buildExtractRequest(prompt, ratio, mode = "photo") {
   const [w, h] = ratioToWH(ratio);
   const c = exactCanvas(w, h);
@@ -65342,7 +65362,8 @@ async function createContext(paths) {
     file: paths.libraryFile,
     imagesDir: paths.libraryImagesDir,
     thumbsDir: paths.libraryThumbsDir,
-    backupsDir: paths.libraryBackupsDir
+    backupsDir: paths.libraryBackupsDir,
+    seedFile: paths.librarySeedFile
   });
   library.onChange((lib) => bus.emit("library", { library: lib, checks: computeChecks(lib) }));
   const reservations = new Reservations(import_node_path21.default.join(paths.dataDir, "batches"));

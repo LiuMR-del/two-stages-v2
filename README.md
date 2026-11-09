@@ -213,6 +213,10 @@ AI 判断没有合适的父体时，会给出「建议新建」的父体 SKU，�
 
 也可以直接把整个工具文件夹复制给同事。
 
+**用 git 拉更新的同事**（2026-11-09 起）：自己的模版库 `library/library.json` 不进 git，`git pull` 不会覆盖你在页面上改的提示词和品类。仓库里带的是出厂模版 `library/seed.json`，只在本地还没有 `library.json` 时用来生成一份。维护的人想更新出厂模版，运行 `npm run seed`，再把 `library/seed.json` 和 `library/images` 里新加的图一起提交；已经在用的同事要新品类，还是走上面的「导出 / 导入」。
+
+> 第一次拉到这次改动时，如果 `git pull` 提示 `library/library.json` 的本地修改会被覆盖：先把 `library/library.json` 复制到别处，执行 `git checkout -- library/library.json` 后再 `git pull`，最后把复制的那份放回 `library/library.json`。
+
 > ⚠️ **不要把 `data` 文件夹发给别人**：里面存着你的中转站 Key 和任务记录。复制工具文件夹给同事前，先删掉其中的 `data` 文件夹。
 
 ---

@@ -4,3 +4,8 @@ data/
 *.log
 .tmp/
 # 模版库 library/ 2026-11-06 起按用户要求重新收录进 git（仓库公开，模版和白底图会公开）
+# 2026-11-09 起本机模版库 library.json 及其备份不进 git（同事本地改的提示词拉更新时会冲突/被覆盖），
+# 进 git 的是出厂模版 library/seed.json（npm run seed 生成）和 library/images
+library/library.json
+library/library.*.json
+library/backups/

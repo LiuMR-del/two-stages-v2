@@ -11,6 +11,7 @@ export type Paths = {
   libraryThumbsDir: string
   libraryBackupsDir: string
   libraryFile: string
+  librarySeedFile: string
   dataDir: string
   jobsDir: string
   logsDir: string
@@ -60,6 +61,7 @@ export function resolvePaths(overrides: Partial<{ toolDir: string; libraryDir: s
     libraryThumbsDir: path.join(libraryDir, 'images', 'thumbs'),
     libraryBackupsDir: path.join(libraryDir, 'backups'),
     libraryFile: path.join(libraryDir, 'library.json'),
+    librarySeedFile: path.join(libraryDir, 'seed.json'),
     dataDir,
     jobsDir: path.join(dataDir, 'jobs'),
     logsDir: path.join(dataDir, 'logs'),

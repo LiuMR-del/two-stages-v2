@@ -13,7 +13,8 @@
     "start": "node dist/server.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && vue-tsc -p web/tsconfig.json --noEmit",
     "test": "vitest run",
-    "mock": "tsx scripts/mock-relay.ts"
+    "mock": "tsx scripts/mock-relay.ts",
+    "seed": "node scripts/update-seed.mjs"
   },
   "dependencies": {
     "sharp": "^0.35.5"

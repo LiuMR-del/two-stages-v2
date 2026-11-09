@@ -3,7 +3,7 @@ import { startInProcess, type Api } from '../inprocess'
 import fs from 'node:fs'
 import path from 'node:path'
 import { png, rmDir, tmpDir } from '../helpers'
-import { LibrarySchema, migrateLibrary, validateIntegrity } from '../../server/src/library/schema'
+import { initialLibrary, LibrarySchema, migrateLibrary, validateIntegrity } from '../../server/src/library/schema'
 import { LibraryStore } from '../../server/src/library/store'
 import { startMockRelay, type MockRelay } from '../../scripts/mock-relay'
 import { snapRatio } from '../../server/src/prompts/ratio'
@@ -64,6 +64,42 @@ describe('旧版模版库（模版挂在品类上、各款式共用）升级', (
       expect(store.get().version).toBe(2)
       expect(JSON.parse(fs.readFileSync(file, 'utf8')).version).toBe(2)
       expect(fs.readdirSync(dir).some((f) => f.startsWith('library.v1-'))).toBe(true)
+    } finally {
+      rmDir(dir)
+    }
+  })
+
+  // 2026-11-09：library.json 不进 git，新装时按出厂模版 seed.json 生成；本地已有的不动
+  it('本地没有模版库时按出厂模版生成，已有的不被出厂模版覆盖', () => {
+    const dir = tmpDir()
+    try {
+      const file = path.join(dir, 'library.json')
+      const seedFile = path.join(dir, 'seed.json')
+      const paths = { file, seedFile, imagesDir: path.join(dir, 'images'), thumbsDir: path.join(dir, 'thumbs'), backupsDir: path.join(dir, 'backups') }
+      const seed = initialLibrary()
+      seed.defaults.extractPrompt = '出厂提取'
+      fs.writeFileSync(seedFile, JSON.stringify(seed))
+      expect(new LibraryStore(paths).get().defaults.extractPrompt).toBe('出厂提取')
+      expect(JSON.parse(fs.readFileSync(file, 'utf8')).defaults.extractPrompt).toBe('出厂提取')
+
+      const mine = initialLibrary()
+      mine.defaults.extractPrompt = '我改过的'
+      fs.writeFileSync(file, JSON.stringify(mine))
+      seed.defaults.extractPrompt = '出厂新版'
+      fs.writeFileSync(seedFile, JSON.stringify(seed))
+      expect(new LibraryStore(paths).get().defaults.extractPrompt).toBe('我改过的')
+    } finally {
+      rmDir(dir)
+    }
+  })
+
+  it('出厂模版坏了就用空模版库启动', () => {
+    const dir = tmpDir()
+    try {
+      const seedFile = path.join(dir, 'seed.json')
+      fs.writeFileSync(seedFile, '{坏的')
+      const store = new LibraryStore({ file: path.join(dir, 'library.json'), seedFile, imagesDir: path.join(dir, 'images'), thumbsDir: path.join(dir, 'thumbs'), backupsDir: path.join(dir, 'backups') })
+      expect(store.get().categories).toEqual([])
     } finally {
       rmDir(dir)
     }

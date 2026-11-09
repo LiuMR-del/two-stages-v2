@@ -45,6 +45,7 @@ export async function createContext(paths: Paths): Promise<AppContext> {
     imagesDir: paths.libraryImagesDir,
     thumbsDir: paths.libraryThumbsDir,
     backupsDir: paths.libraryBackupsDir,
+    seedFile: paths.librarySeedFile,
   })
   library.onChange((lib) => bus.emit('library', { library: lib, checks: computeChecks(lib) }))
   // 每批分出去的变体号记在 data/batches 里，图移出队列后还占着

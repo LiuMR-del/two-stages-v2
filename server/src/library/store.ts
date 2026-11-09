@@ -10,9 +10,34 @@ import { detectWhiteShape } from '../image/whiteShape'
 import { newCategoryId, newStyleId, newTemplateId } from '../util/ids'
 import { ratioToWH } from '../prompts/canvas'
 
-export type LibraryPaths = { file: string; imagesDir: string; thumbsDir: string; backupsDir: string }
+/** seedFile：出厂模版（进 git）。本地还没有 library.json 时用它生成一份；本地已有的永远不动 */
+export type LibraryPaths = { file: string; imagesDir: string; thumbsDir: string; backupsDir: string; seedFile?: string }
 
 const MAX_BACKUPS = 10
+
+/**
+ * 2026-11-09：library.json 不再进 git（同事在页面上改的提示词，拉更新时会冲突或被覆盖），改为进 git 的是出厂模版 seed.json。
+ * 出厂模版读不到或格式不对就用空模版库，不影响启动。
+ */
+function loadSeed(file: string | undefined): Library | null {
+  if (!file) return null
+  let raw: unknown
+  try {
+    raw = readJsonSync(file)
+  } catch {
+    log.error(`出厂模版 ${file} 不是合法的 JSON，这次用空模版库启动`)
+    return null
+  }
+  if (raw === null) return null
+  const r = LibrarySchema.safeParse(migrateLibrary(raw))
+  if (!r.success || validateIntegrity(r.data)) {
+    log.error(`出厂模版 ${file} 格式不对，这次用空模版库启动`)
+    return null
+  }
+  upgradeDefaults(r.data)
+  log.info('本地还没有模版库，已按出厂模版生成一份')
+  return r.data
+}
 
 export class LibraryStore {
   private value: Library
@@ -27,7 +52,7 @@ export class LibraryStore {
     this.images = new ImageStore(p.imagesDir, p.thumbsDir)
     const raw = readJsonSync(p.file)
     if (raw === null) {
-      this.value = initialLibrary()
+      this.value = loadSeed(p.seedFile) ?? initialLibrary()
       fs.writeFileSync(p.file, JSON.stringify(this.value, null, 2))
     } else {
       const migrated = migrateLibrary(raw)
