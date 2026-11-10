@@ -2,12 +2,13 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { ToastLevel } from '../types'
 
-export type WorkTab = 'queue' | 'attention' | 'info'
+/** 工作台的一排标签：未完成 / 需处理 / 已完成 / 识别信息 */
+export type WorkTab = 'todo' | 'attention' | 'done' | 'info'
 /** 看大图：给了 step 的图，大图里可以跳到这一步的详情 */
 export type ViewerItem = { src: string; label: string; step?: number }
 
 export const useUi = defineStore('ui', () => {
-  const workTab = ref<WorkTab>('queue')
+  const workTab = ref<WorkTab>('todo')
   /** redo 为 true 时打开详情就展开「重做这一步」 */
   const sheet = ref<null | { jobId: string; step: number; redo?: boolean }>(null)
   const settingsOpen = ref(false)

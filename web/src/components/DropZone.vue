@@ -25,7 +25,7 @@ async function send(files: File[]) {
 }
 
 function report(added: number, errors: { name: string; error: string }[], skipped = 0) {
-  ui.workTab = 'queue'
+  ui.workTab = 'todo'
   let msg = `已加入 ${added} 张，排在队尾`
   if (errors.length) msg += `；${errors.length} 张没加进去：${errors.map((e) => `${e.name}（${e.error}）`).join('、')}`
   if (skipped) msg += `；跳过 ${skipped} 个非图片文件`

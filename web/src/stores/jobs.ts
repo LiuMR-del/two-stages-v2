@@ -37,7 +37,9 @@ export const useJobs = defineStore('jobs', () => {
   const all = computed(() => Object.values(byId.value).sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : 1)))
   const queued = computed(() => all.value.filter((j) => !j.attention))
   const attention = computed(() => all.value.filter((j) => j.attention))
+  /** 需处理的图不会是完成状态，所以 队列 = 未完成 + 已完成 */
   const finished = computed(() => all.value.filter((j) => j.view.phase === 'done'))
+  const unfinished = computed(() => queued.value.filter((j) => j.view.phase !== 'done'))
   const withInfo = computed(() => all.value.filter((j) => j.info && j.steps[3]!.state === 'done'))
   const runningCount = computed(() => all.value.filter((j) => j.view.phase === 'running').length)
 
@@ -108,6 +110,7 @@ export const useJobs = defineStore('jobs', () => {
     queued,
     attention,
     finished,
+    unfinished,
     withInfo,
     runningCount,
     batch,
